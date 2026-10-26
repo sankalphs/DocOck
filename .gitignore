@@ -1,0 +1,65 @@
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# --- Node / Next.js ---------------------------------------------------------
+node_modules/
+.pnpm-store/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Secrets & local config -------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# --- Runtime state (fault controller working copies, logs, snapshots) -------
+runtime/*
+!runtime/.gitkeep
+logs/
+data/
+*.log
+
+# --- Upstream demo checkout (pinned via scripts/bootstrap-demo.ps1) ---------
+opentelemetry-demo/
+infra/otel-demo/
+
+# --- Docker -----------------------------------------------------------------
+# Docker Desktop data root if it is ever pointed inside the repo (the initial
+# commit accidentally tracked a multi-GB vhdx here).
+.docker-data/
+
+# --- Generated / scratch ----------------------------------------------------
+compose-resolved.json
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editors ----------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
