@@ -177,10 +177,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/faults/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Schema-driven fault catalog
+         * @description One definition per v1 fault, including the declared flagd variants and the JSON Schema for POST /api/faults. The dashboard generates its forms from this response.
+         */
+        get: operations["fault_catalog_api_faults_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/faults/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Append-only fault audit trail */
+        get: operations["fault_audit_api_faults_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/faults/reset-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Panic reset: revert every open fault and reset flag drift */
+        post: operations["reset_all_api_faults_reset_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/faults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List faults, newest first */
+        get: operations["list_faults_api_faults_get"];
+        put?: never;
+        /**
+         * Inject a fault (or dry-run one)
+         * @description Validates against the catalog, enforces the demo-project label and name allowlist, injects, writes the pre-image, and emits `fault.injected`. Application faults start as PROPAGATING until the service observes the flag; infrastructure faults are ACTIVE after read-back.
+         */
+        post: operations["inject_fault_api_faults_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/faults/{fault_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One fault */
+        get: operations["get_fault_api_faults__fault_id__get"];
+        put?: never;
+        post?: never;
+        /** Revert a fault (idempotent, verified by read-back) */
+        delete: operations["revert_fault_api_faults__fault_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuditEntry */
+        AuditEntry: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at?: string;
+            /** Actor */
+            actor: string;
+            /** Action */
+            action: string;
+            /** Fault Row Id */
+            fault_row_id?: number | null;
+            /** Fault Id */
+            fault_id?: string | null;
+            /** Target */
+            target?: string | null;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** ContainerInfo */
         ContainerInfo: {
             /** Name */
@@ -251,6 +377,170 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** FaultCatalog */
+        FaultCatalog: {
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
+            /** Defaults */
+            defaults: {
+                [key: string]: unknown;
+            };
+            /** Limits */
+            limits: {
+                [key: string]: unknown;
+            };
+            /** Targets */
+            targets: string[];
+            /** Faults */
+            faults: components["schemas"]["FaultDefinition"][];
+            /** Json Schema */
+            json_schema: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * FaultCategory
+         * @enum {string}
+         */
+        FaultCategory: "application" | "infrastructure";
+        /** FaultDefinition */
+        FaultDefinition: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            category: components["schemas"]["FaultCategory"];
+            mechanism: components["schemas"]["Mechanism"];
+            /** Target */
+            target: string;
+            /**
+             * Target Mode
+             * @default fixed
+             * @enum {string}
+             */
+            target_mode: "fixed" | "choice";
+            /** Targets */
+            targets?: string[];
+            /** Flag */
+            flag?: string | null;
+            /** Variants */
+            variants?: string[];
+            /** Params */
+            params?: components["schemas"]["ParamSpec"][];
+            /**
+             * Default Ttl S
+             * @default 900
+             */
+            default_ttl_s: number;
+            /**
+             * Risk
+             * @default low
+             * @enum {string}
+             */
+            risk: "low" | "medium";
+            symptom: components["schemas"]["SymptomSpec"];
+            /**
+             * Reversible
+             * @default true
+             */
+            reversible: boolean;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+        };
+        /** FaultList */
+        FaultList: {
+            /** Items */
+            items: components["schemas"]["FaultView"][];
+            /** Total */
+            total: number;
+            /** Open */
+            open: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /** FaultRequest */
+        FaultRequest: {
+            /** Fault Id */
+            fault_id: string;
+            /** Target */
+            target?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** Ttl S */
+            ttl_s?: number | null;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /**
+             * Actor
+             * @default operator
+             */
+            actor: string;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * FaultStatus
+         * @enum {string}
+         */
+        FaultStatus: "PROPAGATING" | "ACTIVE" | "REVERTING" | "REVERTED" | "EXPIRED" | "FAILED";
+        /** FaultView */
+        FaultView: {
+            /** Id */
+            id: number;
+            /** Fault Id */
+            fault_id: string;
+            /** Label */
+            label: string;
+            category: components["schemas"]["FaultCategory"];
+            mechanism: components["schemas"]["Mechanism"];
+            /** Target */
+            target: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            status: components["schemas"]["FaultStatus"];
+            /** Actor */
+            actor: string;
+            /** Risk */
+            risk: string;
+            /**
+             * Injected At
+             * Format: date-time
+             */
+            injected_at: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Reset At */
+            reset_at: string | null;
+            /** Ttl Remaining S */
+            ttl_remaining_s: number | null;
+            symptom: components["schemas"]["SymptomSpec"];
+            /** Observed */
+            observed?: {
+                [key: string]: unknown;
+            } | null;
+            /** Injection Ref */
+            injection_ref?: {
+                [key: string]: unknown;
+            };
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -278,6 +568,16 @@ export interface components {
             uptime_s: number;
             /** Dependencies */
             dependencies: components["schemas"]["DependencyProbe"][];
+        };
+        /** InjectionResult */
+        InjectionResult: {
+            /** Dry Run */
+            dry_run: boolean;
+            fault?: components["schemas"]["FaultView"] | null;
+            /** Plan */
+            plan?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** LogRecord */
         LogRecord: {
@@ -318,6 +618,11 @@ export interface components {
             /** Records */
             records?: components["schemas"]["LogRecord"][];
         };
+        /**
+         * Mechanism
+         * @enum {string}
+         */
+        Mechanism: "flagd" | "container_stop" | "container_pause" | "network_partition" | "resource_limit" | "load_spike";
         /** MetricPoint */
         MetricPoint: {
             /**
@@ -379,6 +684,57 @@ export interface components {
             dimension: "service" | "container";
             /** Default Window */
             default_window: string;
+        };
+        /**
+         * ParamKind
+         * @enum {string}
+         */
+        ParamKind: "variant" | "number" | "enum";
+        /** ParamSpec */
+        ParamSpec: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            kind: components["schemas"]["ParamKind"];
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /** Default */
+            default?: unknown;
+            /** Choices */
+            choices?: string[];
+            /** Minimum */
+            minimum?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /** ResetReport */
+        ResetReport: {
+            /** Reverted */
+            reverted: components["schemas"]["FaultView"][];
+            /** Failed */
+            failed: {
+                [key: string]: unknown;
+            }[];
+            /** Flag Drift */
+            flag_drift: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** ServiceInfo */
         ServiceInfo: {
@@ -470,6 +826,37 @@ export interface components {
             attributes?: {
                 [key: string]: string;
             };
+        };
+        /**
+         * SymptomSpec
+         * @description What proves a fault has reached the service.
+         *
+         *     `threshold` is absolute; `baseline_multiplier` is relative to the reading
+         *     captured immediately before injection.
+         */
+        SymptomSpec: {
+            /**
+             * Probe
+             * @enum {string}
+             */
+            probe: "error_rate" | "p95_latency" | "throughput" | "container_memory" | "container_running" | "container_paused" | "container_health" | "network_attached" | "cpu_limit" | "memory_limit" | "load_users";
+            /** Service */
+            service: string;
+            /**
+             * Comparator
+             * @default >
+             * @enum {string}
+             */
+            comparator: ">" | ">=" | "<" | "<=";
+            /** Threshold */
+            threshold?: number | null;
+            /** Baseline Multiplier */
+            baseline_multiplier?: number | null;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
         };
         /** TraceDetail */
         TraceDetail: {
@@ -867,6 +1254,217 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContainerInfo"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fault_catalog_api_faults_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaultCatalog"];
+                };
+            };
+        };
+    };
+    fault_audit_api_faults_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_all_api_faults_reset_all_post: {
+        parameters: {
+            query?: {
+                actor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_faults_api_faults_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "open" | "closed" | "PROPAGATING" | "ACTIVE" | "REVERTED" | "EXPIRED" | "FAILED";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaultList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inject_fault_api_faults_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FaultRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InjectionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_fault_api_faults__fault_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fault_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaultView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revert_fault_api_faults__fault_id__delete: {
+        parameters: {
+            query?: {
+                actor?: string;
+            };
+            header?: never;
+            path: {
+                fault_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaultView"];
                 };
             };
             /** @description Validation Error */

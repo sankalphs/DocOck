@@ -19,6 +19,7 @@ from app.config import settings
 from app.db.session import dispose_engine
 from app.errors import register_error_handlers
 from app.events.bus import bus
+from app.faults.runtime import FaultRuntime
 from app.logging import configure_logging, get_logger
 from app.middleware import RequestContextMiddleware
 from app.telemetry.http import close_shared_clients
@@ -51,9 +52,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         "system.ready",
         {"version": __version__, "environment": settings.environment},
     )
+    runtime = FaultRuntime()
+    await runtime.start()
     try:
         yield
     finally:
+        await runtime.stop()
         await dispose_engine()
         await close_shared_clients()
         log.info("api_stop")

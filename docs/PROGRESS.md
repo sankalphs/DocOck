@@ -14,7 +14,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P3 | Dashboard shell | DONE | `9db0dd3` |
 | P4 | Telemetry adapters | DONE | `c23726f` |
 | P5 | Overview + Telemetry UI | DONE | `4f644b9` |
-| P6 | Fault controller | TODO | — |
+| P6 | Fault controller | DONE | pending |
 | P7 | Fault Lab UI | TODO | — |
 | P8 | Incident engine + detection | TODO | — |
 | P9 | Deterministic analysis + evidence | TODO | — |
@@ -259,4 +259,64 @@ Fixes discovered during the phase:
    errors, 15 s median at the load generator) after hours of load. A
    `down.ps1` + `up.ps1 -SkipPull` cycle restored a clean baseline: every
    service at 0 % error, 25/25 containers healthy.
+
+### P6 — 2026-10-24
+
+- `scripts\check.ps1` exits 0: API ruff/mypy/**93 tests**, dashboard
+  eslint/**27 vitest tests**/`next build` (13 routes).
+- **Catalog**: `GET /api/faults/catalog` returns 19 definitions
+  (13 application + 6 infrastructure), the declared variant sets from
+  `runtime/flagd/demo.flagd.json`, per-fault params with min/max, the
+  `SymptomSpec`, and the `FaultRequest` JSON Schema. `POST /api/faults`
+  validates against the same objects; `variant: "37%"` → 422
+  `invalid_variant`, `cpus: 8` → 422, unknown fault → 404.
+- **Safety**: `POST /api/faults {"fault_id":"service_down","target":"postgres"}`
+  → **403 `unsafe_target`** with the allowlist and **no fault row written**.
+  Unit tests also pin the label check (a container with
+  `com.docker.compose.project=other-project` → 403), a non-demo network → 403,
+  and the detached-container exception used only for a partition revert.
+- **Every v1 fault injects and reverts** (`scripts/verify-faults.py`,
+  **134/134 checks**): each of the 19 faults is injected, read back, reverted,
+  and reverted a second time (idempotent). Flag faults start `PROPAGATING`,
+  infra faults are `ACTIVE` after read-back. Measured:
+  - `payment_failure` (100 %) → `PROPAGATING` → **ACTIVE in 25 s**
+    (`payment error_rate=0.5`, baseline 0) → revert → OFREP `off` in 1.7 s;
+  - TTL watchdog: `cart_failure` with `ttl_s=20` → **EXPIRED at 24.2 s**, flag
+    `off`;
+  - `service_down`/`service_freeze`/`network_partition` on `quote` each
+    reverted to a read-back-verified state (running / unpaused / reattached
+    with its aliases);
+  - `load_spike` 8 users → 5 restored; `memory_pressure` 200 MB → 250 MB
+    restored; `cpu_pressure` 0.5 → NCPU restored.
+- **API kill mid-fault** (`scripts\fault-kill-test.ps1`): injected
+  `payment_failure` (TTL 45 s), killed the API process (OFREP still read 100 %),
+  waited 55 s with the API down, restarted it → startup reconciliation marked
+  the fault `EXPIRED` and wrote `off`; then `cart_failure` (TTL 300 s) survived
+  a kill/restart as `PROPAGATING` and reverted normally. Final state: 0 open
+  faults, `health=ok`.
+- Audit trail: `runtime/audit/faults.jsonl` contains the before/after image,
+  actor and outcome for every inject/observe/revert (213 entries after the
+  run); `GET /api/faults/audit` serves the same records.
+- `scripts/health.ps1` after the run: all services healthy; every catalog flag
+  reads `off`.
+
+Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
+
+1. `docker update --cpus 0` is a **no-op** — the Engine keeps the previous
+   `NanoCPUs`. The revert now sets the cap to `docker info` NCPU (24) and
+   records `cpu_reset: host-cores (24)`; the verification asserts that value.
+2. `cartFailure` only fails `EmptyCart` (`CartService.cs:82`), which the load
+   generator rarely calls. A 100 % injection produced no measurable cart
+   symptom in 60 s, so the fault can legitimately stay `PROPAGATING`; the
+   catalog note says so and P9 will use `readiness_failure` for the cart
+   scenario.
+3. Rapid consecutive flag writes (the 19-fault sweep) make the demo's SDK
+   clients back off: a payment injection right after the sweep took >150 s to
+   show. Waiting 20 s before the propagation check restored the 25 s figure.
+   The controller itself is unaffected; the scenarios in P9 space their
+   injections.
+4. `paymentUnreachable` is enforced in checkout (`badAddress:50051`), so the
+   fault targets payment but its symptom is observed on checkout.
+   `imageSlowLoad` is enforced in the frontend (`x-envoy-fault-delay-request`),
+   so its target is frontend rather than the PLAN's image-provider.
 

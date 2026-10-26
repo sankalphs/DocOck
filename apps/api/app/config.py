@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     flagd_url: str = "http://127.0.0.1:8013"
     flagd_ofrep_url: str = "http://127.0.0.1:8016"
     demo_compose_project: str = "docock-demo"
+    demo_network: str = "opentelemetry-demo"
+    load_generator_url: str = "http://127.0.0.1:8089"
 
     # --- HTTP client / cache behaviour --------------------------------------
     http_timeout_s: float = 8.0
@@ -89,6 +91,13 @@ class Settings(BaseSettings):
     # --- Faults -------------------------------------------------------------
     fault_default_ttl_s: int = 900
     fault_max_ttl_s: int = 3600
+    fault_audit_file: Path = ROOT_DIR / "runtime" / "audit" / "faults.jsonl"
+    fault_probe_window: str = "2m"
+    fault_observer_interval_s: float = 5.0
+    fault_watchdog_interval_s: float = 2.0
+    fault_watchdog_enabled: bool = True
+    fault_revert_timeout_s: float = 30.0
+    flagd_flags_file: Path = ROOT_DIR / "runtime" / "flagd" / "demo.flagd.json"
 
     @property
     def jaeger_api_url(self) -> str:

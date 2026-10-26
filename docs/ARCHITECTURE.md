@@ -111,6 +111,74 @@ supplies restart count, OOM flag, limits, networks, start time.
 The same label is the fault-controller boundary in P6: a container that is not
 in `docock-demo` is never a target.
 
+## Fault controller (P6)
+
+`app/faults/` owns every write. The catalog (`catalog.py`) declares each fault's
+mechanism, target, params and **symptom**; the API validates against it and the
+dashboard generates its forms from the same response.
+
+### The safety boundary
+
+A target must pass all four checks, in this order, before any mutation:
+
+1. name ∈ the catalog allowlist (checked without touching Docker),
+2. a container labelled `com.docker.compose.project=docock-demo` exists for it,
+3. its `com.docker.compose.service` label equals the requested name,
+4. it is attached to exactly one network, and that network is
+   `opentelemetry-demo`.
+
+Failure is a `403 unsafe_target` with the allowlist in `details`. The catalog
+allowlist deliberately excludes our Postgres, flagd, the collector, Prometheus,
+Jaeger, OpenSearch, Grafana and the demo's database: stopping any of them would
+blind or break the lab rather than inject a service fault.
+
+### Status semantics
+
+| Status | Meaning |
+|---|---|
+| `PROPAGATING` | flagd is written and OFREP confirms it; the service has not shown the symptom yet (the demo's SDK clients take 30–75 s) |
+| `ACTIVE` | mechanism confirmed: for direct mechanisms the container/load-gen read-back; for flagd the first observed symptom |
+| `REVERTED` / `EXPIRED` / `FAILED` | terminal |
+
+Direct mechanisms (stop, pause, partition, limits, load) are `ACTIVE`
+immediately after read-back because the state change *is* the observation.
+Only flagd needs the propagating phase, which is why the UI must not claim the
+service changed when OFREP does.
+
+### Write protocol and crash safety
+
+The `faults` row is inserted **before** the side effect, with a pre-image that is
+sufficient to revert it (flag variant, container state, network + aliases,
+limits, locust users). Consequences:
+
+- a crash between insert and write leaves a row whose injection is absent;
+  startup reconciliation marks it `REVERTED` without a command;
+- a crash after the write leaves a row whose pre-image is durable; the watchdog
+  reverts it at expiry, even if the API was down for the whole window
+  (`scripts/fault-kill-test.ps1` proves both);
+- every write is serialised behind one asyncio lock, so two operators cannot
+  interleave a flag write.
+
+`runtime/audit/faults.jsonl` is the durable audit trail (actor, action,
+before/after, outcome). The database row is the queryable copy.
+
+### Verified behaviours that shaped the code
+
+- **`docker update --cpus 0` does not clear a CPU limit.** The Engine keeps the
+  old `NanoCPUs`. Reverting a container that had no limit therefore sets the cap
+  to `docker info` NCPU (24 here), which is the effective unlimited value for
+  one container. The revert records `cpu_reset: host-cores (24)`.
+- **`cartFailure` only fails `EmptyCart`** (`src/cart/src/services/CartService.cs:82`).
+  The load generator rarely calls it, so that fault can stay `PROPAGATING` for
+  its whole TTL; the catalog notes say so. The P9 cart scenario uses
+  `readiness_failure` instead.
+- **`paymentUnreachable` is evaluated by checkout**, which dials
+  `badAddress:50051`; payment never receives the call. The fault targets
+  payment but its symptom is observed on checkout.
+- **`imageSlowLoad` is evaluated by the frontend** (`ProductCard.tsx` sets
+  `x-envoy-fault-delay-request`), so its target is frontend, not image-provider
+  as PLAN §8 listed.
+
 ## Caching and timeouts
 
 - One `TTLCache` per adapter (5–10 s), with single-flight loading.

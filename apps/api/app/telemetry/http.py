@@ -62,6 +62,7 @@ class AsyncHttpClient:
         *,
         params: dict[str, Any] | None = None,
         json: Any | None = None,
+        data: Any | None = None,
         headers: dict[str, str] | None = None,
         retries: int | None = None,
     ) -> httpx.Response:
@@ -75,7 +76,7 @@ class AsyncHttpClient:
             ):
                 with attempt:
                     response = await self._client.request(
-                        method, url, params=params, json=json, headers=headers
+                        method, url, params=params, json=json, data=data, headers=headers
                     )
                     if response.status_code in RETRYABLE_STATUS:
                         raise RetryableStatus(response.status_code, str(response.url))
@@ -120,6 +121,19 @@ class AsyncHttpClient:
     ) -> Any:
         response = await self.request("POST", url, json=json, params=params, retries=retries)
         _raise_for_status(response)
+        return response.json()
+
+    async def post_form(
+        self,
+        url: str,
+        *,
+        data: dict[str, Any],
+        retries: int | None = None,
+    ) -> Any:
+        response = await self.request("POST", url, data=data, retries=retries)
+        _raise_for_status(response)
+        if not response.content:
+            return {}
         return response.json()
 
 
