@@ -11,7 +11,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P0 | Repo skeleton, tooling, API health, bootstrap script | DONE | `2fd8062` |
 | P1 | Compose layering, ports, pgvector, up/down/reset, health | DONE | `b0efae0` |
 | P2 | API skeleton + DB + migrations | DONE | `f5840f0` |
-| P3 | Dashboard shell | DONE | `PENDING` |
+| P3 | Dashboard shell | DONE | `9db0dd3` |
 | P4 | Telemetry adapters | TODO | — |
 | P5 | Overview + Telemetry UI | TODO | — |
 | P6 | Fault controller | TODO | — |
