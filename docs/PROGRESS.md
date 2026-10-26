@@ -19,7 +19,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P8 | Incident engine + detection | DONE | `6f6d69d` |
 | P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
 | P10 | Model gateway + embeddings | DONE | `75227b0` |
-| P11 | Agent orchestrator | DONE | (this commit) |
+| P11 | Agent orchestrator | DONE | a2cd0de |
 | P12 | Memory + retrieval | TODO | — |
 | P13 | Agent UI | TODO | — |
 | P14 | Remediation + approval | TODO | — |
