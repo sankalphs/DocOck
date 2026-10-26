@@ -9,7 +9,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | Phase | Scope | Status | Commit |
 |---|---|---|---|
 | P0 | Repo skeleton, tooling, API health, bootstrap script | DONE | `2fd8062` |
-| P1 | Compose layering, ports, pgvector, up/down/reset, health | DONE | `8cd6277` |
+| P1 | Compose layering, ports, pgvector, up/down/reset, health | DONE | `b0efae0` |
 | P2 | API skeleton + DB + migrations | TODO | — |
 | P3 | Dashboard shell | TODO | — |
 | P4 | Telemetry adapters | TODO | — |
