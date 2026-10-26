@@ -21,7 +21,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P10 | Model gateway + embeddings | DONE | `75227b0` |
 | P11 | Agent orchestrator | DONE | a2cd0de |
 | P12 | Memory + retrieval | DONE | 8484efa |
-| P13 | Agent UI | DONE | (this commit) |
+| P13 | Agent UI | DONE | b418fa9 |
 | P14 | Remediation + approval | TODO | — |
 | P15 | Verification + reports | TODO | — |
 | P16 | Hardening + evaluation | TODO | — |
