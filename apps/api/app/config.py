@@ -89,6 +89,11 @@ class Settings(BaseSettings):
     detector_window: str = "2m"
     detector_baseline_window_s: int = 900
     detector_consecutive_breaches: int = 3
+    # Latency needs a longer debounce than errors: this demo's healthy p95 is
+    # bimodal (checkout sits at ~20 ms median but hits the 15 s top bucket for a
+    # minute at a time), so a 3-sample debounce opens false incidents. A real
+    # slowdown lasts minutes; 9 samples is 90 s of a sustained breach.
+    detector_latency_breaches: int = 9
     detector_recovery_samples: int = 4
     detector_min_errors: int = 2
     detector_warmup_s: int = 300
@@ -97,6 +102,17 @@ class Settings(BaseSettings):
     detector_latency_multiplier: float = 2.0
     detector_latency_floor_ms: float = 500.0
     detector_cooldown_s: int = 300
+
+    # --- Analysis (P9) ------------------------------------------------------
+    analysis_pre_s: int = 300
+    analysis_max_traces: int = 25
+    analysis_max_logs_per_service: int = 100
+    suspect_weight_error_origin: float = 0.30
+    suspect_weight_onset: float = 0.20
+    suspect_weight_local_ratio: float = 0.20
+    suspect_weight_latency: float = 0.10
+    suspect_weight_throughput: float = 0.10
+    suspect_weight_container: float = 0.10
 
     # --- Faults -------------------------------------------------------------
     fault_default_ttl_s: int = 900

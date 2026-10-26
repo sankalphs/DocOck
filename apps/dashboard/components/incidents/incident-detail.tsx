@@ -6,7 +6,7 @@ import { Activity, ArrowRight, Check, Clock, RefreshCw, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { IncidentDetail } from "@/lib/api/incidents";
+import { suspectSignals, type IncidentDetail } from "@/lib/api/incidents";
 import { eventBadge, severityBadge, statusBadge } from "@/components/incidents/badges";
 import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -29,12 +29,16 @@ function payloadSummary(payload: Record<string, unknown>): string {
 export function IncidentDetailPanel({
   incident,
   busy,
+  analyzing,
   onClose,
+  onAnalyze,
   onRefresh,
 }: {
   incident: IncidentDetail;
   busy: boolean;
+  analyzing: boolean;
   onClose: () => void;
+  onAnalyze: () => void;
   onRefresh: () => void;
 }) {
   const [confirmClose, setConfirmClose] = useState(false);
@@ -87,6 +91,10 @@ export function IncidentDetailPanel({
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onRefresh} title="Refresh">
               <RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
+            </Button>
+            <Button variant="default" size="sm" onClick={onAnalyze} disabled={analyzing}>
+              <Activity className={cn("size-3.5", analyzing && "animate-pulse")} />
+              {analyzing ? "Analyzing…" : "Analyze"}
             </Button>
             {!terminal ? (
               confirmClose ? (
@@ -219,7 +227,8 @@ export function IncidentDetailPanel({
             <div>
               <CardTitle>Evidence</CardTitle>
               <CardDescription>
-                Stable E### codes created by the analysis engine. Empty until P9 runs.
+                Stable E#### codes from the deterministic analysis. Re-running adds only new
+                observations.
               </CardDescription>
             </div>
             <Badge variant="outline">{incident.evidence.length}</Badge>
@@ -246,7 +255,7 @@ export function IncidentDetailPanel({
               </ul>
             ) : (
               <p className="text-xs text-muted-foreground">
-                No evidence rows yet. P9 attaches metric anomalies, onset ordering, error origin,
+                No evidence yet. Analyze attaches metric anomalies, onset ordering, error origin,
                 log templates, container/flag state, and topology.
               </p>
             )}
@@ -258,7 +267,7 @@ export function IncidentDetailPanel({
             <div>
               <CardTitle>Suspects</CardTitle>
               <CardDescription>
-                Deterministic ranking with machine-readable signals (P9).
+                Deterministic ranking; each row lists the signals that contributed.
               </CardDescription>
             </div>
             <Badge variant="outline">{incident.suspects.length}</Badge>
@@ -279,16 +288,30 @@ export function IncidentDetailPanel({
                         style={{ width: `${Math.round(suspect.score * 100)}%` }}
                       />
                     </div>
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                      {JSON.stringify(suspect.signals)}
-                    </p>
+                    <ul className="mt-1 space-y-0.5">
+                      {suspectSignals(suspect.signals)
+                        .filter((signal) => signal.contribution > 0)
+                        .map((signal) => (
+                          <li
+                            key={signal.name}
+                            className="flex items-baseline gap-2 text-[10px] text-muted-foreground"
+                            title={`value ${signal.value} x weight ${signal.weight}`}
+                          >
+                            <span className="w-28 shrink-0 font-mono">{signal.name}</span>
+                            <span className="tabular w-10 shrink-0 text-right text-foreground">
+                              +{signal.contribution.toFixed(3)}
+                            </span>
+                            <span className="truncate">{signal.detail}</span>
+                          </li>
+                        ))}
+                    </ul>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="text-xs text-muted-foreground">
-                No ranking yet. P9 scores error origin, onset, error ratio, latency, throughput,
-                and container state against per-service baselines.
+                No ranking yet. Analyze scores error origin, onset, error ratio, latency,
+                throughput, and container state against per-service baselines.
               </p>
             )}
           </CardContent>

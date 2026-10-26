@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLive } from "@/components/live-provider";
 import {
+  analyzeIncident,
   closeIncident,
   fetchIncident,
   fetchIncidents,
@@ -74,6 +75,7 @@ export function IncidentExplorer() {
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const listFetcher = useCallback(
@@ -107,6 +109,21 @@ export function IncidentExplorer() {
       setActionError(exc instanceof Error ? exc.message : "Close failed");
     } finally {
       setClosing(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!selected) return;
+    setAnalyzing(true);
+    setActionError(null);
+    try {
+      await analyzeIncident(selected);
+      list.refresh();
+      detail.refresh();
+    } catch (exc) {
+      setActionError(exc instanceof Error ? exc.message : "Analysis failed");
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -207,7 +224,9 @@ export function IncidentExplorer() {
           <IncidentDetailPanel
             incident={detail.data}
             busy={closing}
+            analyzing={analyzing}
             onClose={handleClose}
+            onAnalyze={handleAnalyze}
             onRefresh={detail.refresh}
           />
         ) : (

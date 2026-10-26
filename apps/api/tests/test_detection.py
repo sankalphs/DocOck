@@ -15,8 +15,10 @@ from app.detection.thresholds import (
     latency_threshold,
     severity_for_error,
     severity_for_latency,
+    silence_breach,
     throughput_breach,
     throughput_threshold,
+    window_seconds,
     worst_severity,
 )
 
@@ -31,6 +33,7 @@ def _rules(**overrides: float | int | str) -> Thresholds:
         "latency_floor_ms": 500.0,
         "min_errors": 2.0,
         "consecutive": 3,
+        "latency_breaches": 9,
         "recovery_samples": 4,
         "cooldown_s": 300,
         "interval_s": 10,
@@ -168,3 +171,26 @@ def test_debounce_needs_three_consecutive_samples() -> None:
 def test_infrastructure_pseudo_services_are_excluded() -> None:
     assert {"flagd", "flagd-ui", "load-generator"} <= EXCLUDED_SERVICES
     assert "payment" not in EXCLUDED_SERVICES
+
+
+def test_silence_needs_a_baseline_that_expects_traffic() -> None:
+    window = window_seconds("2m")
+    assert window == 120
+    # cart: ~5 spans/s -> ~600 expected in 2 minutes, none arrived.
+    assert silence_breach(0.0, 5.0, window)
+    # One span in the window is not silence.
+    assert not silence_breach(1 / 120, 5.0, window)
+    # payment/email (~0.1-0.2/s) see healthy 90 s gaps between order bursts.
+    assert not silence_breach(0.0, 0.18, window)
+    # No reading or no baseline: nothing to compare.
+    assert not silence_breach(None, 5.0, window)
+    assert not silence_breach(0.0, None, window)
+
+
+def test_a_running_container_with_no_network_is_a_breach() -> None:
+    assert container_breach(state="running", paused=False, health="healthy", networks=[])
+    assert not container_breach(
+        state="running", paused=False, health="healthy", networks=["docock-demo_default"]
+    )
+    # Not inspected is not the same as detached.
+    assert not container_breach(state="running", paused=False, health="healthy", networks=None)

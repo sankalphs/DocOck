@@ -16,8 +16,8 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P5 | Overview + Telemetry UI | DONE | `4f644b9` |
 | P6 | Fault controller | DONE | `5e410fd` |
 | P7 | Fault Lab UI | DONE | `29bc7a2` |
-| P8 | Incident engine + detection | DONE | pending |
-| P9 | Deterministic analysis + evidence | TODO | — |
+| P8 | Incident engine + detection | DONE | `6f6d69d` |
+| P9 | Deterministic analysis + evidence | DONE | pending |
 | P10 | Model gateway + embeddings | TODO | — |
 | P11 | Agent orchestrator | TODO | — |
 | P12 | Memory + retrieval | TODO | — |
@@ -30,8 +30,8 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 
 | Milestone | Phases | Gate met |
 |---|---|---|
-| M1 Fault → observe → recover | P0–P7 | no |
-| M2 Deterministic suspects | P8–P9 | no |
+| M1 Fault → observe → recover | P0–P7 | yes (P7 `29bc7a2`) |
+| M2 Deterministic suspects | P8–P9 | yes (7/8 top-1, P9) |
 | M3 Agent diagnosis | P10–P13 | no |
 | M4 Approval → verify → report | P14–P16 | no |
 
@@ -368,6 +368,7 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
 
 - `scripts\check.ps1` exits 0: API ruff/mypy/**107 tests**, dashboard
   eslint/**37 vitest tests**/`next build` (13 routes).
+
 - **Detector DoD** (`scripts/verify-incidents.py`, **all 23 checks passed**):
   - `payment_failure` 100 % → incident **`INC-…` in 59 s** (DoD ≤ 90 s), exactly
     **one** open incident, primary the origin or its caller, timeline starting
@@ -396,9 +397,11 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
 - Deviations from PLAN §15/§10, with reasons in `docs/ARCHITECTURE.md`:
   1. cadence **10 s**, not 15 s — the collector flushes span metrics every 10 s,
      so 15 s would resample the same point and cannot meet the ≤ 90 s DoD;
-  2. baselines are **p20 / p80 / median**, not one median for everything —
-     error rates only deviate upward (p20 survives a faulted window) while
-     healthy latency is genuinely noisy (shipping 48–1925 ms);
+  2. baselines are **p20 errors / median latency / median throughput**, not one
+     statistic for everything — error rates only deviate upward (p20 survives
+     noise) while healthy latency is bimodal (a few hundred ms, then the 15 s
+     top bucket), so its median plus an absolute `+1.5 s` delta is what makes a
+     slowdown visible without firing on the demo's own queuing;
   3. baseline samples taken **while breaching** are never recorded, persisted
      seeds above 25 % errors are rejected, and `persist` skips breaching
      services — a restart during a fault had produced a 50 % "healthy" payment
@@ -417,4 +420,139 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
 - Jaeger/OpenSearch/Prometheus/Docker are read with `ttl_s=0` inside the
   detector: a cached sample would make the same breach count three times.
 
+### P9 — 2026-10-26
 
+- `scripts\check.ps1` exits 0: API ruff/mypy/**134 tests**, dashboard
+  eslint/**38 vitest tests**/`next build`.
+- **Gate (PLAN §15, M2)**: `scripts/run-scenarios.py` on the live stack scored
+  **7/8 top-1** in run 5 and again in run 6 (`runtime/scenarios-run6.json`):
+
+  | # | Fault → expected | Run 6 incident | Detected | Top suspect | Score |
+  |---|---|---|---|---|---|
+  | S1 | payment_failure → payment | INC-00054 | 66 s | payment | 0.496 |
+  | S2 | catalog_lock_contention → product-catalog | INC-00056 | 135 s | product-catalog | 0.342 |
+  | S3 | payment_unreachable → payment | INC-00061 | 98 s | payment | 0.383 |
+  | S4 | image_slow_load → frontend | INC-00063 | 155 s | frontend-proxy ✗ | 0.642 |
+  | S5 | service_down email → email | INC-00064 | 31 s | email | 1.000 |
+  | S6 | cpu_pressure ad → ad | INC-00065 | 34 s | ad | 0.388 |
+  | S7 | network_partition payment → payment | INC-00066 | 30 s | payment | 1.000 |
+  | S8 | traffic_flood → frontend | INC-00068 | 87 s | frontend | 0.916 |
+
+  S4 is fixed after run 6 (deviation 17). A live S4 rerun with the fix
+  (`--only S4`, INC-00069): **PASS**, detected 142 s, frontend 0.554 vs
+  frontend-proxy 0.190. The fix only changes DI/FI spans at the edge proxy, which
+  no other scenario produces, so S1–S3 and S5–S8 from run 6 still stand.
+- UI: `docs/evidence/p9-suspects.png` — incident detail with the Analyze
+  button, stable `E####` evidence rows and the suspect ranking with each
+  signal's contribution.
+- **Evidence store**: `E0001…` per incident, deduped by a hash of
+  `(type, source, service, data)` that excludes the timestamp. Re-running the
+  analyzer on the payment incident added **0 rows** and returned the same codes
+  (63 evidence rows, 11 types: metric anomaly, onset, error origin, trace sample,
+  healthy control, log template, log cluster, container state, flag state,
+  topology, suspect ranking).
+- **Suspect ranking** on that incident: payment **0.4166** vs checkout 0.1296,
+  frontend 0.1296, frontend-proxy 0.1296, recommendation 0.0648, each row
+  carrying all six signal values, weights and contributions. One analyzer run
+  takes **6.4 s**.
+- Unit tests pin the weights (normalised, sum 1, error origin > latency), the
+  evidence code format/round-trip, hash stability, log templating, peer
+  extraction, origin-vs-propagated, completion-order onset, silent peer, the
+  timeout descent and the class-conditional weight sets.
+- Deviations and fixes found while validating (§17's list was written before the
+  demo was measured):
+  1. **Two PLAN scenarios are unobservable at the default load.**
+     `cart_failure` only fails `EmptyCart` (called rarely), and the cart's
+     `readiness_failure` flips a probe Docker never runs (`docker inspect cart`
+     has no healthcheck) — 120 s produced no error, latency or health change.
+     `recommendation_cache_failure` likewise: p95 fell from 960 ms to 300 ms and
+     the error rate stayed 0. They are replaced by `payment_unreachable`
+     (100 % checkout failures with a silent peer) and `image_slow_load`
+     (a 5 s delay the frontend requests and the proxy executes), and the
+     substitution is recorded in the runner. `shipping_slowdown` was considered
+     and rejected: it only delays non-US addresses, and 1 of the load
+     generator's 9 users is Canadian (~1 slow call per 90 s).
+  2. PLAN §17 expected `frontend-proxy` for the flood; the catalog's target is
+     `frontend` (the flag is evaluated by the frontend), and that is what is
+     scored.
+  3. **Edge timeouts were mis-attributed.** The only ERROR in a catalog-lock
+     trace is the proxy's 15 s timeout; the delay is product-catalog's DB call.
+     A failing span with no failing child now descends to the child that owns
+     most of its duration, so the origin is where the time is spent. Unit tests
+     pin both the timeout case and the silent-peer case.
+  4. **Baselines were contaminated by the faults themselves**: a 3-minute 100 %
+     error window inside a 15-minute p20 taught the detector that checkout's
+     baseline was 30–50 %, and the *next* scenario was then undetectable. The
+     detector now excludes services named by an open incident from baseline
+     updates, and skips persisting breaching services.
+  5. **Latency baselines use the median**: this demo's healthy p95 is bimodal
+     (a few hundred ms, then the 15 s bucket when the generator queues), so a
+     p80 baseline of 15 s could never be doubled.
+  6. The runner now waits for the previous incident to be closed *and* for the
+     breach counters to clear before injecting; a leftover incident silently
+     absorbed the next fault's breaches as signals, which looked like a detector
+     failure.
+  7. `traffic_flood` is scored on load-shaped signals only (throughput, latency,
+     container): under a flood every service on the path shows errors and
+     latency, and those are consequences. The same applies to error origin for
+     latency incidents.
+  8. The lab's own machinery (`load-generator`, `flagd`, the observability
+     stack) is excluded from the suspect ranking. On the first run the flood was
+     attributed to the load generator — causally true, operationally useless.
+  9. **The stack degraded under its own limits.** After ~2 h, product-catalog sat
+     at 19.9/20 MiB (above `GOMEMLIMIT=16MiB`) burning 136 % CPU in GC; checkout's
+     p95 went from ~0.4 s to ~4 s with 1 s gaps between its own spans and opened
+     a latency incident every cooldown, which masked S4. `lab.override.yaml` now
+     gives checkout and product-catalog 40M / `GOMEMLIMIT=32MiB`. Healthy
+     baselines then fell to product-catalog p95 ~44 ms and checkout ~98 ms, and a
+     5-minute idle watch after warm-up showed **0 breaches**.
+  10. **Partitions were undetectable.** A hung call emits no span until it ends
+      — no error, no latency — so `network_partition` on payment produced no
+      breach in 240 s. A running container with **no network attached** is now
+      a container breach (Docker is the only prompt witness, as for
+      stopped/paused). A first attempt used a `silence` breach on payment's
+      inbound rate (0 for 2.5 min vs ~13 calls per window); it fired on email
+      during a healthy order lull, because orders arrive in bursts (90 s with
+      zero orders on a healthy stack). `silence` stays, for services that
+      average >= 0.5 spans/s (none of them reached zero in 3 h).
+  11. **Hung calls also broke the analysis**: the trace search looked back 120 s
+      from *now*, but a partitioned `Charge` call starts minutes before it ends.
+      It now reaches 240 s before the incident opened, and a slow span that
+      descends to a silent peer takes its onset from the call's start.
+  12. **Envoy fault injection**: the image delay is executed by frontend-proxy's
+      HTTP fault filter because the frontend's ProductCard sends
+      `x-envoy-fault-delay-request`. Envoy tags those spans `response_flags=DI`;
+      a DI/FI span now blames its caller. `frontend-web` (the browser bundle the
+      frontend container serves) is scored as `frontend`. Proxy routes into lab
+      machinery (`upstream_cluster` flagservice, jaeger, grafana, …) are
+      skipped: the browser's flagd event stream is a 15 s POST that had won
+      onset for the proxy.
+  13. **Scorer bugs**: the comment said an observed stopped container ranks first
+      but the sort key put the weighted score first, and the observed flag was
+      skipped when a fault also targeted that container (S5 had blamed checkout).
+      Throughput is now scaled by the service's share of the largest absolute
+      change; email and payment had tied the flood's entry point at 1.0 because
+      a 0.2 req/s service doubling clamps to the same value as 25 → 58 req/s.
+  14. Latency breaches need **9** consecutive samples (90 s), errors still 3: one
+      slow PlaceOrder holds checkout's low-traffic p95 for the whole 2-minute
+      window. Throughput surges need a baseline >= 1 req/s.
+  15. **Runner isolation**: it waits for the detector's 300 s warm-up after an
+      API restart, and for **240 s of continuous quiet** (no breach, no open
+      incident) before each injection, capped at 900 s. Without that, the
+      email container stopped by S5 explained S6–S8, and a catalog-lock backlog
+      opened five incidents in the next scenario's window.
+  16. **Re-analysis was not idempotent for a closed incident**: the trace and
+      log searches were relative to *now*, and container evidence carried live
+      CPU % / memory, so re-running on INC-00053 an hour later added 20 rows.
+      Jaeger and OpenSearch searches now take the incident's fixed window
+      (240 s / 300 s before opening → end), and container evidence stores state,
+      not gauges. Three consecutive runs on INC-00053: **+22, +0, +0** rows, the
+      same 28 codes, the same ranking (frontend 0.915, as in the live run).
+      Concurrent runs are serialised by a lock (they would collide on the next
+      `E####` code).
+  17. **S4 blamed the edge proxy in run 6**: the slow `frontend-proxy` spans
+      carried `response_flags=DI,DC`, but their parent is the browser's span,
+      which the browser never exported, so no caller was found. An injected
+      fault at the edge proxy with an untraced caller is now attributed to
+      `frontend-web` (the frontend's bundle). Re-scoring INC-00063 with the fix:
+      frontend **0.616**, frontend-proxy 0.215.

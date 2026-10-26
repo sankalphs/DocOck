@@ -20,7 +20,7 @@ uses `match_phrase`, not a term query.
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.config import settings
@@ -104,10 +104,15 @@ class LogsAdapter:
         trace_id: str | None,
         lookback_s: int,
         limit: int,
+        start: datetime | None = None,
+        end: datetime | None = None,
     ) -> dict[str, Any]:
-        filters: list[dict[str, Any]] = [
-            {"range": {"@timestamp": {"gte": f"now-{lookback_s}s", "lte": "now"}}}
-        ]
+        time_range = (
+            {"gte": start.isoformat(), "lte": end.isoformat()}
+            if start is not None and end is not None
+            else {"gte": f"now-{lookback_s}s", "lte": "now"}
+        )
+        filters: list[dict[str, Any]] = [{"range": {"@timestamp": time_range}}]
         must: list[dict[str, Any]] = []
 
         if service:
@@ -149,7 +154,16 @@ class LogsAdapter:
         trace_id: str | None = None,
         lookback_s: int = 900,
         limit: int = 50,
+        start: datetime | None = None,
+        end: datetime | None = None,
     ) -> LogSearchResult:
+        """Search the last `lookback_s`, or the fixed `[start, end]` window.
+
+        A fixed window makes re-analysing a closed incident repeatable.
+        """
+        if start is not None and end is not None:
+            start = max(start, end - timedelta(seconds=MAX_LOOKBACK_S))
+            lookback_s = int((end - start).total_seconds())
         lookback = max(60, min(MAX_LOOKBACK_S, lookback_s))
         limit = max(1, min(200, limit))
         body = self._build_query(
@@ -159,6 +173,8 @@ class LogsAdapter:
             trace_id=trace_id,
             lookback_s=lookback,
             limit=limit,
+            start=start,
+            end=end,
         )
 
         async def load() -> LogSearchResult:
@@ -183,7 +199,8 @@ class LogsAdapter:
                 records=records,
             )
 
-        key = ("logs", service, level, text, trace_id, lookback, limit)
+        window = (start.isoformat(), end.isoformat()) if start and end else None
+        key = ("logs", service, level, text, trace_id, lookback, limit, window)
         return await self._cache.get(key, load)
 
 

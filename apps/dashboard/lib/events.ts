@@ -18,6 +18,7 @@ export const EVENT_TYPES = [
   "incident.opened",
   "incident.transition",
   "incident.signal",
+  "incident.analysis",
   "incident.closed",
   "agent.started",
   "agent.step",

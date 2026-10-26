@@ -65,6 +65,35 @@ export type SuspectRow = {
   signals: Record<string, unknown>;
 };
 
+export type SuspectSignal = {
+  name: string;
+  value: number;
+  weight: number;
+  contribution: number;
+  detail: string;
+};
+
+function asNumber(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** The scorer's per-signal breakdown, strongest contribution first. */
+export function suspectSignals(signals: Record<string, unknown>): SuspectSignal[] {
+  return Object.entries(signals)
+    .map(([name, raw]) => {
+      const row = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      return {
+        name,
+        value: asNumber(row.value),
+        weight: asNumber(row.weight),
+        contribution: asNumber(row.contribution),
+        detail: typeof row.detail === "string" ? row.detail : "",
+      };
+    })
+    .sort((a, b) => b.contribution - a.contribution || a.name.localeCompare(b.name));
+}
+
 export type FaultContext = {
   id: number;
   fault_id: string;
@@ -204,6 +233,42 @@ export async function fetchIncident(
       injected_at: row.injected_at,
       reset_at: row.reset_at ?? null,
     })),
+  };
+}
+
+export type AnalysisReport = {
+  incident_id: string;
+  window_start: string;
+  window_end: string;
+  pre_s: number;
+  duration_ms: number;
+  services_considered: number;
+  evidence_added: number;
+  evidence_total: number;
+  codes: string[];
+  counts: Record<string, number>;
+  suspects: SuspectRow[];
+  top_suspect: string | null;
+  weights: Record<string, number>;
+};
+
+export async function analyzeIncident(ref: string): Promise<AnalysisReport> {
+  const raw = await request<components["schemas"]["AnalysisReport"]>(
+    `/api/incidents/${encodeURIComponent(ref)}/analyze`,
+    { method: "POST" },
+  );
+  return {
+    ...raw,
+    codes: raw.codes ?? [],
+    counts: raw.counts ?? {},
+    suspects: (raw.suspects ?? []).map((row) => ({
+      service: row.service,
+      score: row.score,
+      rank: row.rank,
+      signals: row.signals ?? {},
+    })),
+    top_suspect: raw.top_suspect ?? null,
+    weights: raw.weights ?? {},
   };
 }
 

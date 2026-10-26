@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -152,6 +153,25 @@ async def test_empty_search_is_not_an_error() -> None:
 
     assert result.traces == []
     assert result.scanned == 0
+
+
+async def test_search_can_use_a_fixed_window() -> None:
+    """Re-analysing a closed incident must query that incident's window."""
+    seen: list[httpx.QueryParams] = []
+
+    class Recording(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            seen.append(request.url.params)
+            return httpx.Response(404, json={"message": "No traces found"}, request=request)
+
+    adapter = _adapter(Recording())
+    start = datetime(2026, 10, 25, 19, 0, tzinfo=UTC)
+    end = datetime(2026, 10, 25, 19, 10, tzinfo=UTC)
+
+    await adapter.search(service="payment", start=start, end=end)
+
+    assert seen[0]["query.startTimeMin"].startswith("2026-10-25T19:00:00")
+    assert seen[0]["query.startTimeMax"].startswith("2026-10-25T19:10:00")
 
 
 async def test_jaeger_404_on_trace_is_not_found() -> None:

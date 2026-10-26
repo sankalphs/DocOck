@@ -238,29 +238,40 @@ DoD. The debounce (3 cycles = 30 s) still removes one-sample noise.
 
 ### Baselines
 
-`error_rate`: **20th percentile** of the last 15 minutes, `p95_latency`: **80th
-percentile**, `throughput`: **median**. The low percentile is what makes a
+`error_rate`: **20th percentile** of the last 15 minutes, `p95_latency`: **median
+(p50)**, `throughput`: **median**. The low percentile is what makes a
 fault-tolerant baseline: an error rate only deviates upward, so the healthy level
-survives even when a fault occupies most of the window. Latency is the opposite
-kind of noise — shipping's healthy p95 ranges 48–1925 ms at constant load — so its
-baseline is the top of the normal band (`p80`) and an alert must exceed twice it.
+survives. Latency in this demo is bimodal — a few hundred milliseconds, then the
+15 s top bucket whenever the generator queues — so a p80 baseline of 15 s could
+never be doubled; the median plus the absolute `+1.5 s` rule is what makes a
+latency fault visible without firing on that noise.
 
 Samples taken while a service is breaching never feed its baseline, and a service
 with no baseline cannot alert (that is the warm-up, expressed as data
-availability rather than a timer). Persisted baselines are skipped for breaching
-services and rejected on load when implausible (`> 25 %` errors, `> 60 s` p95),
-otherwise a restart during a long fault would teach the detector that the fault is
-normal — this actually happened while testing P9 and produced a silent detector.
+availability rather than a timer). While an incident is open, the services named
+in it are excluded from baseline updates entirely: their readings are symptoms of
+a known problem, and feeding them back is how a 15-minute p20 once learned that a
+3-minute 100 % error window was normal. Persisted baselines are skipped for
+breaching services and rejected on load when implausible (`> 25 %` errors,
+`> 60 s` p95).
+
+Throughput is the only metric that is not backfilled from Prometheus: after a
+restart the generator ramps from ~1 req/s to 25 req/s, and a pre-restart baseline
+would call that ramp a flood (it did). It is learned from live samples only, and
+throughput breaches are suppressed for the first `DETECTOR_WARMUP_S` (300 s) after
+the detector starts, because the ramp itself is a 10x step.
 
 ### Thresholds
 
 | Signal | Rule |
 |---|---|
 | errors | `rate > max(2 %, 3 x baseline)` **and** `errors >= 2` — unless the rate is >= 50 %, where one failed request out of two is not noise |
-| latency | `p95 > max(2 x baseline, 500 ms)`; for a baseline >= 100 ms an absolute `+1.5 s` is also required (checkout's healthy p95 is 0.4–15 s) |
+| latency | `p95 > max(2 x baseline, 500 ms)`; for a baseline >= 100 ms an absolute `+1.5 s` is also required (checkout's healthy p95 is 0.4–15 s); needs **9** consecutive samples (`DETECTOR_LATENCY_BREACHES`, 90 s) because one slow PlaceOrder holds a low-traffic p95 up for the whole 2-minute window |
 | container | not running / paused / `unhealthy`; health alone needs **6** consecutive samples because the demo's probes flap, stopped/paused needs 3 |
 | resource | CPU or memory limit **below the limit observed at startup**; this is the only observable symptom of `cpu_pressure` on `ad`, which uses 1.3 % CPU even when capped at 0.25 cores |
-| throughput | `> 2 x baseline` (baseline >= 0.25 req/s); the catalog itself declares `traffic_flood`'s symptom as a throughput doubling |
+| throughput | `> 2 x baseline` (baseline >= 1 req/s; image-provider swings 2.6x at 0.5 req/s); the catalog itself declares `traffic_flood`'s symptom as a throughput doubling |
+| silence | **zero** spans in the rate window where the baseline expects >= 60 (~0.5/s). The floor is empirical: orders arrive in bursts, so checkout/payment/email see healthy 90 s gaps, while every service averaging >= 0.6/s never reached zero in 3 h of scenarios |
+| network | a running container with **no network attached** (`network_partition`) is a container breach. Calls into it hang and emit no span until they end — no error, no latency — so Docker is the only prompt witness, as it is for stopped/paused |
 
 A cap equal to the host core count is normalized to "unlimited": Docker cannot
 clear a CPU limit, so that is what a reverted container carries.
@@ -278,4 +289,85 @@ silently swallowed.
 an incident that recovers before anyone investigates closes itself after four
 healthy samples. Once a human or the agent has moved it past `OPEN`, recovery is
 evidence for that workflow, not a reason to close it behind their back.
+
+## Deterministic analysis (P9)
+
+`POST /api/incidents/{ref}/analyze` runs six analyses in a fixed order and stores
+every observable as incident-scoped evidence. Re-running is idempotent: rows are
+keyed by a hash of `(type, source, service, data)` that excludes the timestamp, so
+an existing row keeps its `E####` code and only new observables append.
+
+- **Metric anomalies** compare the incident window against the 5 minutes before
+  it, per service and per metric. The "current" half starts 45 s *before* the
+  incident opened, because the detector opens after three breaches — those
+  samples are the symptom, and waiting for a post-open point would miss short
+  faults.
+- **Error origin** walks each error trace: a failing SERVER span with a failing
+  child is *propagated*, without one it is the *origin*; a failing CLIENT span
+  whose peer has no SERVER span at all (partition, stopped dependency, bad
+  address) blames the peer. That "silent peer" case is what makes
+  `network_partition` and `paymentUnreachable` attributable.
+- **Onset** uses the earliest anomalous span *completion*, not start: a nested
+  callee finishes its failing span before its caller, so the origin sorts first
+  without any topology assumption.
+- **Logs** are templated (UUIDs, IPs, hex ids, durations, numbers and quoted
+  values become placeholders); only templates absent from the pre-incident window
+  are reported, with a count and one example.
+- **Container / flag state** are direct observations from Docker and from
+  DocOck's own fault rows.
+
+Suspect weights are configuration (`SUSPECT_WEIGHT_*`): error origin .30, onset
+.20, local error ratio .20, latency .10, throughput .10, container .10. The
+latency slot (`latency_anomaly`) also takes a container CPU or memory anomaly:
+saturation is the cause of a slowdown, so it scores on the same log scale. The
+starter weights in PLAN §10 had no throughput slot, which would leave
+`traffic_flood` unattributable. Ties break on the throughput signal, so a flood
+blames its entry point (frontend) rather than an equally slow downstream victim.
+The lab's own machinery (`load-generator`, `flagd`, the observability stack) is
+excluded from the ranking: an operator cannot remediate the injector.
+
+Two *incident classes* change which signals are informative, because in both the
+usual winners are consequences rather than causes:
+
+- a **load** incident (primary signal = throughput) ignores error origin, onset
+  and local error ratio: under a flood every service that the traffic reaches
+  shows errors and latency, so only throughput/latency/container decide;
+- a **latency** incident ignores error origin and the local error ratio: the only
+  ERROR in a timeout trace is usually the proxy or caller that gave up, and the
+  delay is attributed by walking the dominant child instead. A failing span with
+  no failing child descends to the child that owns most of its duration (same
+  service or callee) and blames where the time is spent; a chain that ends at a
+  client span with no SERVER span for its peer is the silent-peer case. Onset for
+  a latency incident is therefore the first *slow* span after that descent, not
+  the first timeout.
+
+Jaeger's global "latest N" search returns mostly frontend-proxy traces and misses
+a low-traffic payment error entirely, so the trace analysis searches the
+incident's focus services explicitly and merges the results. Jaeger filters on
+trace *start*, so the search reaches 240 s before the incident opened: a call
+into a partitioned payment starts minutes before it ends, and the detector itself
+needs up to 90 s of debounce on a 2-minute window.
+
+Rules found while validating the scenarios against the live stack:
+
+- **Injected proxy faults blame the caller.** Envoy tags a span with
+  `response_flags=DI` (delay injected) or `FI` (abort injected) when its fault
+  filter acted on an `x-envoy-fault-*` request header. `imageSlowLoad` is exactly
+  that: the frontend's ProductCard sends the header, the proxy sleeps 5 s. The
+  proxy executed the delay; the caller asked for it. The browser often does not
+  export its request span, so the proxy span's parent is missing; an injected
+  fault at `frontend-proxy` with an untraced caller is attributed to
+  `frontend-web`, the only client that sends these headers.
+- **Telemetry names that are not deployables are folded.** `frontend-web` is the
+  browser bundle the frontend container serves; it is scored as `frontend`.
+- **A hung call's onset is when it went out.** A slow span that descends to a
+  silent peer completes only when the peer returns, so completion order would
+  put it last; it uses the call's start, as the silent-peer error case does.
+- **Throughput is scaled by its share of the largest absolute change.** A flood
+  enters where most requests appear; a 0.2 req/s service that also doubled is a
+  fraction of that, not a tie.
+- **A container Docker reports stopped/paused/unhealthy ranks first**, whatever
+  the weighted scores say: it is a direct observation, not a statistic.
+
+One analyzer run on the 63-evidence payment incident takes ~6.4 s.
 

@@ -117,6 +117,27 @@ Expect 30–45 s before the payment service observes a flag change (its flagd SD
 polls), then one dashboard poll (10–15 s) before all three panes show it. The
 script reverts the flag at the end of a run; always leave it `off`.
 
+## Deterministic analysis scenarios (M2)
+
+`scripts\run-scenarios.py` injects the eight scored faults one at a time, waits
+for the detector to open one incident, runs `POST /api/incidents/{ref}/analyze`,
+records the top-1 suspect, reverts, and prints a scoreboard (gate: >= 7/8):
+
+```powershell
+uv run --project apps\api python scripts\run-scenarios.py             # all eight, ~75 min
+uv run --project apps\api python scripts\run-scenarios.py --only S4,S7
+```
+
+Before each injection it waits for 240 s of continuous quiet (no breach, no
+open incident), up to 900 s, and after an API restart for the detector's 300 s
+warm-up. Run it in the background; results go to `runtime\scenarios.json`. Do not
+run `next build` or other CPU-heavy work at the same time: latency scenarios are
+judged against per-service baselines and a busy host moves them.
+
+To analyse one incident by hand: open it in the dashboard and press
+**Analyze**, or `curl -X POST http://127.0.0.1:8001/api/incidents/INC-00001/analyze`.
+Re-running is safe; existing evidence keeps its `E####` code.
+
 ## Endpoints
 
 | What | URL |

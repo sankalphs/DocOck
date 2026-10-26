@@ -42,8 +42,10 @@ from app.detection.thresholds import (
     latency_threshold,
     severity_for_error,
     severity_for_latency,
+    silence_breach,
     throughput_breach,
     throughput_threshold,
+    window_seconds,
     worst_severity,
 )
 from app.domain.state import IncidentStatus, is_active
@@ -59,6 +61,18 @@ log = get_logger(__name__)
 EXCLUDED_SERVICES = frozenset(
     {"flagd", "flagd-ui", "load-generator", "telemetry-docs", "opamp-server"}
 )
+
+# Which breach best explains the others. A resource change or a container death
+# is a *cause*; a throughput surge is the next most causal (the load is why
+# everything else got slow); an error rate outranks a latency.
+SIGNAL_PRIORITY = {
+    "container": 3,
+    "container_resource": 3,
+    "throughput": 2,
+    "silence": 1,
+    "error_rate": 1,
+    "p95_latency": 0,
+}
 
 
 @dataclass(slots=True)
@@ -140,7 +154,11 @@ class Detector:
         now = datetime.now(UTC)
         start = now - timedelta(seconds=self.store.window_s)
         seeded = 0
-        for metric in ("error_rate", "p95_latency", "throughput"):
+        # Throughput is the one metric whose "normal" level changes with the
+        # deployment itself: after a restart the generator ramps from 1 req/s to
+        # 25 req/s, and a backfilled baseline from before the restart would call
+        # that ramp a flood. It is learned from live samples only (one minute).
+        for metric in ("error_rate", "p95_latency"):
             result = await self.prometheus.metric(
                 metric, window=self.rules.window, start=start, end=now, step_s=60
             )
@@ -158,6 +176,13 @@ class Detector:
     async def run_once(self, *, persist: bool = False) -> DetectionReport:
         now = datetime.now(UTC)
         report = DetectionReport(at=now)
+        # PLAN §8 calls the first minutes after bring-up "warm-up". Breach
+        # counters are cleared each cycle so that the moment the gate lifts the
+        # detector needs a fresh consecutive run instead of opening an incident
+        # on a spike that was already counted while the stack was still ramping.
+        warm = self._cycles * self.rules.interval_s < settings.detector_warmup_s
+        if warm:
+            self._counters.clear()
 
         error_rate = await self._instant("error_rate")
         error_count = await self._instant("error_count")
@@ -180,6 +205,21 @@ class Detector:
             host = await host_cores()
         except Exception:  # Docker hiccup: limits are simply not compared
             host = 0
+        # While an incident is open for a service, that service's readings are
+        # symptoms of a known problem, not health. Feeding them back into its
+        # baseline is how a 15-minute p20 learned that a 3-minute 100 % error
+        # window was normal and stopped detecting the next fault.
+        window_s = window_seconds(self.rules.window)
+        suppressed: set[str] = set()
+        try:
+            async with SessionFactory() as session:
+                current = await self.incidents.latest_open(session)
+                if current is not None:
+                    suppressed = {
+                        str(item) for item in ((current.trigger or {}).get("services") or [])
+                    }
+        except Exception:
+            suppressed = set()
         for service in sorted(services):
             rate = error_rate.get(service)
             errors = error_count.get(service)
@@ -192,12 +232,19 @@ class Detector:
             latency_hit = latency_breach(latency, baseline_latency, self.rules)
             info = containers.get(service)
             container_hit = bool(
-                info and container_breach(state=info.state, paused=info.paused, health=info.health)
+                info
+                and container_breach(
+                    state=info.state,
+                    paused=info.paused,
+                    health=info.health,
+                    networks=list(info.networks),
+                )
             )
             resource_hit, resource_detail = self._resource_change(service, info, host)
 
             baseline_rps = self.store.baseline(service, "throughput", now=now)
             throughput_hit = throughput_breach(rps, baseline_rps)
+            silent_hit = silence_breach(rps, baseline_rps, window_s)
             # A sample taken while the service is breaching must not feed its
             # own baseline, or a long fault teaches the detector that the fault
             # is normal. Bootstrap (no baseline yet) still observes so a
@@ -209,9 +256,20 @@ class Detector:
                 latency is None or latency <= MAX_SEED_P95_MS
             )
             bootstrap = baseline_error is None and baseline_latency is None
-            if plausible and (
-                bootstrap
-                or not (error_hit or latency_hit or container_hit or resource_hit or throughput_hit)
+            if (
+                service not in suppressed
+                and plausible
+                and (
+                    bootstrap
+                    or not (
+                        error_hit
+                        or latency_hit
+                        or container_hit
+                        or resource_hit
+                        or throughput_hit
+                        or silent_hit
+                    )
+                )
             ):
                 self.store.observe(
                     service,
@@ -246,7 +304,7 @@ class Detector:
                 )
 
             count = self._count(service, "p95_latency", latency_hit, now)
-            if latency_hit and count >= self.rules.consecutive and latency is not None:
+            if latency_hit and count >= self.rules.latency_breaches and latency is not None:
                 active.append(
                     Breach(
                         service=service,
@@ -285,6 +343,11 @@ class Detector:
                         detail=(
                             f"container {info.name} is {info.status_text}"
                             + (" (paused)" if info.paused else "")
+                            + (
+                                " (no network attached)"
+                                if info.state == "running" and not info.networks
+                                else ""
+                            )
                         ),
                         severity="sev2",
                         throughput=rps,
@@ -331,6 +394,28 @@ class Detector:
                     )
                 )
 
+            count = self._count(service, "silence", silent_hit, now)
+            if silent_hit and count >= self.rules.consecutive and rps is not None:
+                active.append(
+                    Breach(
+                        service=service,
+                        signal="silence",
+                        signature=f"silence:{service}",
+                        value=rps,
+                        baseline=baseline_rps,
+                        threshold=0.0,
+                        first_seen=self._first_seen(service, "silence", now),
+                        consecutive=count,
+                        detail=(
+                            f"no requests in {self.rules.window} vs baseline "
+                            f"{(baseline_rps or 0):.2f}/s "
+                            f"(~{(baseline_rps or 0) * window_s:.0f} expected)"
+                        ),
+                        severity="sev2",
+                        throughput=rps,
+                    )
+                )
+
         report.breaches = active
         report.baselines = self.store.snapshot(now=now)
 
@@ -358,6 +443,18 @@ class Detector:
                         self._healthy_cycles = 0
             else:
                 self._healthy_cycles = 0 if active else self._healthy_cycles + 1
+                # PLAN §8 calls the first minutes after bring-up "warm-up": the
+                # generator ramps from ~1 req/s to 25 req/s and checkout's p95
+                # reaches its 15 s top bucket while pools and JIT fill. Every one
+                # of those breaches a baseline that does not exist yet, so no
+                # incident may open until the detector has watched for
+                # DETECTOR_WARMUP_S. Samples are still recorded, so the baselines
+                # are ready the moment the gate lifts; an incident that was
+                # already open when the process restarted still attaches and
+                # recovers normally.
+                if active and warm:
+                    report.skipped = f"warmup ({settings.detector_warmup_s}s)"
+                    active = []
                 if active:
                     # A deliberate new injection supersedes the alert cooldown:
                     # without this, re-injecting the same fault within five
@@ -390,6 +487,7 @@ class Detector:
                         primary = min(
                             eligible,
                             key=lambda item: (
+                                -SIGNAL_PRIORITY.get(item.signal, 0),
                                 item.first_seen,
                                 -item.deviation,
                                 item.throughput if item.throughput is not None else 1e9,

@@ -58,7 +58,14 @@ def _baseline_value(values: list[float], metric: str) -> float | None:
     if metric == "throughput":
         return _percentile(values, 0.5)
     if metric == "p95_latency":
-        return _percentile(values, 0.8)
+        # The median, not p80: this demo's healthy latency is bimodal (a few
+        # hundred ms, then the 15 s top bucket when the generator queues), and
+        # a p80 baseline of 15 s can never be doubled. The absolute +1.5 s rule
+        # below keeps a median-based threshold from firing on that noise.
+        return _percentile(values, 0.5)
+    # p20 for errors: healthy services sit at 0 (or at their normal 404 noise),
+    # and the detector no longer records samples while the service is part of an
+    # open incident, so a fault window cannot drag the percentile up.
     return _percentile(values, 0.2)
 
 

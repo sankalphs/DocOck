@@ -58,7 +58,11 @@ _ATTRIBUTE_PREFIXES = (
     "server.",
     "client.",
     "network.",
+    "peer.",
     "code.",
+    # Envoy's access-log flags: DI/FI mark a fault the proxy injected on request.
+    "response_flags",
+    "upstream_cluster",
 )
 
 
@@ -266,14 +270,26 @@ class JaegerAdapter:
         limit: int = 20,
         errors_only: bool = False,
         min_duration_ms: float | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
     ) -> TraceSearchResult:
-        lookback = max(MIN_LOOKBACK_S, min(MAX_LOOKBACK_S, lookback_s))
+        """Search the last `lookback_s`, or the fixed `[start, end]` window.
+
+        A fixed window makes a search repeatable: re-analysing a closed incident
+        must see the traces of that incident, not whatever arrived since.
+        """
         limit = max(1, min(100, limit))
         # Errors are sparse; fetch a wider slice before filtering client-side.
         fetch = min(100, limit * 4) if errors_only or min_duration_ms or operation else limit
 
-        end = datetime.now(UTC)
-        start = end - timedelta(seconds=lookback)
+        window = (_rfc3339(start), _rfc3339(end)) if start and end else None
+        end = end or datetime.now(UTC)
+        if start is None:
+            lookback = max(MIN_LOOKBACK_S, min(MAX_LOOKBACK_S, lookback_s))
+            start = end - timedelta(seconds=lookback)
+        else:
+            start = max(start, end - timedelta(seconds=MAX_LOOKBACK_S))
+            lookback = int((end - start).total_seconds())
         params: dict[str, str] = {
             "query.startTimeMin": _rfc3339(start),
             "query.startTimeMax": _rfc3339(end),
@@ -296,7 +312,16 @@ class JaegerAdapter:
             grouped = _group_by_trace(_extract_spans(result))
             return [_summary(spans) for spans in grouped.values()]
 
-        key = ("search", service, operation, lookback, fetch, errors_only, min_duration_ms)
+        key = (
+            "search",
+            service,
+            operation,
+            lookback,
+            fetch,
+            errors_only,
+            min_duration_ms,
+            window,
+        )
         summaries = await self._cache.get(key, load)
 
         filtered = summaries

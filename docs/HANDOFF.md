@@ -1,7 +1,8 @@
 # Handoff protocol
 
-The build runs in sequential threads. Each thread owns 2–4 phases, commits per
-phase, and launches the next thread. No thread may skip ahead: later phases
+The build runs in sequential threads. Each thread owns 2–5 phases, commits per
+phase, and launches the next thread autonomously (no user handoff) until every
+phase is done. No thread may skip ahead: later phases
 assume the database, adapters, and detectors from earlier ones exist.
 
 ## Thread batches

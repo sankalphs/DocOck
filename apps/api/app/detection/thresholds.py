@@ -24,6 +24,7 @@ class Thresholds:
     latency_floor_ms: float
     min_errors: float
     consecutive: int
+    latency_breaches: int
     recovery_samples: int
     cooldown_s: int
     interval_s: int
@@ -38,6 +39,7 @@ class Thresholds:
             latency_floor_ms=settings.detector_latency_floor_ms,
             min_errors=float(settings.detector_min_errors),
             consecutive=settings.detector_consecutive_breaches,
+            latency_breaches=settings.detector_latency_breaches,
             recovery_samples=settings.detector_recovery_samples,
             cooldown_s=settings.detector_cooldown_s,
             interval_s=settings.detector_interval_s,
@@ -96,18 +98,26 @@ def latency_breach(value: float | None, baseline: float | None, rules: Threshold
     return not (baseline >= SLOW_BASELINE_MS and (value - baseline) < SLOW_DELTA_MS)
 
 
-def container_breach(*, state: str, paused: bool, health: str) -> bool:
+def container_breach(
+    *, state: str, paused: bool, health: str, networks: list[str] | None = None
+) -> bool:
     if paused:
         return True
     if state in ("exited", "dead", "restarting"):
+        return True
+    # Running with every network detached (`network_partition`): calls into it
+    # hang and emit no span until they end, so Docker is the only prompt
+    # witness. `None` means the networks were not inspected.
+    if state == "running" and networks is not None and not networks:
         return True
     return health == "unhealthy"
 
 
 THROUGHPUT_MULTIPLIER = 2.0
-# A baseline below this is a handful of requests over the window; its ratio is
-# not meaningful (payment serves ~0.1 req/s).
-THROUGHPUT_MIN_BASELINE = 0.25
+# A baseline below this is a handful of requests over the window and its ratio
+# is not meaningful (payment serves ~0.1 req/s, image-provider 0.5 req/s with a
+# 2.6x normal swing). Only busy services can be "flooded".
+THROUGHPUT_MIN_BASELINE = 1.0
 
 
 def throughput_threshold(baseline: float | None) -> float | None:
@@ -127,6 +137,27 @@ def throughput_breach(value: float | None, baseline: float | None) -> bool:
         return False
     threshold = throughput_threshold(baseline)
     return threshold is not None and value > threshold
+
+
+# A service that normally emits at least this many spans per rate window and
+# now emitted none has gone silent. The floor is empirical, not Poisson: the
+# load generator places orders in bursts, so checkout/payment/email (< 0.5
+# spans/s) see healthy 90 s gaps, while every service averaging >= 0.6/s never
+# reached zero in 3 h of scenarios. 60 per 2-minute window is ~0.5/s. A
+# partitioned low-traffic service is caught by the container rule instead.
+SILENT_MIN_EXPECTED = 60.0
+
+
+def window_seconds(window: str) -> int:
+    units = {"s": 1, "m": 60, "h": 3600}
+    return int(window[:-1]) * units[window[-1]]
+
+
+def silence_breach(value: float | None, baseline: float | None, window_s: int) -> bool:
+    if value is None or baseline is None:
+        return False
+    expected = baseline * window_s
+    return expected >= SILENT_MIN_EXPECTED and value * window_s < 0.5
 
 
 def severity_for_error(value: float, baseline: float | None) -> str:

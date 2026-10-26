@@ -71,12 +71,32 @@ services:
   # These two Go services ship a health probe with no connect/RPC deadline.  # On a loaded Windows host the gRPC channel takes longer than the 5s Docker
   # healthcheck timeout, so both containers sit in "unhealthy" while serving
   # fine. Explicit deadlines make the probe return SERVING in <2s.
+  #
+  # Memory: upstream caps both at 20M with GOMEMLIMIT=16MiB. After ~2 h under
+  # the lab's load, product-catalog sat at 19.9/20 MiB (above its GC soft
+  # limit) burning 136 % CPU in GC, and checkout's p95 rose from ~0.4 s to
+  # ~4 s with 1 s gaps between its own spans. That steady degradation opened a
+  # checkout latency incident every cooldown and masked injected faults. Twice
+  # the headroom keeps the healthy baseline stable; `memory_pressure` still
+  # lowers the limit when it is the fault being tested.
   checkout:
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:5050", "-connect-timeout=2s", "-rpc-timeout=2s"]
       timeout: 10s
+    environment:
+      - GOMEMLIMIT=32MiB
+    deploy:
+      resources:
+        limits:
+          memory: 40M
 
   product-catalog:
     healthcheck:
       test: ["CMD", "/bin/grpc_health_probe", "-addr=:3550", "-connect-timeout=2s", "-rpc-timeout=2s"]
       timeout: 10s
+    environment:
+      - GOMEMLIMIT=32MiB
+    deploy:
+      resources:
+        limits:
+          memory: 40M

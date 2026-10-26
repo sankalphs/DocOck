@@ -12,6 +12,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analysis.engine import AnalysisReport, analyzer
 from app.db.session import get_session
 from app.incidents.service import (
     EvidenceView,
@@ -43,6 +44,15 @@ async def list_incidents(
 async def get_incident(ref: str, session: AsyncSession = Depends(get_session)) -> IncidentDetail:
     incident = await service.get(session, ref)
     return await service.detail(session, incident)
+
+
+@router.post(
+    "/{ref}/analyze",
+    response_model=AnalysisReport,
+    summary="Run the deterministic analysis and store evidence + suspects",
+)
+async def analyze_incident(ref: str) -> AnalysisReport:
+    return await analyzer.analyze(ref)
 
 
 @router.get(
