@@ -12,7 +12,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P1 | Compose layering, ports, pgvector, up/down/reset, health | DONE | `b0efae0` |
 | P2 | API skeleton + DB + migrations | DONE | `f5840f0` |
 | P3 | Dashboard shell | DONE | `9db0dd3` |
-| P4 | Telemetry adapters | DONE | `PENDING` |
+| P4 | Telemetry adapters | DONE | `c23726f` |
 | P5 | Overview + Telemetry UI | TODO | — |
 | P6 | Fault controller | TODO | — |
 | P7 | Fault Lab UI | TODO | — |
