@@ -15,7 +15,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P4 | Telemetry adapters | DONE | `c23726f` |
 | P5 | Overview + Telemetry UI | DONE | `4f644b9` |
 | P6 | Fault controller | DONE | `5e410fd` |
-| P7 | Fault Lab UI | DONE | pending |
+| P7 | Fault Lab UI | DONE | `29bc7a2` |
 | P8 | Incident engine + detection | TODO | — |
 | P9 | Deterministic analysis + evidence | TODO | — |
 | P10 | Model gateway + embeddings | TODO | — |
