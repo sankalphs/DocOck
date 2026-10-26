@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Evidence, Fault, Incident, IncidentEvent, Suspect
+from app.db.models import Action, Approval, Evidence, Fault, Incident, IncidentEvent, Suspect
 from app.domain.state import (
     ACTIVE_STATUSES,
     TERMINAL_STATUSES,
@@ -256,6 +256,8 @@ class IncidentService:
         await self._lock(session, incident)
         current = IncidentStatus(incident.status)
         ensure_transition(current, target)
+        if current == IncidentStatus.AWAITING_APPROVAL and target in TERMINAL_STATUSES:
+            await self.withdraw_pending(session, incident, reason=f"incident {target.value}")
         incident.status = target.value
         if target in TERMINAL_STATUSES:
             incident.closed_at = datetime.now(UTC)
@@ -291,10 +293,15 @@ class IncidentService:
     async def recover(
         self, session: AsyncSession, incident: Incident, *, reason: str, detail: str
     ) -> Incident | None:
-        target = recovery_target(IncidentStatus(incident.status))
-        if target is None:
+        if recovery_target(IncidentStatus(incident.status)) is None:
             return None
         await self._lock(session, incident)
+        current = IncidentStatus(incident.status)
+        target = recovery_target(current)
+        if target is None:  # moved on while we waited for the lock
+            return None
+        if current == IncidentStatus.AWAITING_APPROVAL:
+            await self.withdraw_pending(session, incident, reason="symptom cleared")
         incident.status = target.value
         incident.closed_at = datetime.now(UTC)
         await session.flush()
@@ -332,6 +339,39 @@ class IncidentService:
             payload={"actor": actor, "note": note, "reason": "manual"},
             actor=actor,
         )
+
+    async def withdraw_pending(
+        self, session: AsyncSession, incident: Incident, *, reason: str, keep: int | None = None
+    ) -> None:
+        """Withdraw the PENDING approvals of an incident (all but `keep`).
+
+        Called when the incident leaves AWAITING_APPROVAL without a decision, and
+        when an operator replaces a proposal.
+        """
+        rows = (
+            await session.execute(
+                select(Approval, Action)
+                .join(Action, Action.id == Approval.action_row_id)
+                .where(
+                    Action.incident_id == incident.id,
+                    Approval.status == "PENDING",
+                    Approval.id != (keep or 0),
+                )
+                .with_for_update()
+            )
+        ).all()
+        now = datetime.now(UTC)
+        for approval, action in rows:
+            approval.status = "WITHDRAWN"
+            approval.decided_at = now
+            approval.decided_by = "system"
+            approval.note = reason
+            action.status = "WITHDRAWN"
+            bus.publish(
+                "approval.withdrawn",
+                {"approval_id": approval.id, "incident_id": incident.public_id, "reason": reason},
+            )
+        await session.flush()
 
     async def _lock(self, session: AsyncSession, incident: Incident) -> None:
         await session.execute(

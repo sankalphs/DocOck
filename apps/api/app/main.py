@@ -27,6 +27,7 @@ from app.memory.service import memory
 from app.memory.tool import register_memory_tool
 from app.middleware import RequestContextMiddleware
 from app.models.gateway import gateway as model_gateway
+from app.remediation.approval import approvals
 from app.telemetry.http import close_shared_clients
 
 log = get_logger(__name__)
@@ -73,6 +74,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.warning("agent_runs_interrupted", runs=stale)
     except Exception as exc:
         log.warning("agent_recover_failed", error=str(exc))
+    # P14: a gated diagnosis proposes its action; approvals expire on a sweep.
+    agent_orchestrator.on_diagnosed = approvals.auto_plan
+    await approvals.start()
     runtime = FaultRuntime()
     await runtime.start()
     await detection_runtime.start()
@@ -80,6 +84,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await agent_orchestrator.shutdown()
+        await approvals.stop()
         await memory.stop()
         await detection_runtime.stop()
         await runtime.stop()

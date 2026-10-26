@@ -217,6 +217,45 @@ switching models, then restart it so the guard re-reads the settings.
 retrieval: each new incident's search must rank the same scenario's earlier
 incident in the top 3.
 
+## Remediation and approvals (P14)
+
+A diagnosis that passes the confidence gate proposes its action as a PENDING
+approval. Decide on the **Approvals** page or with:
+
+```powershell
+curl.exe "http://127.0.0.1:8001/api/approvals?status=pending"
+curl.exe -X POST "http://127.0.0.1:8001/api/approvals/4/dry-run?actor=me"
+curl.exe -X POST -H "content-type: application/json" -d '{\"actor\":\"me\",\"note\":\"ok\"}' "http://127.0.0.1:8001/api/approvals/4/approve?wait=true"
+curl.exe -X POST -H "content-type: application/json" -d '{\"actor\":\"me\"}' http://127.0.0.1:8001/api/approvals/4/reject
+curl.exe "http://127.0.0.1:8001/api/approvals/audit?incident=INC-00088"
+```
+
+Propose a different catalog action instead of the recommendation (the pending
+one is withdrawn):
+
+```powershell
+curl.exe -X POST -H "content-type: application/json" -d '{\"action_id\":\"restart_service\",\"target\":\"email\",\"replace\":true}' http://127.0.0.1:8001/api/incidents/INC-00090/approvals
+```
+
+`AGENT_AUTO_REMEDIATE=true` in `.env` lets low-risk (`approval=auto`) actions
+approve themselves; it is `false` by default. The audit file is
+`runtime\audit\actions.jsonl`.
+
+The live P14 check (expiry, rejection, unsafe proposals, approve → execute,
+token replay, restart) takes about 25 minutes and needs no open incident:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+uv run --project apps\api python -u scripts\remediation-check.py --out docs\evidence\p14-remediation.json
+```
+
+Restart the API detached (survives the agent harness; logs in
+`runtime\api.log` / `runtime\api.err.log`):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\api-detached.ps1
+```
+
 ## Endpoints
 
 | What | URL |

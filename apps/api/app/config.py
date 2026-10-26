@@ -105,6 +105,17 @@ class Settings(BaseSettings):
     agent_confidence_threshold: float = 0.70
     agent_auto_remediate: bool = False
     agent_wall_clock_s: int = 90
+
+    # --- Remediation (P14) --------------------------------------------------
+    # A gated diagnosis proposes its recommended action as a PENDING approval.
+    # Nothing executes without a decision unless AGENT_AUTO_REMEDIATE=true and
+    # the action is auto-eligible (low risk).
+    remediation_auto_plan: bool = True
+    approval_ttl_s: int = 600
+    approval_token_ttl_s: int = 60
+    remediation_sweep_interval_s: float = 5.0
+    remediation_audit_file: Path = ROOT_DIR / "runtime" / "audit" / "actions.jsonl"
+
     detector_enabled: bool = True
     # The collector's span-metric flush is 10 s (P4), so 10 s is the finest
     # cadence that observes a new sample; three consecutive breaches still

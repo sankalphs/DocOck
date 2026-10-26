@@ -129,6 +129,8 @@ class AgentOrchestrator:
         self.logs = logs or LogsAdapter(ttl_s=0)
         self.docker = docker or DockerAdapter(ttl_s=0)
         self.hypotheses: HypothesisProvider | None = None
+        # P14: called with the incident ref after a run left it DIAGNOSED.
+        self.on_diagnosed: Callable[[str], Awaitable[None]] | None = None
         self._tasks: dict[int, asyncio.Task[None]] = {}
         self.gateway.set_stub_policy(investigator_policy)
 
@@ -313,6 +315,8 @@ class AgentOrchestrator:
                 "elapsed_s": round(budget.elapsed_s, 1),
             },
         )
+        if outcome["status"] == RunStatus.DIAGNOSED and self.on_diagnosed is not None:
+            await self.on_diagnosed(incident_ref)
 
     async def _investigate(
         self, run_id: int, incident_id: int, budget: Budget, recorder: _StepRecorder

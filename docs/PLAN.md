@@ -261,6 +261,15 @@ OPEN → INVESTIGATING → DIAGNOSED → AWAITING_APPROVAL
 without a remediation (the fault was reverted or expired), the detector resolves
 the incident, so it can reach memory before P14 exists.
 
+`AWAITING_APPROVAL → RESOLVED` is also allowed (added in P14) for the same
+reason: the symptom can clear while a proposal waits for a human. The pending
+approval is withdrawn in the same transaction, so nothing executes afterwards.
+P14 also plans automatically: a diagnosis that passes the gate proposes its
+recommended action as a PENDING approval (`REMEDIATION_AUTO_PLAN`), and an
+operator may supersede a pending proposal with another catalog action
+(`replace=true`, which withdraws the old one). An expired approval escalates the
+incident.
+
 Every transition writes an `incident_event` and publishes to SSE.
 
 ---

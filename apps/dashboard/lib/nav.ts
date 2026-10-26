@@ -74,7 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Human approval of every remediation before it executes.",
     icon: ShieldCheck,
     phase: "P14",
-    ready: false,
+    ready: true,
   },
   {
     href: "/reports",

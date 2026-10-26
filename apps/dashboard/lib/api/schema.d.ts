@@ -549,6 +549,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Approvals, newest first */
+        get: operations["list_approvals_api_approvals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Remediation audit trail (runtime/audit/actions.jsonl) */
+        get: operations["approval_audit_api_approvals_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One approval */
+        get: operations["get_approval_api_approvals__approval_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Approvals of one incident */
+        get: operations["incident_approvals_api_incidents__ref__approvals_get"];
+        put?: never;
+        /**
+         * Propose a remediation for a diagnosed incident
+         * @description Empty body = the diagnosis' recommended action. An explicit `action_id` + `target` overrides it but passes the same catalog, safety-boundary and precondition checks. `escalate_human` escalates instead of planning.
+         */
+        post: operations["plan_remediation_api_incidents__ref__approvals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve: the server issues a single-use token and executes
+         * @description `wait=true` returns after the execution finished (at most `timeout_s`).
+         */
+        post: operations["approve_api_approvals__approval_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject: nothing executes and the incident escalates */
+        post: operations["reject_api_approvals__approval_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What approving would do now (read-only) */
+        post: operations["dry_run_api_approvals__approval_id__dry_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/memory/status": {
         parameters: {
             query?: never;
@@ -624,6 +750,103 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionAuditEntry */
+        ActionAuditEntry: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at?: string;
+            /** Actor */
+            actor: string;
+            /** Event */
+            event: string;
+            /** Incident */
+            incident?: string | null;
+            /** Approval Id */
+            approval_id?: number | null;
+            /** Action Row Id */
+            action_row_id?: number | null;
+            /** Action Id */
+            action_id?: string | null;
+            /** Target */
+            target?: string | null;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * ActionStatus
+         * @enum {string}
+         */
+        ActionStatus: "PLANNED" | "APPROVED" | "EXECUTING" | "EXECUTED" | "FAILED" | "ROLLED_BACK" | "REJECTED" | "EXPIRED" | "WITHDRAWN";
+        /** ActionView */
+        ActionView: {
+            /** Id */
+            id: number;
+            /** Incident Ref */
+            incident_ref: string;
+            /** Action Id */
+            action_id: string;
+            /** Target */
+            target: string;
+            status: components["schemas"]["ActionStatus"];
+            /** Risk */
+            risk: string | null;
+            /** Approval Mode */
+            approval_mode: string | null;
+            /** Description */
+            description: string;
+            /** Verification */
+            verification: string;
+            /** Requested By */
+            requested_by: string | null;
+            /** Diagnosis Id */
+            diagnosis_id: number | null;
+            /** Args */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Pre Snapshot */
+            pre_snapshot: {
+                [key: string]: unknown;
+            } | null;
+            /** Post Snapshot */
+            post_snapshot: {
+                [key: string]: unknown;
+            } | null;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Rollback */
+            rollback: {
+                [key: string]: unknown;
+            } | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+        };
         /** AgentConfig */
         AgentConfig: {
             /** Confidence Threshold */
@@ -805,6 +1028,58 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** ApprovalList */
+        ApprovalList: {
+            /** Items */
+            items: components["schemas"]["ApprovalView"][];
+            /** Total */
+            total: number;
+            /** Pending */
+            pending: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
+         * ApprovalStatus
+         * @enum {string}
+         */
+        ApprovalStatus: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "WITHDRAWN";
+        /** ApprovalView */
+        ApprovalView: {
+            /** Id */
+            id: number;
+            status: components["schemas"]["ApprovalStatus"];
+            /** Incident Ref */
+            incident_ref: string;
+            /** Incident Status */
+            incident_status: string;
+            action: components["schemas"]["ActionView"];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Ttl Remaining S */
+            ttl_remaining_s: number;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Note */
+            note: string | null;
+            /** Token Issued */
+            token_issued: boolean;
+            /** Token Used */
+            token_used: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** AuditEntry */
         AuditEntry: {
             /**
@@ -910,6 +1185,16 @@ export interface components {
             memory_used_mb?: number | null;
             /** Memory Percent */
             memory_percent?: number | null;
+        };
+        /** DecisionRequest */
+        DecisionRequest: {
+            /**
+             * Actor
+             * @default operator
+             */
+            actor: string;
+            /** Note */
+            note?: string | null;
         };
         /** DependencyProbe */
         DependencyProbe: {
@@ -1019,6 +1304,19 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** DryRunResult */
+        DryRunResult: {
+            /** Approval Id */
+            approval_id: number;
+            /** Would Execute */
+            would_execute: boolean;
+            check: components["schemas"]["PlanCheck"];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** EmbeddingConfig */
         EmbeddingConfig: {
@@ -1810,6 +2108,87 @@ export interface components {
              * @default
              */
             description: string;
+        };
+        /**
+         * PlanCheck
+         * @description What an action would do now, and whether it may.
+         */
+        PlanCheck: {
+            /** Action Id */
+            action_id: string;
+            /** Target */
+            target: string;
+            /** Ok */
+            ok: boolean;
+            /** Risk */
+            risk: string;
+            /** Approval Mode */
+            approval_mode: string;
+            /** Description */
+            description: string;
+            /** Verification */
+            verification: string;
+            /** Preconditions */
+            preconditions?: components["schemas"]["PreconditionView"][];
+            /** Faults */
+            faults?: {
+                [key: string]: unknown;
+            }[];
+            /** Steps */
+            steps?: string[];
+            /** Rollback */
+            rollback?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * PlanRequest
+         * @description Propose an action. Empty body = the diagnosis' recommended action.
+         */
+        PlanRequest: {
+            /** Action Id */
+            action_id?: string | null;
+            /** Target */
+            target?: string | null;
+            /** Ttl S */
+            ttl_s?: number | null;
+            /**
+             * Replace
+             * @default false
+             */
+            replace: boolean;
+            /**
+             * Actor
+             * @default operator
+             */
+            actor: string;
+            /** Note */
+            note?: string | null;
+        };
+        /** PlanResult */
+        PlanResult: {
+            approval?: components["schemas"]["ApprovalView"] | null;
+            /**
+             * Escalated
+             * @default false
+             */
+            escalated: boolean;
+            /**
+             * Auto Approved
+             * @default false
+             */
+            auto_approved: boolean;
+            /** Detail */
+            detail: string;
+        };
+        /** PreconditionView */
+        PreconditionView: {
+            /** Name */
+            name: string;
+            /** Ok */
+            ok: boolean;
+            /** Detail */
+            detail: string;
         };
         /** RecommendedAction */
         RecommendedAction: {
@@ -3167,6 +3546,275 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_approvals_api_approvals_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "pending" | "decided";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approval_audit_api_approvals_audit_get: {
+        parameters: {
+            query?: {
+                incident?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionAuditEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_approval_api_approvals__approval_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_approvals_api_incidents__ref__approvals_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_remediation_api_incidents__ref__approvals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PlanRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_api_approvals__approval_id__approve_post: {
+        parameters: {
+            query?: {
+                wait?: boolean;
+                timeout_s?: number;
+            };
+            header?: never;
+            path: {
+                approval_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_api_approvals__approval_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dry_run_api_approvals__approval_id__dry_run_post: {
+        parameters: {
+            query?: {
+                actor?: string;
+            };
+            header?: never;
+            path: {
+                approval_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DryRunResult"];
                 };
             };
             /** @description Validation Error */

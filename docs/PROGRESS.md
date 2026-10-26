@@ -22,7 +22,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P11 | Agent orchestrator | DONE | a2cd0de |
 | P12 | Memory + retrieval | DONE | 8484efa |
 | P13 | Agent UI | DONE | b418fa9 |
-| P14 | Remediation + approval | TODO | — |
+| P14 | Remediation + approval | DONE | (this commit) |
 | P15 | Verification + reports | TODO | — |
 | P16 | Hardening + evaluation | TODO | — |
 
@@ -730,3 +730,41 @@ Facts found while building:
 - Gates: `scripts\check.ps1` passes (API 184 tests, dashboard 46 tests, eslint,
   mypy, `next build`); new vitest units cover agent step titles/tones, citation
   mapping, tool-call count, memory helpers and event namespaces.
+
+### P14 — 2026-10-26
+
+- **Live check, 44/44 PASS** (`scripts/remediation-check.py`, real stack, result
+  `docs/evidence/p14-remediation.json`, 02:25–02:44 UTC). Every proposal came
+  from a real incident, a real agent run (stub provider) and the auto-planner.
+- **Expiry**: S1 (`payment_failure`) opened INC-00086; the gated diagnosis
+  (`payment`, `reset_fault → payment`) became a PENDING approval with no token
+  or hash in any response. Dry-run listed the step and changed nothing.
+  Unsafe proposals were refused: `drop_database` 422 `unknown_action`;
+  `restart_service` on `postgres` and on `flagd` 422 `target_not_allowed`;
+  `stop_load_generator` on `payment` 422; `reset_fault cart` and
+  `restore_network payment` 409 `precondition_failed` (no such fault, network
+  attached); a second plan 409 `approval_pending`; a body with a `token` field
+  422. A replacement with a 20 s TTL withdrew the first approval (approve → 409),
+  then expired: approve → 409, incident ESCALATED, fault untouched.
+- **Rejection**: INC-00087, reject → `AWAITING_APPROVAL → REJECTED → ESCALATED`,
+  nothing executed, approve afterwards 409.
+- **Approve → execute**: INC-00088, approve (`wait=true`) → APPROVED, token
+  issued and used once, action EXECUTED with pre/post snapshots, fault #193
+  REVERTED by `remediation:A4` through the fault controller, `paymentFailure`
+  read back `off`, incident `REMEDIATING → VERIFYING`. A second approve 409; a
+  replayed or forged token handed to the executor was refused (`token_rejected:
+  token already used`) and audited.
+- **Operator override with a required approval**: S5 (`email` stopped),
+  INC-00090: the operator replaced `reset_fault` with `restart_service email`
+  (medium risk, approval required); approve → `docker start email`, fault row
+  closed, container running, rollback recorded as not needed. Audit trail:
+  plan, approve, execute_started, executed.
+- UI: `docs/evidence/p14-approvals.png` (decided cards with diagnosis, cited
+  evidence links, preconditions, steps, rollback, token issued/used flags).
+- PLAN §7 updated: `AWAITING_APPROVAL → RESOLVED` recovery edge (withdraws the
+  pending approval), auto-plan, `replace=true`, expiry escalates.
+- Migration `c3a91d0e7b21` (action/approval columns); `scripts\db-check.ps1`
+  passed (16 tables, clean downgrade/upgrade).
+- Gates: `scripts\check.ps1` passes (API 201 tests, dashboard 50 tests, ruff,
+  mypy, eslint, `next build`); `scripts\check.ps1 -Live` passes (11 live
+  telemetry contract tests).

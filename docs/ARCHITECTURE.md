@@ -485,3 +485,31 @@ extra API: the run detail, the incident aggregate and SSE.
 The URL carries `?incident=…&run=…`, so a run can be linked. `/memory` shows the
 guard state, the stored summaries, and the debug search.
 
+
+## Remediation (P14)
+
+`app/remediation/` turns a gated diagnosis into one human-approved action:
+
+```
+DIAGNOSED → plan (auto) → AWAITING_APPROVAL → approve → REMEDIATING
+          → executor (token, preconditions, revert) → VERIFYING | ESCALATED
+```
+
+| Part | Module | Rule |
+|---|---|---|
+| Catalog | `catalog.py` | PLAN §9 actions. Each spec lists the fault mechanisms it reverts and its rollback policy. Only `restart_service` has a rollback (`ensure_running`); a flag, network, limit or load rollback would re-inject the fault, so it is never done. |
+| Planner | `planner.py` | Hard refusals first, in any state: unknown action 422, `escalate_human` is not executable, catalog target rule 422, safety boundary 403 (`resolve_target`). Then preconditions: incident state, catalog target, an open matching fault (except `restart_service`), the container exists, the network is detached (`restore_network`). The result lists the exact steps and the rollback. |
+| Approval | `approval.py` | One PENDING approval per incident. `replace=true` supersedes it (the old one is WITHDRAWN). TTL 10 min (`APPROVAL_TTL_S`); a sweep expires overdue rows and escalates the incident. Reject → `REJECTED → ESCALATED`. `AGENT_AUTO_REMEDIATE=true` approves only `approval=auto` actions, as `auto-policy`. |
+| Token | `tokens.py` | Minted on approve with `secrets.token_urlsafe(32)`; only the SHA-256 is stored. It lives 60 s (`APPROVAL_TOKEN_TTL_S`), is handed to the executor in memory, is compared with `hmac.compare_digest`, and is consumed once. No response, log line or audit entry carries the token or its hash. |
+| Executor | `executor.py` | Locks the approval, checks the token, re-runs the planner against the live state, snapshots, then acts: `docker start/unpause/restart` for `restart_service`, `FaultController.revert` (pre-image, read-back) for every matched fault; `clear_feature_flag` must read the flag back `off`. A failure runs the rollback policy and escalates. An execution cut short by an API restart is failed and escalated at startup. |
+| Audit | `audit.py` | Append-only JSONL `runtime/audit/actions.jsonl`: plan, dry-run, approve, reject, expire, withdraw, execute, token refusal. |
+
+State machine changes (PLAN §7): `AWAITING_APPROVAL → RESOLVED` lets the
+detector close an incident whose symptom cleared while a proposal waited; the
+pending approval is withdrawn in the same transaction. Every exit from
+`AWAITING_APPROVAL` to a terminal state withdraws pending approvals.
+
+`/approvals` shows pending cards (TTL countdown, diagnosis, cited evidence links,
+planned preconditions and steps, dry-run, approve/reject with a note) and the
+decided history with snapshots, rollback and the audit trail. The page never
+receives a token.

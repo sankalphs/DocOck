@@ -241,6 +241,14 @@ class Action(TimestampMixin, Base):
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     rollback: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     error: Mapped[str | None] = mapped_column(Text)
+    diagnosis_id: Mapped[int | None] = mapped_column(
+        ForeignKey("diagnoses.id", ondelete="SET NULL", name="fk_actions_diagnosis_id")
+    )
+    requested_by: Mapped[str | None] = mapped_column(String(64))
+    risk: Mapped[str | None] = mapped_column(String(16))
+    approval_mode: Mapped[str | None] = mapped_column(String(16))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Approval(Base):
@@ -256,6 +264,10 @@ class Approval(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decided_by: Mapped[str | None] = mapped_column(String(64))
     note: Mapped[str | None] = mapped_column(Text)
+    # The token is minted on approve and never stored in clear; it has its own
+    # short expiry and is consumed exactly once by the executor.
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    token_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

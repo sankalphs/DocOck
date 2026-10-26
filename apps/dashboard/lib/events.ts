@@ -25,9 +25,15 @@ export const EVENT_TYPES = [
   "agent.run.finished",
   "memory.stored",
   "approval.requested",
-  "approval.decided",
+  "approval.approved",
+  "approval.rejected",
+  "approval.expired",
+  "approval.withdrawn",
   "action.started",
-  "action.completed",
+  "action.executed",
+  "action.failed",
+  "action.refused",
+  "action.rolled_back",
   "verification.completed",
 ] as const;
 

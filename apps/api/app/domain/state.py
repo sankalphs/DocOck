@@ -53,8 +53,16 @@ TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
     IncidentStatus.DIAGNOSED: frozenset(
         {IncidentStatus.AWAITING_APPROVAL, IncidentStatus.RESOLVED, IncidentStatus.ESCALATED}
     ),
+    # AWAITING_APPROVAL -> RESOLVED (added in P14): the symptom cleared while the
+    # proposal waited (the fault was reverted or expired). The pending approval
+    # is withdrawn in the same transaction, so nothing can execute afterwards.
     IncidentStatus.AWAITING_APPROVAL: frozenset(
-        {IncidentStatus.REMEDIATING, IncidentStatus.REJECTED, IncidentStatus.ESCALATED}
+        {
+            IncidentStatus.REMEDIATING,
+            IncidentStatus.REJECTED,
+            IncidentStatus.RESOLVED,
+            IncidentStatus.ESCALATED,
+        }
     ),
     IncidentStatus.REMEDIATING: frozenset({IncidentStatus.VERIFYING, IncidentStatus.ESCALATED}),
     IncidentStatus.VERIFYING: frozenset({IncidentStatus.RESOLVED, IncidentStatus.ESCALATED}),
@@ -100,10 +108,15 @@ def close_target(current: IncidentStatus) -> IncidentStatus:
 def recovery_target(current: IncidentStatus) -> IncidentStatus | None:
     """Where an incident goes when the symptom clears on its own.
 
-    OPEN (never investigated) and DIAGNOSED (investigated, nothing executed yet)
-    qualify. While the agent runs (INVESTIGATING) or once remediation has started,
-    the agent and the verification phase own the outcome, not the detector.
+    OPEN (never investigated), DIAGNOSED and AWAITING_APPROVAL (investigated,
+    nothing executed yet) qualify. While the agent runs (INVESTIGATING) or once
+    remediation has started, the agent and the verification phase own the
+    outcome, not the detector.
     """
-    if current in (IncidentStatus.OPEN, IncidentStatus.DIAGNOSED):
+    if current in (
+        IncidentStatus.OPEN,
+        IncidentStatus.DIAGNOSED,
+        IncidentStatus.AWAITING_APPROVAL,
+    ):
         return IncidentStatus.RESOLVED
     return None

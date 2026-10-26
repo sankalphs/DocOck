@@ -26,6 +26,13 @@ class ActionSpec:
     approval: Approval
     description: str
     verification: str
+    # Fault mechanisms this action reverts through the fault controller (with
+    # the fault's recorded pre-image). Empty: the action acts on its own.
+    reverts: tuple[str, ...] = ()
+    # Rollback when the action fails or does not help. "none" means restoring
+    # the pre-action state would re-create the fault, so it is never done.
+    rollback: str = "none"
+    rollback_note: str = "restoring the pre-action state would re-inject the fault"
 
 
 ACTIONS: dict[str, ActionSpec] = {
@@ -38,6 +45,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "auto",
             "Revert the injected fault on the target service.",
             "error rate and p95 return to baseline within 90 s",
+            reverts=("*",),
         ),
         ActionSpec(
             "clear_feature_flag",
@@ -46,6 +54,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "auto",
             "Set the target's fault flag back to off.",
             "same as reset_fault, and the flag reads back off",
+            reverts=("flagd",),
         ),
         ActionSpec(
             "restart_service",
@@ -54,6 +63,9 @@ ACTIONS: dict[str, ActionSpec] = {
             "required",
             "Restart the target container.",
             "container healthy, error rate < max(2%, 1.5x baseline) for 90 s",
+            reverts=("container_stop", "container_pause"),
+            rollback="ensure_running",
+            rollback_note="start the container again if it was running before and is not now",
         ),
         ActionSpec(
             "restore_network",
@@ -62,6 +74,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "required",
             "Reconnect the target container to the demo network.",
             "reachability restored, downstream error rate drops",
+            reverts=("network_partition",),
         ),
         ActionSpec(
             "remove_resource_limit",
@@ -70,6 +83,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "required",
             "Restore the target container's CPU/memory limits.",
             "CPU/memory back under baseline, no restart loop",
+            reverts=("resource_limit",),
         ),
         ActionSpec(
             "stop_load_generator",
@@ -78,6 +92,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "auto",
             "Return the load generator to its normal user count.",
             "request rate falls, error rate normalises",
+            reverts=("load_spike", "fault:traffic_flood"),
         ),
         ActionSpec(
             "escalate_human",
@@ -86,6 +101,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "none",
             "Hand the incident to a human; terminates the loop.",
             "none",
+            rollback_note="nothing executes",
         ),
     )
 }
@@ -127,4 +143,9 @@ def target_allowed(
     return None
 
 
-__all__ = ["ACTIONS", "ActionSpec", "target_allowed"]
+def reverts_fault(spec: ActionSpec, *, fault_type: str, mechanism: str) -> bool:
+    """Whether `spec` is the remediation for an injected fault of this kind."""
+    return "*" in spec.reverts or mechanism in spec.reverts or f"fault:{fault_type}" in spec.reverts
+
+
+__all__ = ["ACTIONS", "ActionSpec", "reverts_fault", "target_allowed"]

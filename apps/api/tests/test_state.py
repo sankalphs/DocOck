@@ -43,7 +43,11 @@ def test_recovery_edge_only_leaves_open() -> None:
     # A diagnosed incident whose symptom cleared before remediation resolves.
     assert recovery_target(IncidentStatus.DIAGNOSED) == IncidentStatus.RESOLVED
     assert recovery_target(IncidentStatus.REMEDIATING) is None
+    assert recovery_target(IncidentStatus.VERIFYING) is None
     ensure_transition(IncidentStatus.DIAGNOSED, IncidentStatus.RESOLVED)
+    # P14: a proposal nobody decided on is withdrawn when the symptom clears.
+    assert recovery_target(IncidentStatus.AWAITING_APPROVAL) == IncidentStatus.RESOLVED
+    ensure_transition(IncidentStatus.AWAITING_APPROVAL, IncidentStatus.RESOLVED)
 
 
 def test_rejection_escalates() -> None:
