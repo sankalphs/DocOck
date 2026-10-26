@@ -2,6 +2,8 @@
 
 **Implementation plan** · v1 · 2026-10-24
 
+Live phase status and verification evidence: [`PROGRESS.md`](PROGRESS.md).
+
 A standalone, local AI-on-call lab: a web dashboard injects faults into a live
 microservice demo, watches real telemetry, detects an incident, investigates it
 with deterministic analysis plus an LLM, proposes a bounded remediation, waits
@@ -318,12 +320,21 @@ value outside the declared set. Verified against `demo.flagd.json`:
 
 **flagd write protocol** (the only writes to demo config)
 
-1. Read current JSON, set `flags[key].defaultVariant`.
-2. Write temp file in the same directory, `os.replace` → atomic.
-3. Poll OFREP at `:8016` until the evaluation reflects the change (timeout 5 s).
-4. Serialize all writes behind one async lock; store the pre-image for revert.
-5. Runtime file is `runtime/flagd/demo.flagd.json`, mounted over the demo's file
-   by `lab.override.yaml`; the repo copy stays pristine.
+1. Read current JSON, set `flags[key].defaultVariant`. Validate the variant is
+   declared for that flag.
+2. Write a temp file in the same directory as UTF-8 **without BOM** (a BOM makes
+   flagd fail with `invalid character 'ï'`), then `os.replace` → atomic.
+3. Ensure the mtime is current. flagd ignores a file whose timestamp moved
+   backwards, which happens when a seed copy preserves the source timestamp.
+4. Poll OFREP at `:8016` (`POST /ofrep/v1/evaluate/flags/{key}`) until the
+   evaluation reflects the change; on timeout, restart flagd and re-check.
+5. Serialize all writes behind one async lock; store the pre-image for revert.
+6. Runtime file is `runtime/flagd/demo.flagd.json`, mounted as a directory by
+   `lab.override.yaml`; the repo copy stays pristine.
+
+Verified on this host: hot reload works over the Docker Desktop bind mount, so
+fault injection does not require restarting flagd (which would cause a
+self-inflicted flag outage).
 
 ---
 
@@ -599,16 +610,16 @@ Total ≈ **40 dev-days**.
 | Item | Est. | Note |
 |---|---|---|
 | Demo images (already pulled) | 7.2 GB | fixed |
-| Observability images to pull | ~2.5 GB | jaeger, prometheus, opensearch; skip Grafana |
+| Observability images to pull | ~2.9 GB | jaeger, prometheus, opensearch, grafana (kept: upstream dependency) |
 | pgvector image | ~0.5 GB | |
 | Qwen3-Embedding-0.6B int8 | ~0.7 GB | ONNX, CPU |
 | node_modules | ~1.0 GB | pnpm store shared |
 | Python venv (no torch) | ~0.5 GB | onnxruntime only |
 | **Total** | **~12.4 GB** vs 21 GB free | ~8 GB headroom |
 
-Rules: no torch; no Grafana; `docker system prune` before P1 (currently 6.7 GB
-reclaimable would be *removed* — prune only dangling, not the demo images);
-keep Jaeger retention at 25k traces; rotate `runtime/` logs weekly.
+Rules: no torch; Grafana kept only because `frontend-proxy` depends on it;
+prune only dangling images (never `-a` before a demo upgrade); keep Jaeger
+retention at 25k traces; rotate `runtime/` logs weekly.
 
 ---
 
@@ -648,7 +659,7 @@ Do not claim the lab "works" on fewer than 10 clean runs.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Demo + stack memory pressure on Docker Desktop | OOM, flapping services | Compose resource caps, skip Grafana, 4 GB+ Docker memory, tune load generator users |
+| Demo + stack memory pressure on Docker Desktop | OOM, flapping services | Compose resource caps, keep Grafana lean, 8 GB+ Docker memory, 5 load-generator users |
 | Windows/Docker networking quirks (`tc`, netns) | delay/loss faults fail | v1 avoids `netem`; partition via `docker network disconnect`; netem deferred |
 | Port collisions (4317, 8000, 3000, 5432) | `up` fails | Explicit port map in §6 + a preflight script that checks the list |
 | Jaeger in-memory retention (25k traces) | evidence disappears | Query within 10 min; raise `MEMORY_MAX_TRACES`; snapshot evidence into Postgres |

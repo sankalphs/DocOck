@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/open-telemetry/opentelemetry-demo.git",
+  "commit": "5c8d404a85380226ff45a39dcb4159eda9552c56",
+  "note": "Checkout is not committed to this repository; scripts/bootstrap-demo.ps1 recreates it at this commit."
+}

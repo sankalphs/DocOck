@@ -1,0 +1,44 @@
+# DocOck lab services (our own containers).
+#
+#   docker compose -p docock-lab -f infra/compose/base.yaml up -d
+#
+# The OpenTelemetry demo runs as a separate Compose project (`docock-demo`) and
+# publishes its telemetry endpoints on the host, so nothing here needs to join
+# the demo network. See docs/ADR/002-compose-layering.md.
+
+name: docock-lab
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: docock-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docock}
+      POSTGRES_DB: ${POSTGRES_DB:-docock}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - docock-pgdata:/var/lib/postgresql
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-docock} -d ${POSTGRES_DB:-docock}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    labels:
+      docock.managed: "true"
+
+volumes:
+  docock-pgdata:
+    name: docock-pgdata
+
+networks:
+  default:
+    name: docock-lab

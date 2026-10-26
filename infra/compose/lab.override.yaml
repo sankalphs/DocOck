@@ -1,0 +1,74 @@
+# Applied on top of the upstream demo compose files:
+#
+#   docker compose -p docock-demo --project-directory <demo> \
+#     -f compose.yaml -f compose.observability.yaml -f lab.override.yaml up -d
+#
+# DOCOCK_ROOT must be set (scripts/up.ps1 does this). It is absolute because
+# Compose resolves relative paths against the first file's directory.
+#
+# Why each block exists:
+#   jaeger     upstream publishes an unpinned host port for both UI and OTLP,
+#              and its OTLP host port collides with the collector's 4317.
+#   opensearch upstream hardcodes an unpinned "9200".
+#   flagd      reads a runtime working copy so fault injection never mutates
+#              the upstream checkout, and so atomic replaces are watcher-safe.
+#   others     make every endpoint the API depends on deterministic.
+
+services:
+  jaeger:
+    ports: !override
+      - "16686:16686"
+      - "14317:4317"
+
+  prometheus:
+    ports: !override
+      - "9090:9090"
+
+  opensearch:
+    ports: !override
+      - "9200:9200"
+
+  flagd:
+    # Same command shape as upstream, different URI: a mounted directory.
+    # Mounting a *file* on Windows creates a directory when the file is absent,
+    # and a directory mount also keeps atomic rename inside one filesystem.
+    command:
+      - "start"
+      - "--uri"
+      - "file:/etc/flagd-runtime/demo.flagd.json"
+    # Upstream publishes both ports unpinned (Docker assigns random host ports),
+    # which is useless to the API. Pin them.
+    ports: !override
+      - "8013:8013"
+      - "8016:8016"
+    volumes:
+      - type: bind
+        source: ${DOCOCK_ROOT:?DOCOCK_ROOT must be set to the repository root}/runtime/flagd
+        target: /etc/flagd-runtime
+
+  flagd-ui:
+    ports: !override
+      - "4000:4000"
+
+  frontend-proxy:
+    ports: !override
+      - "8080:8080"
+      - "10000:10000"
+
+  load-generator:
+    ports: !override
+      - "8089:8089"
+
+  # These two Go services ship a health probe with no connect/RPC deadline.
+  # On a loaded Windows host the gRPC channel takes longer than the 5s Docker
+  # healthcheck timeout, so both containers sit in "unhealthy" while serving
+  # fine. Explicit deadlines make the probe return SERVING in <2s.
+  checkout:
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:5050", "-connect-timeout=2s", "-rpc-timeout=2s"]
+      timeout: 10s
+
+  product-catalog:
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:3550", "-connect-timeout=2s", "-rpc-timeout=2s"]
+      timeout: 10s

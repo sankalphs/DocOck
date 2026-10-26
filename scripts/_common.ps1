@@ -11,6 +11,17 @@ function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
+# flagd ignores a flag file whose mtime moved backwards (Copy-Item preserves the
+# source timestamp), and rejects a UTF-8 BOM. Always seed through this helper.
+function Copy-FlagSeed {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+    Copy-Item -Force $Source $Destination
+    (Get-Item $Destination).LastWriteTime = Get-Date
+}
+
 function Write-Ok([string]$Message) {
     Write-Host "  OK   $Message" -ForegroundColor Green
 }
@@ -91,8 +102,10 @@ function Test-StackHealth {
     $checks = @(
         @{ Name = "demo frontend";      Url = "http://127.0.0.1:8080/";                       Match = "" },
         @{ Name = "prometheus ready";   Url = "http://127.0.0.1:9090/-/ready";                Match = "Ready" },
-        @{ Name = "jaeger api";         Url = "http://127.0.0.1:16686/jaeger/ui/api/services"; Match = "" },
+        @{ Name = "prometheus spans";   Url = "http://127.0.0.1:9090/api/v1/query?query=count(traces_span_metrics_calls_total)"; Match = '"result":\[\{' },
+        @{ Name = "jaeger api";         Url = "http://127.0.0.1:16686/jaeger/ui/api/v3/services"; Match = '"services":\[' },
         @{ Name = "opensearch cluster"; Url = "http://127.0.0.1:9200/_cluster/health";        Match = '"status":"(green|yellow)"' },
+        @{ Name = "opensearch logs";    Url = "http://127.0.0.1:9200/_cat/indices/otel-logs*?format=json"; Match = "otel-logs-" },
         @{ Name = "flagd ui";           Url = "http://127.0.0.1:4000/";                       Match = "" },
         @{ Name = "load generator";     Url = "http://127.0.0.1:8089/";                       Match = "" }
     )
