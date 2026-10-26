@@ -17,6 +17,7 @@ from app import __version__
 from app.api import api_router
 from app.config import settings
 from app.db.session import dispose_engine
+from app.detection.runtime import runtime as detection_runtime
 from app.errors import register_error_handlers
 from app.events.bus import bus
 from app.faults.runtime import FaultRuntime
@@ -32,6 +33,7 @@ TAGS = [
     {"name": "telemetry", "description": "Prometheus, Jaeger, OpenSearch, Docker."},
     {"name": "faults", "description": "Fault catalog and injection."},
     {"name": "incidents", "description": "Incidents, evidence, and reports."},
+    {"name": "detection", "description": "Deterministic detector status and cycles."},
     {"name": "agent", "description": "Investigation runs and diagnoses."},
     {"name": "approvals", "description": "Human approval of remediation actions."},
     {"name": "memory", "description": "Resolved-incident retrieval."},
@@ -54,9 +56,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     )
     runtime = FaultRuntime()
     await runtime.start()
+    await detection_runtime.start()
     try:
         yield
     finally:
+        await detection_runtime.stop()
         await runtime.stop()
         await dispose_engine()
         await close_shared_clients()

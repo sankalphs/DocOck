@@ -62,6 +62,7 @@ def test_build_query_rejects_bad_window_and_service() -> None:
 def test_catalog_covers_the_dimensions_the_ui_needs() -> None:
     assert set(CATALOG) == {
         "error_rate",
+        "error_count",
         "p95_latency",
         "throughput",
         "container_cpu",

@@ -270,10 +270,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List incidents, newest first */
+        get: operations["list_incidents_api_incidents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Incident aggregate */
+        get: operations["get_incident_api_incidents__ref__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the deterministic analysis and store evidence + suspects */
+        post: operations["analyze_incident_api_incidents__ref__analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Incident timeline; replay with after_seq */
+        get: operations["incident_events_api_incidents__ref__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Evidence rows for this incident */
+        get: operations["incident_evidence_api_incidents__ref__evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually close */
+        post: operations["close_incident_api_incidents__ref__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/detection/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detector state, baselines, and last cycle */
+        get: operations["detection_status_api_detection_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/detection/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run one detection cycle now */
+        post: operations["detection_run_api_detection_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnalysisReport */
+        AnalysisReport: {
+            /** Incident Id */
+            incident_id: string;
+            /**
+             * Window Start
+             * Format: date-time
+             */
+            window_start: string;
+            /**
+             * Window End
+             * Format: date-time
+             */
+            window_end: string;
+            /** Pre S */
+            pre_s: number;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Services Considered */
+            services_considered: number;
+            /** Evidence Added */
+            evidence_added: number;
+            /** Evidence Total */
+            evidence_total: number;
+            /** Codes */
+            codes?: string[];
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            };
+            /** Suspects */
+            suspects?: components["schemas"]["SuspectScore"][];
+            /** Top Suspect */
+            top_suspect?: string | null;
+            /** Weights */
+            weights?: {
+                [key: string]: number;
+            };
+        };
         /** AuditEntry */
         AuditEntry: {
             /**
@@ -306,6 +481,32 @@ export interface components {
             after?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** BreachView */
+        BreachView: {
+            /** Service */
+            service: string;
+            /** Signal */
+            signal: string;
+            /** Signature */
+            signature: string;
+            /** Value */
+            value: number | null;
+            /** Baseline */
+            baseline: number | null;
+            /** Threshold */
+            threshold: number | null;
+            /**
+             * First Seen
+             * Format: date-time
+             */
+            first_seen: string;
+            /** Consecutive */
+            consecutive: number;
+            /** Detail */
+            detail: string;
+            /** Severity */
+            severity: string;
         };
         /** ContainerInfo */
         ContainerInfo: {
@@ -377,6 +578,64 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** DetectionRunView */
+        DetectionRunView: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Services */
+            services: number;
+            /** Breaches */
+            breaches?: components["schemas"]["BreachView"][];
+            /** Opened */
+            opened?: string | null;
+            /**
+             * Attached
+             * @default 0
+             */
+            attached: number;
+            /** Closed */
+            closed?: string | null;
+            /** Skipped */
+            skipped?: string | null;
+            /**
+             * Persisted
+             * @default 0
+             */
+            persisted: number;
+            /** Baselines */
+            baselines?: {
+                [key: string]: {
+                    [key: string]: number | null;
+                };
+            };
+        };
+        /** EvidenceView */
+        EvidenceView: {
+            /** Id */
+            id: number;
+            /** Code */
+            code: string;
+            /** Type */
+            type: string;
+            /** Source */
+            source: string;
+            /** Service */
+            service: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Hash */
+            hash: string;
+        };
         /** FaultCatalog */
         FaultCatalog: {
             /**
@@ -406,6 +665,28 @@ export interface components {
          * @enum {string}
          */
         FaultCategory: "application" | "infrastructure";
+        /** FaultContext */
+        FaultContext: {
+            /** Id */
+            id: number;
+            /** Fault Id */
+            fault_id: string;
+            /** Target */
+            target: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Status */
+            status: string;
+            /**
+             * Injected At
+             * Format: date-time
+             */
+            injected_at: string;
+            /** Reset At */
+            reset_at: string | null;
+        };
         /** FaultDefinition */
         FaultDefinition: {
             /** Id */
@@ -568,6 +849,145 @@ export interface components {
             uptime_s: number;
             /** Dependencies */
             dependencies: components["schemas"]["DependencyProbe"][];
+        };
+        /** IncidentDetail */
+        IncidentDetail: {
+            /** Id */
+            id: number;
+            /** Public Id */
+            public_id: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** Severity */
+            severity: string;
+            /** Title */
+            title: string;
+            /** Primary Service */
+            primary_service: string | null;
+            /** Signature */
+            signature: string | null;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Closed At */
+            closed_at: string | null;
+            /** Duration S */
+            duration_s: number | null;
+            /** Services */
+            services: string[];
+            /** Signals */
+            signals: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Event Count
+             * @default 0
+             */
+            event_count: number;
+            /**
+             * Evidence Count
+             * @default 0
+             */
+            evidence_count: number;
+            /**
+             * Suspect Count
+             * @default 0
+             */
+            suspect_count: number;
+            /** Trigger */
+            trigger?: {
+                [key: string]: unknown;
+            };
+            /** Events */
+            events?: components["schemas"]["IncidentEventView"][];
+            /** Evidence */
+            evidence?: components["schemas"]["EvidenceView"][];
+            /** Suspects */
+            suspects?: components["schemas"]["SuspectView"][];
+            /** Faults */
+            faults?: components["schemas"]["FaultContext"][];
+        };
+        /** IncidentEventView */
+        IncidentEventView: {
+            /** Seq */
+            seq: number;
+            /** Kind */
+            kind: string;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** IncidentList */
+        IncidentList: {
+            /** Items */
+            items: components["schemas"]["IncidentSummary"][];
+            /** Total */
+            total: number;
+            /** Open */
+            open: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
+         * IncidentStatus
+         * @enum {string}
+         */
+        IncidentStatus: "OPEN" | "INVESTIGATING" | "DIAGNOSED" | "AWAITING_APPROVAL" | "REMEDIATING" | "VERIFYING" | "RESOLVED" | "REJECTED" | "ESCALATED";
+        /** IncidentSummary */
+        IncidentSummary: {
+            /** Id */
+            id: number;
+            /** Public Id */
+            public_id: string;
+            status: components["schemas"]["IncidentStatus"];
+            /** Severity */
+            severity: string;
+            /** Title */
+            title: string;
+            /** Primary Service */
+            primary_service: string | null;
+            /** Signature */
+            signature: string | null;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Closed At */
+            closed_at: string | null;
+            /** Duration S */
+            duration_s: number | null;
+            /** Services */
+            services: string[];
+            /** Signals */
+            signals: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Event Count
+             * @default 0
+             */
+            event_count: number;
+            /**
+             * Evidence Count
+             * @default 0
+             */
+            evidence_count: number;
+            /**
+             * Suspect Count
+             * @default 0
+             */
+            suspect_count: number;
         };
         /** InjectionResult */
         InjectionResult: {
@@ -825,6 +1245,34 @@ export interface components {
             /** Attributes */
             attributes?: {
                 [key: string]: string;
+            };
+        };
+        /** SuspectScore */
+        SuspectScore: {
+            /** Service */
+            service: string;
+            /** Score */
+            score: number;
+            /** Rank */
+            rank: number;
+            /** Signals */
+            signals?: {
+                [key: string]: {
+                    [key: string]: number | string | null;
+                };
+            };
+        };
+        /** SuspectView */
+        SuspectView: {
+            /** Service */
+            service: string;
+            /** Score */
+            score: number;
+            /** Rank */
+            rank: number;
+            /** Signals */
+            signals: {
+                [key: string]: unknown;
             };
         };
         /**
@@ -1474,6 +1922,242 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_incidents_api_incidents_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "open" | "closed";
+                service?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_incident_api_incidents__ref__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analyze_incident_api_incidents__ref__analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_events_api_incidents__ref__events_get: {
+        parameters: {
+            query?: {
+                after_seq?: number;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentEventView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_evidence_api_incidents__ref__evidence_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_incident_api_incidents__ref__close_post: {
+        parameters: {
+            query?: {
+                actor?: string;
+                note?: string;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detection_status_api_detection_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    detection_run_api_detection_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionRunView"];
                 };
             };
         };

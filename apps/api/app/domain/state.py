@@ -39,7 +39,12 @@ TERMINAL_STATUSES: frozenset[IncidentStatus] = frozenset(
 )
 
 TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
-    IncidentStatus.OPEN: frozenset({IncidentStatus.INVESTIGATING, IncidentStatus.ESCALATED}),
+    # OPEN -> RESOLVED is the *recovery* edge: the detector saw the symptom
+    # clear before anyone investigated. Any later status is owned by the agent
+    # and remediation phases, which close through VERIFYING.
+    IncidentStatus.OPEN: frozenset(
+        {IncidentStatus.INVESTIGATING, IncidentStatus.RESOLVED, IncidentStatus.ESCALATED}
+    ),
     IncidentStatus.INVESTIGATING: frozenset({IncidentStatus.DIAGNOSED, IncidentStatus.ESCALATED}),
     IncidentStatus.DIAGNOSED: frozenset(
         {IncidentStatus.AWAITING_APPROVAL, IncidentStatus.ESCALATED}
@@ -86,3 +91,14 @@ def close_target(current: IncidentStatus) -> IncidentStatus:
     if current in TERMINAL_STATUSES:
         return current
     return IncidentStatus.ESCALATED
+
+
+def recovery_target(current: IncidentStatus) -> IncidentStatus | None:
+    """Where an un-investigated incident goes when the symptom clears.
+
+    Only OPEN qualifies: once the agent has started, a recovery is evidence for
+    its diagnosis and the verification phase closes the loop, not the detector.
+    """
+    if current == IncidentStatus.OPEN:
+        return IncidentStatus.RESOLVED
+    return None

@@ -58,7 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Detected incidents, evidence, and state transitions.",
     icon: Siren,
     phase: "P8",
-    ready: false,
+    ready: true,
   },
   {
     href: "/agent",

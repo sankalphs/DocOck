@@ -225,3 +225,57 @@ Consequences for later phases:
 - P8's detector already waits for symptoms, so this delay is absorbed there.
 - A high-traffic target (frontend-proxy, cart) reacts sooner than payment.
 
+## Incident detector (P8)
+
+The detector is a 10 s asyncio loop (`app/detection/runtime.py`). One cycle reads
+error rate, absolute error count, p95, throughput (one 2-minute rate window
+each), and Docker container state; updates per-service baselines; debounces three
+consecutive breaches; then correlates.
+
+Why 10 s and not PLAN's 15 s: the collector flushes span metrics every 10 s, so
+15 s would sample the same point twice and cannot meet the "incident in <= 90 s"
+DoD. The debounce (3 cycles = 30 s) still removes one-sample noise.
+
+### Baselines
+
+`error_rate`: **20th percentile** of the last 15 minutes, `p95_latency`: **80th
+percentile**, `throughput`: **median**. The low percentile is what makes a
+fault-tolerant baseline: an error rate only deviates upward, so the healthy level
+survives even when a fault occupies most of the window. Latency is the opposite
+kind of noise — shipping's healthy p95 ranges 48–1925 ms at constant load — so its
+baseline is the top of the normal band (`p80`) and an alert must exceed twice it.
+
+Samples taken while a service is breaching never feed its baseline, and a service
+with no baseline cannot alert (that is the warm-up, expressed as data
+availability rather than a timer). Persisted baselines are skipped for breaching
+services and rejected on load when implausible (`> 25 %` errors, `> 60 s` p95),
+otherwise a restart during a long fault would teach the detector that the fault is
+normal — this actually happened while testing P9 and produced a silent detector.
+
+### Thresholds
+
+| Signal | Rule |
+|---|---|
+| errors | `rate > max(2 %, 3 x baseline)` **and** `errors >= 2` — unless the rate is >= 50 %, where one failed request out of two is not noise |
+| latency | `p95 > max(2 x baseline, 500 ms)`; for a baseline >= 100 ms an absolute `+1.5 s` is also required (checkout's healthy p95 is 0.4–15 s) |
+| container | not running / paused / `unhealthy`; health alone needs **6** consecutive samples because the demo's probes flap, stopped/paused needs 3 |
+| resource | CPU or memory limit **below the limit observed at startup**; this is the only observable symptom of `cpu_pressure` on `ad`, which uses 1.3 % CPU even when capped at 0.25 cores |
+| throughput | `> 2 x baseline` (baseline >= 0.25 req/s); the catalog itself declares `traffic_flood`'s symptom as a throughput doubling |
+
+A cap equal to the host core count is normalized to "unlimited": Docker cannot
+clear a CPU limit, so that is what a reverted container carries.
+
+### Correlation and recovery
+
+One incident per fault: when several services breach in the same cycle the
+earliest completion-order onset wins, ties broken by deviation from the service's
+own norm, then by throughput. Other breaching services attach as `signal` events.
+The 5-minute per-signature cooldown is bypassed while any fault is `PROPAGATING`
+or `ACTIVE`; without that, re-injecting the same fault to run a scenario step was
+silently swallowed.
+
+`OPEN -> RESOLVED` is the detector's recovery edge and the only automatic close:
+an incident that recovers before anyone investigates closes itself after four
+healthy samples. Once a human or the agent has moved it past `OPEN`, recovery is
+evidence for that workflow, not a reason to close it behind their back.
+

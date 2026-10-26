@@ -47,6 +47,19 @@ def _selector(service: str | None, extra: dict[str, str] | None = None) -> str:
     return "{" + ",".join(parts) + "}"
 
 
+def error_count_query(service: str | None, window: str) -> str:
+    """Absolute failed SERVER spans in the window.
+
+    A rate over a two-minute denominator makes one failed order in a
+    low-traffic service look like 25 %; the detector requires `errors >= 2`
+    alongside the rate so a single blip is not an incident.
+    """
+    errors = _selector(
+        service, {"status_code": "STATUS_CODE_ERROR", "span_kind": "SPAN_KIND_SERVER"}
+    )
+    return f"sum by (service_name) (increase({CALLS}{errors}[{window}]))"
+
+
 def error_rate_query(service: str | None, window: str) -> str:
     """Share of inbound (SERVER) spans that failed.
 
@@ -105,6 +118,7 @@ def container_memory_query(service: str | None, _window: str) -> str:
 
 _BUILDERS = {
     "error_rate": error_rate_query,
+    "error_count": error_count_query,
     "p95_latency": p95_query,
     "throughput": throughput_query,
     "container_cpu": container_cpu_query,
@@ -125,6 +139,14 @@ CATALOG: dict[str, MetricSpec] = {
         label="p95 latency",
         description="95th percentile span duration, per service.",
         unit="ms",
+        dimension="service",
+        default_window=DEFAULT_WINDOW,
+    ),
+    "error_count": MetricSpec(
+        id="error_count",
+        label="Error count",
+        description="Failed inbound (SERVER) spans in the window, per service.",
+        unit="count",
         dimension="service",
         default_window=DEFAULT_WINDOW,
     ),

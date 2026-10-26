@@ -17,6 +17,7 @@ export const EVENT_TYPES = [
   "fault.reconciled",
   "incident.opened",
   "incident.transition",
+  "incident.signal",
   "incident.closed",
   "agent.started",
   "agent.step",

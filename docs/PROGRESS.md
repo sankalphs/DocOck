@@ -16,7 +16,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P5 | Overview + Telemetry UI | DONE | `4f644b9` |
 | P6 | Fault controller | DONE | `5e410fd` |
 | P7 | Fault Lab UI | DONE | `29bc7a2` |
-| P8 | Incident engine + detection | TODO | — |
+| P8 | Incident engine + detection | DONE | pending |
 | P9 | Deterministic analysis + evidence | TODO | — |
 | P10 | Model gateway + embeddings | TODO | — |
 | P11 | Agent orchestrator | TODO | — |
@@ -363,4 +363,58 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
      The observer now only promotes flagd faults.
   3. `AuditLog.tail` returns file order; the UI reverses it so the newest write
      is first.
+
+### P8 — 2026-10-24
+
+- `scripts\check.ps1` exits 0: API ruff/mypy/**107 tests**, dashboard
+  eslint/**37 vitest tests**/`next build` (13 routes).
+- **Detector DoD** (`scripts/verify-incidents.py`, **all 23 checks passed**):
+  - `payment_failure` 100 % → incident **`INC-…` in 59 s** (DoD ≤ 90 s), exactly
+    **one** open incident, primary the origin or its caller, timeline starting
+    with `opened`, and the trigger carrying `error_rate`;
+  - a second fault (`readiness_failure` on cart) **attached as a signal** to the
+    same incident — no second incident was opened;
+  - reverting both faults closed the incident as **`RESOLVED` after 274 s**
+    with a `recovered` event on the timeline (four healthy samples + the 2-minute
+    rate window draining);
+  - an SSE client reconnecting with `Last-Event-ID` replayed **10 events**,
+    including the `incident.opened`, all ordered after the anchor;
+  - final state: 0 open faults, every catalog flag `off`, `health=ok`.
+- **UI**: `/incidents` lists incidents (filter all/open/closed, 5 s poll +
+  immediate refetch on any `incident.*` SSE event) and shows the aggregate —
+  trigger, per-signal value/baseline/threshold, append-only timeline with
+  transitions, and the faults that overlapped the window. Evidence and suspects
+  render honest empty states until P9. Screenshot:
+  `docs/evidence/p8-incident-open.png` (`INC-00004`, payment, 3 signals:
+  payment + checkout + email).
+- **Detector rules** (unit-tested in `tests/test_detection.py`, 13 tests):
+  error `> max(2 %, 3 × p20 baseline)` with `errors >= 2`; latency
+  `> max(2 × p80 baseline, 500 ms)` plus `+1.5 s` for slow services; container
+  state/health with 6 samples for health-only; **resource limits below the
+  startup value**; **throughput > 2 × median**. Correlation: earliest
+  completion-order onset, one incident per fault, other breachers attach.
+- Deviations from PLAN §15/§10, with reasons in `docs/ARCHITECTURE.md`:
+  1. cadence **10 s**, not 15 s — the collector flushes span metrics every 10 s,
+     so 15 s would resample the same point and cannot meet the ≤ 90 s DoD;
+  2. baselines are **p20 / p80 / median**, not one median for everything —
+     error rates only deviate upward (p20 survives a faulted window) while
+     healthy latency is genuinely noisy (shipping 48–1925 ms);
+  3. baseline samples taken **while breaching** are never recorded, persisted
+     seeds above 25 % errors are rejected, and `persist` skips breaching
+     services — a restart during a fault had produced a 50 % "healthy" payment
+     baseline that silently disabled the detector;
+  4. the 5-minute alert cooldown is **bypassed while a fault is open**, because a
+     deliberate re-injection is not an alert storm;
+  5. `OPEN → RESOLVED` added as the detector's recovery edge (only an
+     un-investigated incident auto-closes);
+  6. two extra signals the PLAN's starter weights/rules did not cover:
+     `container_resource` (the only observable for `cpu_pressure` on `ad`, which
+     uses 1.3 % CPU at a 0.25-core cap) and `throughput` (the catalog's own
+     symptom for `traffic_flood`).
+- `error_count` was added to the Prometheus catalog so the detector can require
+  two failed requests instead of trusting a 2-minute rate (one failed order in
+  payment reads as 25 %).
+- Jaeger/OpenSearch/Prometheus/Docker are read with `ttl_s=0` inside the
+  detector: a cached sample would make the same breach count three times.
+
 

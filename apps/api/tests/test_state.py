@@ -12,6 +12,7 @@ from app.domain.state import (
     close_target,
     ensure_transition,
     is_active,
+    recovery_target,
 )
 
 
@@ -29,6 +30,18 @@ def test_happy_path_reaches_resolved() -> None:
         assert ensure_transition(current, target) == target
 
 
+def test_recovery_edge_only_leaves_open() -> None:
+    # P8: the detector may close an incident that recovered before anyone
+    # investigated it, and only then.
+    assert (
+        ensure_transition(IncidentStatus.OPEN, IncidentStatus.RESOLVED) == IncidentStatus.RESOLVED
+    )
+    with pytest.raises(InvalidTransition):
+        ensure_transition(IncidentStatus.INVESTIGATING, IncidentStatus.RESOLVED)
+    assert recovery_target(IncidentStatus.OPEN) == IncidentStatus.RESOLVED
+    assert recovery_target(IncidentStatus.INVESTIGATING) is None
+
+
 def test_rejection_escalates() -> None:
     ensure_transition(IncidentStatus.AWAITING_APPROVAL, IncidentStatus.REJECTED)
     ensure_transition(IncidentStatus.REJECTED, IncidentStatus.ESCALATED)
@@ -36,7 +49,7 @@ def test_rejection_escalates() -> None:
 
 def test_illegal_transition_is_rejected() -> None:
     with pytest.raises(InvalidTransition):
-        ensure_transition(IncidentStatus.OPEN, IncidentStatus.RESOLVED)
+        ensure_transition(IncidentStatus.OPEN, IncidentStatus.DIAGNOSED)
     with pytest.raises(InvalidTransition):
         ensure_transition(IncidentStatus.RESOLVED, IncidentStatus.INVESTIGATING)
 

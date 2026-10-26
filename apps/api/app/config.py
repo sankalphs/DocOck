@@ -81,11 +81,21 @@ class Settings(BaseSettings):
     agent_confidence_threshold: float = 0.70
     agent_auto_remediate: bool = False
     agent_wall_clock_s: int = 90
-    detector_interval_s: int = 15
+    detector_enabled: bool = True
+    # The collector's span-metric flush is 10 s (P4), so 10 s is the finest
+    # cadence that observes a new sample; three consecutive breaches still
+    # debounce one noisy point.
+    detector_interval_s: int = 10
+    detector_window: str = "2m"
+    detector_baseline_window_s: int = 900
     detector_consecutive_breaches: int = 3
+    detector_recovery_samples: int = 4
+    detector_min_errors: int = 2
+    detector_warmup_s: int = 300
     detector_error_rate_floor: float = 0.02
     detector_error_rate_multiplier: float = 3.0
     detector_latency_multiplier: float = 2.0
+    detector_latency_floor_ms: float = 500.0
     detector_cooldown_s: int = 300
 
     # --- Faults -------------------------------------------------------------

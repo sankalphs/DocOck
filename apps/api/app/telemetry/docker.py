@@ -68,6 +68,23 @@ async def server_version() -> str:
     return (await run_docker("version", "--format", "{{.Server.Version}}", timeout_s=8.0)).strip()
 
 
+_host_cores: int | None = None
+
+
+async def host_cores() -> int:
+    """`docker info` NCPU, cached.
+
+    The Engine cannot clear a CPU limit (`docker update --cpus 0` is a no-op),
+    so a reverted container has an explicit cap equal to the host core count.
+    That value is the demo's effective "unlimited", not a real restriction.
+    """
+    global _host_cores
+    if _host_cores is None:
+        raw = await run_docker("info", "--format", "{{.NCPU}}", timeout_s=10.0)
+        _host_cores = max(1, int(raw.strip() or 1))
+    return _host_cores
+
+
 def _parse_time(value: str | int | None) -> datetime | None:
     if value is None:
         return None
