@@ -22,7 +22,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P11 | Agent orchestrator | DONE | a2cd0de |
 | P12 | Memory + retrieval | DONE | 8484efa |
 | P13 | Agent UI | DONE | b418fa9 |
-| P14 | Remediation + approval | DONE | (this commit) |
+| P14 | Remediation + approval | DONE | 473dc80 |
 | P15 | Verification + reports | TODO | — |
 | P16 | Hardening + evaluation | TODO | — |
 
