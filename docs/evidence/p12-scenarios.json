@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-10-25T23:09:42.681042+00:00",
+  "passed": 3,
+  "total": 3,
+  "agent_passed": 3,
+  "invalid_evidence_codes": 0,
+  "results": [
+    {
+      "id": "S1",
+      "name": "payment failure",
+      "expected": "payment",
+      "incident": "INC-00080",
+      "primary_service": "checkout",
+      "detected_s": 58.171999999991385,
+      "top": "payment",
+      "score": 0.4651,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4651
+        },
+        {
+          "service": "checkout",
+          "score": 0.1526
+        },
+        {
+          "service": "frontend",
+          "score": 0.1526
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1526
+        },
+        {
+          "service": "quote",
+          "score": 0.0391
+        },
+        {
+          "service": "shipping",
+          "score": 0.0285
+        },
+        {
+          "service": "email",
+          "score": 0.0097
+        }
+      ],
+      "evidence": 39,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 10,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0012",
+          "E0007",
+          "E0001",
+          "E0003",
+          "E0037",
+          "E0032",
+          "E0021",
+          "E0013",
+          "E0040",
+          "E0041",
+          "E0042"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 4140,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": {
+        "previous": [
+          "INC-00070"
+        ],
+        "rank": 1,
+        "top3": true,
+        "hits": [
+          {
+            "incident": "INC-00070",
+            "root_cause": "payment",
+            "score": 0.7747
+          },
+          {
+            "incident": "INC-00072",
+            "root_cause": "payment",
+            "score": 0.7671
+          },
+          {
+            "incident": "seed-1",
+            "root_cause": "payment",
+            "score": 0.6547
+          },
+          {
+            "incident": "seed-3",
+            "root_cause": "payment",
+            "score": 0.6547
+          },
+          {
+            "incident": "INC-00077",
+            "root_cause": "payment",
+            "score": 0.6538
+          }
+        ]
+      },
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S5",
+      "name": "email service down",
+      "expected": "email",
+      "incident": "INC-00081",
+      "primary_service": "email",
+      "detected_s": 30.75,
+      "top": "email",
+      "score": 0.91,
+      "ranking": [
+        {
+          "service": "email",
+          "score": 0.91
+        },
+        {
+          "service": "payment",
+          "score": 0.09
+        }
+      ],
+      "evidence": 21,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 11,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "email",
+        "fault_class": "dependency_unavailable",
+        "confidence": 0.92,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0020",
+          "E0010",
+          "E0021",
+          "E0005",
+          "E0022",
+          "E0023",
+          "E0024"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 4125,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": {
+        "previous": [
+          "INC-00074"
+        ],
+        "rank": 1,
+        "top3": true,
+        "hits": [
+          {
+            "incident": "INC-00074",
+            "root_cause": "email",
+            "score": 0.7717
+          },
+          {
+            "incident": "seed-5",
+            "root_cause": "email",
+            "score": 0.594
+          }
+        ]
+      },
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S7",
+      "name": "payment network partition",
+      "expected": "payment",
+      "incident": "INC-00082",
+      "primary_service": "payment",
+      "detected_s": 30.578000000008615,
+      "top": "payment",
+      "score": 0.4114,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4114
+        },
+        {
+          "service": "checkout",
+          "score": 0.3491
+        },
+        {
+          "service": "email",
+          "score": 0.1247
+        },
+        {
+          "service": "shipping",
+          "score": 0.061
+        },
+        {
+          "service": "quote",
+          "score": 0.0539
+        }
+      ],
+      "evidence": 23,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 12,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "network",
+        "confidence": 0.7,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0003",
+          "E0022",
+          "E0017",
+          "E0023",
+          "E0007",
+          "E0024",
+          "E0026",
+          "E0027"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 5,
+        "llm_calls": 3,
+        "latency_ms": 6234,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": {
+        "previous": [
+          "INC-00077"
+        ],
+        "rank": 1,
+        "top3": true,
+        "hits": [
+          {
+            "incident": "INC-00077",
+            "root_cause": "payment",
+            "score": 0.7721
+          },
+          {
+            "incident": "seed-7",
+            "root_cause": "payment",
+            "score": 0.5758
+          }
+        ]
+      },
+      "passed": true,
+      "agent_passed": true
+    }
+  ]
+}

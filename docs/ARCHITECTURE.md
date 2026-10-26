@@ -431,3 +431,39 @@ context and tool results. The root is the top suspect unless a recorded
 fault/flag change targets another top-3 suspect. The whole pipeline —
 persistence, validation, gate, SSE, UI — is therefore exercised without a key.
 
+
+## Memory (P12)
+
+`app/memory/` stores **one normalized summary per resolved incident** and offers
+similar past incidents to the agent as hypotheses.
+
+```
+<root>. <fault class>. <symptom phrase>.
+Onset: <root> errors preceded <downstream> by <x>s.
+Container: <healthy|crashed|oom|paused|detached|limited>. Restart: <helped|no effect|not attempted>.
+Action: <action_id> on <target>. Verification: <verdict>.
+```
+
+- **When.** A bus consumer embeds an incident when it reaches `RESOLVED` and has
+  a valid diagnosis (`incident.closed` / `incident.transition` → retried until the
+  commit is visible); a startup sweep catches anything missed. Never raw logs;
+  never an evidence code.
+- **Guard.** At startup `memories.embedding`'s dimension is read from
+  `pg_attribute` and compared with the code (1024) and the embedder; the
+  embedder identity is stored in `settings` (`memory.embedding`). A different
+  model or width disables memory (no writes, no retrieval, 409 on the API)
+  until `scripts/reembed.py` re-embeds every row — two embedding spaces are
+  never mixed.
+- **Hybrid retrieval.** Query = the template's first three lines built from the
+  open incident (leading suspect as root). Candidates: HNSW cosine top-20 plus
+  memories whose root is a current top-3 suspect. Score =
+  0.75·cosine + 0.15·token overlap + 0.10·recency (7-day half-life); cosine must
+  be ≥ `RETRIEVAL_MIN_SCORE` (0.55); `RETRIEVAL_TOP_K` (5) returned. A fault-class
+  filter applies only when Docker shows a direct cause (crashed, paused,
+  detached, OOM). Seeds (`scripts/seed-memory.py`, no incident) score ×0.9.
+- **Hypotheses, never evidence.** Results enter the context under
+  `similar_past_incidents` with a "HYPOTHESES ONLY" note and through the
+  `retrieve_similar_incidents` tool, which returns no codes. A memory carries no
+  `E####` code, the validator accepts only this incident's codes, and the
+  diagnosis schema (`extra=forbid`) has no memory field.
+

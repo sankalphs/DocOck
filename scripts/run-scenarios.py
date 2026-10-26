@@ -13,7 +13,9 @@ The gate from PLAN §15 is top-1 == injected target in at least 7 of 8 scenarios
 `--agent` also runs the P11 investigation (`/investigate?wait=true`) and checks
 every cited evidence code against the incident's own evidence list. `--resolve`
 lets the detector resolve the incident after the revert (DIAGNOSED → RESOLVED,
-the input for P12 memory) instead of closing it by hand.
+the input for P12 memory) instead of closing it by hand. `--history FILE` (a
+previous result file) checks P12 retrieval: before investigating, the new
+incident's memory search must rank the same scenario's earlier incident top-3.
 The JSON result is written to `runtime/scenarios.json`; the console prints the
 scoreboard. The stack is left clean (no faults, no open incidents).
 
@@ -146,6 +148,7 @@ class Result:
     note: str = ""
     agent: dict[str, Any] | None = None
     final_status: str | None = None
+    memory: dict[str, Any] | None = None
 
     @property
     def passed(self) -> bool:
@@ -298,6 +301,28 @@ def investigate(client: httpx.Client, ref: str) -> dict[str, Any]:
     }
 
 
+def memory_check(client: httpx.Client, ref: str, previous: list[str]) -> dict[str, Any]:
+    response = _get(client, f"/api/memory/search?incident={ref}&k=5")
+    if response.status_code != 200:
+        return {"error": f"search {response.status_code}: {response.text[:200]}"}
+    hits = response.json().get("hits") or []
+    refs = [hit.get("incident_ref") for hit in hits]
+    rank = next((index + 1 for index, item in enumerate(refs) if item in previous), None)
+    return {
+        "previous": previous,
+        "rank": rank,
+        "top3": rank is not None and rank <= 3,
+        "hits": [
+            {
+                "incident": hit.get("incident_ref") or f"seed-{hit.get('memory_id')}",
+                "root_cause": hit.get("root_cause"),
+                "score": hit.get("score"),
+            }
+            for hit in hits
+        ],
+    }
+
+
 def wait_resolved(client: httpx.Client, ref: str, timeout_s: float) -> str:
     deadline = time.monotonic() + timeout_s
     status = ""
@@ -315,6 +340,7 @@ def run_one(
     *,
     agent: bool = False,
     resolve: bool = False,
+    previous: list[str] | None = None,
 ) -> Result:
     result = Result(
         id=scenario.id,
@@ -369,6 +395,8 @@ def run_one(
         ]
         result.score = result.ranking[0]["score"] if result.ranking else None
         result.evidence = body.get("evidence_total", 0)
+    if previous:
+        result.memory = memory_check(client, incident["public_id"], previous)
     if agent:
         result.agent = investigate(client, incident["public_id"])
 
@@ -403,7 +431,16 @@ def main() -> int:
         "--resolve", action="store_true", help="wait for the detector to resolve after revert"
     )
     parser.add_argument("--out", default=RESULTS_FILE, help="where to write the JSON result")
+    parser.add_argument(
+        "--history", default="", help="earlier result file: check memory retrieval against it"
+    )
     args = parser.parse_args()
+    history: dict[str, list[str]] = {}
+    if args.history:
+        with open(args.history, encoding="utf-8") as handle:
+            for item in json.load(handle)["results"]:
+                if item.get("incident") and item.get("final_status") == "RESOLVED":
+                    history.setdefault(item["id"], []).append(item["incident"])
     wanted = {item.strip().upper() for item in args.only.split(",") if item.strip()}
     scenarios = [item for item in SCENARIOS if not wanted or item.id in wanted]
 
@@ -420,6 +457,7 @@ def main() -> int:
                 scenario,
                 agent=args.agent,
                 resolve=args.resolve,
+                previous=history.get(scenario.id),
             )
             results.append(result)
             verdict = "PASS" if result.passed else "FAIL"
@@ -430,6 +468,12 @@ def main() -> int:
             )
             if result.error:
                 print(f"       error: {result.error}")
+            if result.memory is not None:
+                print(
+                    f"       memory rank={result.memory.get('rank')} "
+                    f"top3={result.memory.get('top3')} previous={result.memory.get('previous')} "
+                    f"hits={[hit['incident'] for hit in result.memory.get('hits') or []]}"
+                )
             if result.agent is not None:
                 item = result.agent
                 print(
@@ -472,6 +516,10 @@ def main() -> int:
             f"{invalid} invalid evidence code(s), max tool calls "
             f"{max(int((item.agent or {}).get('tool_calls') or 0) for item in agent_runs)}"
         )
+    memory_runs = [item for item in results if item.memory is not None]
+    if memory_runs:
+        top3 = sum(1 for item in memory_runs if (item.memory or {}).get("top3"))
+        print(f"memory: {top3}/{len(memory_runs)} matching incident in top-3")
     payload = {
         "generated_at": datetime.now(UTC).isoformat(),
         "passed": passed,

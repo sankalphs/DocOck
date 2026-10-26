@@ -23,6 +23,8 @@ from app.errors import register_error_handlers
 from app.events.bus import bus
 from app.faults.runtime import FaultRuntime
 from app.logging import configure_logging, get_logger
+from app.memory.service import memory
+from app.memory.tool import register_memory_tool
 from app.middleware import RequestContextMiddleware
 from app.models.gateway import gateway as model_gateway
 from app.telemetry.http import close_shared_clients
@@ -61,6 +63,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await model_gateway.load(session)
     except Exception as exc:  # the DB probe reports this; models fall back to .env
         log.warning("model_settings_load_failed", error=str(exc))
+    # P12: memory is advisory context for the agent (hypotheses, never evidence).
+    register_memory_tool()
+    agent_orchestrator.hypotheses = memory.hypotheses
+    await memory.start()
     try:
         stale = await agent_orchestrator.recover_stale()
         if stale:
@@ -74,6 +80,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await agent_orchestrator.shutdown()
+        await memory.stop()
         await detection_runtime.stop()
         await runtime.stop()
         await model_gateway.aclose()

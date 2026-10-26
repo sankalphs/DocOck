@@ -549,6 +549,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/memory/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dimension guard and store state */
+        get: operations["status_api_memory_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/memory/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Debug retrieval
+         * @description Either `incident` (build the query from an incident, excluding itself) or free text `q`. Results are hypotheses, never evidence.
+         */
+        get: operations["search_api_memory_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stored memories, newest first */
+        get: operations["list_memories_api_memory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/memory/incidents/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Store (or refresh) the memory of one resolved incident */
+        post: operations["remember_api_memory_incidents__ref__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1458,6 +1529,101 @@ export interface components {
          * @enum {string}
          */
         Mechanism: "flagd" | "container_stop" | "container_pause" | "network_partition" | "resource_limit" | "load_spike";
+        /** MemoryHit */
+        MemoryHit: {
+            /** Memory Id */
+            memory_id: number;
+            /** Incident Ref */
+            incident_ref: string | null;
+            /** Root Cause */
+            root_cause: string;
+            /** Fault Class */
+            fault_class: string;
+            /** Summary */
+            summary: string;
+            /** Services */
+            services: string[];
+            /** Seed */
+            seed: boolean;
+            /** Cosine */
+            cosine: number;
+            /** Lexical */
+            lexical: number;
+            /** Recency */
+            recency: number;
+            /** Score */
+            score: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** MemoryList */
+        MemoryList: {
+            /** Items */
+            items: components["schemas"]["MemoryView"][];
+            /** Total */
+            total: number;
+        };
+        /** MemorySearchResult */
+        MemorySearchResult: {
+            /** Query */
+            query: string;
+            /** Fault Class */
+            fault_class: string | null;
+            /** Top K */
+            top_k: number;
+            /** Min Score */
+            min_score: number;
+            /** Hits */
+            hits: components["schemas"]["MemoryHit"][];
+        };
+        /** MemoryStatus */
+        MemoryStatus: {
+            /** Ready */
+            ready: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Column Dimensions */
+            column_dimensions: number | null;
+            /** Expected Dimensions */
+            expected_dimensions: number;
+            /** Stored */
+            stored: {
+                [key: string]: unknown;
+            } | null;
+            /** Current */
+            current: {
+                [key: string]: unknown;
+            };
+            /** Memories */
+            memories: number;
+            /** Seeds */
+            seeds: number;
+        };
+        /** MemoryView */
+        MemoryView: {
+            /** Id */
+            id: number;
+            /** Incident Ref */
+            incident_ref: string | null;
+            /** Root Cause */
+            root_cause: string;
+            /** Fault Class */
+            fault_class: string;
+            /** Summary */
+            summary: string;
+            /** Services */
+            services: string[];
+            /** Seed */
+            seed: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** MetricPoint */
         MetricPoint: {
             /**
@@ -3001,6 +3167,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    status_api_memory_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryStatus"];
+                };
+            };
+        };
+    };
+    search_api_memory_search_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                incident?: string | null;
+                fault_class?: string | null;
+                k?: number | null;
+                min_score?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemorySearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_memories_api_memory_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remember_api_memory_incidents__ref__post: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryView"];
                 };
             };
             /** @description Validation Error */

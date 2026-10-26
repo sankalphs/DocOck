@@ -90,7 +90,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Similar resolved incidents used as hypotheses, never evidence.",
     icon: Database,
     phase: "P12",
-    ready: false,
+    ready: true,
   },
   {
     href: "/models",

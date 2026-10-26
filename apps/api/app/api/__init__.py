@@ -15,6 +15,7 @@ from app.api import (
     faults,
     health,
     incidents,
+    memory,
     settings,
     telemetry,
 )
@@ -28,5 +29,6 @@ api_router.include_router(incidents.router)
 api_router.include_router(detection.router)
 api_router.include_router(settings.router)
 api_router.include_router(agent.router)
+api_router.include_router(memory.router)
 
 __all__ = ["api_router"]

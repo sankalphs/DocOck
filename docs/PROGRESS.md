@@ -20,7 +20,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
 | P10 | Model gateway + embeddings | DONE | `75227b0` |
 | P11 | Agent orchestrator | DONE | a2cd0de |
-| P12 | Memory + retrieval | TODO | — |
+| P12 | Memory + retrieval | DONE | (this commit) |
 | P13 | Agent UI | TODO | — |
 | P14 | Remediation + approval | TODO | — |
 | P15 | Verification + reports | TODO | — |
@@ -605,7 +605,7 @@ Query:` prefix; documents do not.
 ### P11 — 2026-10-26
 
 - **8 scenarios end to end** on the live stack, stub provider (offline):
-  `scriptsun-scenarios.py --agent --resolve` → **8/8 DIAGNOSED with the
+  `scripts\run-scenarios.py --agent --resolve` → **8/8 DIAGNOSED with the
   injected root cause**, every diagnosis `valid`, **0 invalid evidence codes**
   (each cited code checked independently against
   `GET /api/incidents/{ref}/evidence`), **4 tool calls per run** (cap 20), 3
@@ -654,3 +654,50 @@ Facts found while building:
 3. Background jobs launched by the agent harness are stopped after their time
    limit; the API is now started with `Start-Process` (see RUNBOOK) when a long
    run must survive.
+
+### P12 — 2026-10-26
+
+- **Retrieval DoD** on the live stack: S1, S5 and S7 had each been resolved
+  once in the P11 run (INC-00070, INC-00074, INC-00077). Re-running them with
+  `scripts\run-scenarios.py --only S1,S5,S7 --agent --resolve --history
+  runtime\scenarios-p11.json` ranked the earlier incident **#1 for all three**
+  (3/3 top-3) through `GET /api/memory/search?incident=…`:
+
+  | Scenario | New incident | Earlier incident | Rank | Other hits |
+  |---|---|---|---|---|
+  | S1 payment failure | INC-00080 | INC-00070 | 1 | INC-00072, seed-1, seed-3, INC-00077 |
+  | S5 email down | INC-00081 | INC-00074 | 1 | seed-5 |
+  | S7 payment partition | INC-00082 | INC-00077 | 1 | seed-7 |
+
+  The same runs were still diagnosed correctly with the hypotheses in context
+  (`hypotheses: 2` in the context step): 3/3 valid, **0 invalid codes**, 4–5
+  tool calls, and each was stored as a memory on resolve (`memory.stored`).
+  Result file: `docs/evidence/p12-scenarios.json`.
+- **Memory cannot appear as evidence**: memories have no `E####` code; the
+  `retrieve_similar_incidents` tool returns `codes: []` and records no
+  evidence row; the evidence lists of INC-00080..82 contain only telemetry,
+  Docker, fault and analysis types; a diagnosis with a `memory_ids` field is
+  rejected (`extra=forbid`). Unit tests cover both the hypothesis text (no
+  codes) and the validator side.
+- **Dimension guard at startup**: `memory_guard_ok dimensions=1024` in the API
+  log; `/api/memory/status` reports column `vector(1024)`, code 1024, stored
+  and current embedder `onnx_local:Qwen/Qwen3-Embedding-0.6B`, 21 memories
+  (11 incidents, 10 seeds). On a mismatch retrieval is disabled with a reason.
+- `scripts\reembed.py --resummarize` rebuilt 8 summaries and re-embedded 18
+  vectors in 8.6 s after the template changed. `scripts\seed-memory.py` stores
+  10 synthetic seeds (scored ×0.9).
+- UI: `/memory` shows the guard, stored memories and a debug retrieval with the
+  cosine/lexical/recency parts — `docs/evidence/p12-memory.png`,
+  `docs/evidence/p12-memory-search.png` (INC-00082 → INC-00077 0.772, seed-7
+  0.576; the incident itself is excluded).
+
+Facts found while building:
+
+1. Every demo container has a memory limit, so "limited" in the summary only
+   means a CPU limit of 2 cores or less; otherwise all incidents shared that
+   token and looked alike.
+2. flagd starts erroring together with any flag change, so the onset line
+   skips non-suspects; otherwise every flag scenario named flagd as co-onset.
+3. A fault-class filter on every query drops correct matches when the class
+   differs between similar faults (S1 application_error, S3 configuration); the
+   filter applies only when Docker shows a direct cause.

@@ -11,7 +11,16 @@ describe("EVENT_TYPES", () => {
   it("covers every namespace the API publishes", () => {
     const groups = new Set(EVENT_TYPES.map((type) => type.split(".")[0]));
     expect(groups).toEqual(
-      new Set(["system", "fault", "incident", "agent", "approval", "action", "verification"]),
+      new Set([
+        "system",
+        "fault",
+        "incident",
+        "agent",
+        "memory",
+        "approval",
+        "action",
+        "verification",
+      ]),
     );
   });
 });

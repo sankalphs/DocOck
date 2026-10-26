@@ -178,6 +178,45 @@ and lets the detector resolve the incident after the revert (results:
 `--out runtime\scenarios-p11.json`). Set `PYTHONIOENCODING=utf-8` when the output
 goes to a file on Windows.
 
+A run that must outlive the agent harness (the scenario runner, the API during
+it) is started detached:
+
+```powershell
+Start-Process uv -ArgumentList "run","uvicorn","app.main:app","--port","8001" `
+  -WorkingDirectory apps\api -RedirectStandardOutput runtime\api.log `
+  -RedirectStandardError runtime\api.err.log -WindowStyle Hidden
+```
+
+## Memory (P12)
+
+A resolved incident with a valid diagnosis is summarized and embedded
+automatically (`memory.stored` on the event bus). At startup the API checks
+that the `memories.embedding` column, the stored model and the configured
+embedder agree; on a mismatch retrieval is off and `/api/memory/status` says why.
+
+```powershell
+curl.exe http://127.0.0.1:8001/api/memory/status
+curl.exe "http://127.0.0.1:8001/api/memory/search?incident=INC-00070&k=5"
+curl.exe "http://127.0.0.1:8001/api/memory/search?q=payment+charges+fail"
+curl.exe -X POST "http://127.0.0.1:8001/api/memory/incidents/INC-00070?force=true"
+```
+
+```powershell
+uv run --project apps\api python scripts\seed-memory.py            # 10 synthetic seeds
+uv run --project apps\api python scripts\seed-memory.py --remove
+uv run --project apps\api python scripts\reembed.py --dry-run      # what would change
+uv run --project apps\api python scripts\reembed.py                # after changing the embedder
+uv run --project apps\api python scripts\reembed.py --resummarize  # after changing the summary template
+```
+
+Changing the embedding **dimension** also needs a migration for the column;
+`reembed.py` refuses to write vectors of the wrong size. Stop the API first when
+switching models, then restart it so the guard re-reads the settings.
+
+`scripts\run-scenarios.py --history runtime\scenarios-p11.json` checks
+retrieval: each new incident's search must rank the same scenario's earlier
+incident in the top 3.
+
 ## Endpoints
 
 | What | URL |
