@@ -510,6 +510,10 @@ class FaultController:
             definition = DEFINITIONS.get(row.type)
             if definition is None:
                 continue
+            # Direct mechanisms are ACTIVE from the read-back; only a flagd
+            # write has a propagation window to observe.
+            if definition.mechanism != Mechanism.FLAGD:
+                continue
             ref = dict(row.injection_ref or {})
             baseline = ref.get("baseline")
             reading = await self._read_symptom(definition, row.target)

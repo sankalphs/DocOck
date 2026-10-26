@@ -14,8 +14,8 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P3 | Dashboard shell | DONE | `9db0dd3` |
 | P4 | Telemetry adapters | DONE | `c23726f` |
 | P5 | Overview + Telemetry UI | DONE | `4f644b9` |
-| P6 | Fault controller | DONE | pending |
-| P7 | Fault Lab UI | TODO | — |
+| P6 | Fault controller | DONE | `5e410fd` |
+| P7 | Fault Lab UI | DONE | pending |
 | P8 | Incident engine + detection | TODO | — |
 | P9 | Deterministic analysis + evidence | TODO | — |
 | P10 | Model gateway + embeddings | TODO | — |
@@ -319,4 +319,48 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
    fault targets payment but its symptom is observed on checkout.
    `imageSlowLoad` is enforced in the frontend (`x-envoy-fault-delay-request`),
    so its target is frontend rather than the PLAN's image-provider.
+
+### P7 — 2026-10-24
+
+- `scripts\check.ps1` exits 0: API ruff/mypy/**93 tests**, dashboard
+  eslint/**33 vitest tests**/`next build`.
+- **DoD run in the browser, zero CLI**: `/faults` → select `payment_failure`,
+  variant `100%` → **Dry run** (plan shows `container payment`, project
+  `docock-demo`, network `opentelemetry-demo`, TTL 900 s, the full pre-image
+  `{flag: paymentFailure, before: off, after: 100%}`, baseline 0, and states
+  that nothing was written) → **Inject fault** → the card appears as
+  `propagating` with a live `14:39` countdown and “waiting for payment inbound
+  error rate above 2%” → becomes **active** with
+  `observed: payment error_rate=1 ratio` → Overview shows **100.00 % worst
+  error rate** and the chart spike (`p7-overview-broken.png`) → **Revert** on
+  the card → status `reverted`, OFREP `paymentFailure=off`, and the 1-minute
+  checkout error rate returns to **0**; the Overview KPI decays to the demo's
+  normal low-volume noise (`p7-recovered.png`).
+- Screenshots: `docs/evidence/p7-fault-lab.png`, `p7-dry-run.png`,
+  `p7-propagating.png`, `p7-active-fault.png`, `p7-overview-broken.png`,
+  `p7-recovered.png`, `p7-history.png`.
+- The form is generated from the catalog: 19 faults in two optgroups, a fixed
+  target chip or a target select (infra), variant selects for flagd, number
+  inputs with the catalog's min/max (and `unit`), and a TTL field bounded by
+  `max_ttl_s`. The description, mechanism, risk, flag key, observed symptom and
+  the upstream caveats (`cartFailure` only fails EmptyCart; `payment_unreachable`
+  is observed at checkout) are rendered from the catalog, not hardcoded.
+- **Reset all** is two-step: the first click arms `Confirm reset all`, the
+  second calls `POST /api/faults/reset-all` and reports reverted / flag-drift /
+  failed counts. Active cards poll every 4 s and refetch immediately on any SSE
+  `fault.*` event; the countdown ticks locally at 1 s and is clamped at
+  `expired`.
+- History shows status, injected clock, held duration, params, and its own
+  actor; the audit panel reads `/api/faults/audit` (newest first) and shows the
+  before/after detail from `runtime/audit/faults.jsonl`.
+- Fixes discovered during the phase:
+  1. The `cartFailure` 25 % KPI earlier in the run was invoked as a reminder
+     that low-volume services make a 2-minute error rate jumpy: checkout shows
+     25 % from a single failed order. P8 must require more than one error in
+     the window (recorded for the detector).
+  2. Direct mechanisms briefly existed as `PROPAGATING` between the row insert
+     and the read-back, so the observer logged a redundant `observe` for them.
+     The observer now only promotes flagd faults.
+  3. `AuditLog.tail` returns file order; the UI reverses it so the newest write
+     is first.
 

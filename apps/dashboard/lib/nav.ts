@@ -41,8 +41,8 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Fault Lab",
     blurb: "Inject and revert the v1 fault catalog with a TTL watchdog.",
     icon: FlaskConical,
-    phase: "P6–P7",
-    ready: false,
+    phase: "P7",
+    ready: true,
   },
   {
     href: "/telemetry",

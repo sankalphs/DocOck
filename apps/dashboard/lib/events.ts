@@ -8,8 +8,13 @@
 export const EVENT_TYPES = [
   "system.ready",
   "fault.injected",
+  "fault.active",
   "fault.reverted",
   "fault.expired",
+  "fault.failed",
+  "fault.revert_failed",
+  "fault.reset_all",
+  "fault.reconciled",
   "incident.opened",
   "incident.transition",
   "incident.closed",
