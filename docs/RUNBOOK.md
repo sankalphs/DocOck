@@ -81,6 +81,27 @@ different dashboard port needs a matching `CORS_ORIGINS` entry.
 
 Verification screenshots for each phase are kept in `docs/evidence/`.
 
+## Telemetry contract tests
+
+The adapters have two layers of tests:
+
+```powershell
+cd apps\api
+uv run pytest                     # recorded fixtures, no stack required
+uv run pytest -m live -o addopts=-q   # contract tests against the live stack
+scripts\check.ps1 -Live           # everything, including the live contracts
+```
+
+If a demo upgrade renames a metric, changes a Jaeger parameter, or reshapes a
+log document, the live tests are what fail. Re-record the fixtures afterwards:
+
+```powershell
+uv run --project apps\api python scripts\record-telemetry-fixtures.py
+```
+
+Confirmed contracts (metric names, labels, Jaeger parameter casing, log fields,
+freshness) are documented in `docs/ARCHITECTURE.md`.
+
 ## Endpoints
 
 | What | URL |
@@ -167,6 +188,17 @@ Desktop memory rather than removing limits.
 `docker compose -p docock-demo ps` shows the state. Most demo services depend on
 the collector; if `otel-collector` is crash-looping, all of them look broken.
 Start there.
+
+**Metrics look stale (up to a minute behind).**
+Span metrics are pushed by the collector's `span_metrics` connector, not
+scraped. Upstream flushes every 60 s; `infra/otel-collector/extras.yaml` lowers
+that to 10 s and is mounted by `lab.override.yaml`. If you changed the collector
+and freshness regressed, check that the extras file is the mounted one:
+
+```powershell
+docker inspect otel-collector --format '{{range .Mounts}}{{.Destination}} <- {{.Source}}{{"\n"}}{{end}}'
+```
+
 
 **`checkout` / `product-catalog` report unhealthy but serve fine.**
 Their bundled `grpc_health_probe` has no connect/RPC deadline and can exceed the

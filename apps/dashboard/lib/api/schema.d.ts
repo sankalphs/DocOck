@@ -55,10 +55,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/telemetry/metrics/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whitelisted metric catalog */
+        get: operations["metric_catalog_api_telemetry_metrics_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telemetry/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Query one allowlisted metric
+         * @description Pass a catalog id, not PromQL. Omit start/end for an instant query; provide both for a range query (step defaults to ~120 points).
+         */
+        get: operations["metrics_api_telemetry_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telemetry/traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search recent traces */
+        get: operations["traces_api_telemetry_traces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telemetry/traces/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One trace as a flat, depth-ordered waterfall */
+        get: operations["trace_api_telemetry_traces__trace_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telemetry/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the otel-logs index */
+        get: operations["logs_api_telemetry_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telemetry/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Service inventory joined from metrics, traces, and Docker */
+        get: operations["services_api_telemetry_services_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telemetry/containers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Docker state for the demo Compose project */
+        get: operations["containers_api_telemetry_containers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ContainerInfo */
+        ContainerInfo: {
+            /** Name */
+            name: string;
+            /** Service */
+            service: string;
+            /** Image */
+            image: string;
+            /** State */
+            state: string;
+            /** Health */
+            health: string;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /**
+             * Oom Killed
+             * @default false
+             */
+            oom_killed: boolean;
+            /**
+             * Restart Count
+             * @default 0
+             */
+            restart_count: number;
+            /** Started At */
+            started_at?: string | null;
+            /** Cpu Limit Cores */
+            cpu_limit_cores?: number | null;
+            /** Memory Limit Mb */
+            memory_limit_mb?: number | null;
+            /** Networks */
+            networks?: string[];
+            /**
+             * Status Text
+             * @default
+             */
+            status_text: string;
+            /** Cpu Percent */
+            cpu_percent?: number | null;
+            /** Memory Used Mb */
+            memory_used_mb?: number | null;
+            /** Memory Percent */
+            memory_percent?: number | null;
+        };
         /** DependencyProbe */
         DependencyProbe: {
             /** Name */
@@ -109,6 +278,262 @@ export interface components {
             uptime_s: number;
             /** Dependencies */
             dependencies: components["schemas"]["DependencyProbe"][];
+        };
+        /** LogRecord */
+        LogRecord: {
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /** Service */
+            service: string;
+            /** Severity */
+            severity: string;
+            /** Severity Number */
+            severity_number?: number | null;
+            /** Body */
+            body: string;
+            /** Trace Id */
+            trace_id?: string | null;
+            /** Span Id */
+            span_id?: string | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /** LogSearchResult */
+        LogSearchResult: {
+            /** Total */
+            total: number;
+            /** Returned */
+            returned: number;
+            /** Took Ms */
+            took_ms: number;
+            /** Index */
+            index: string;
+            /** Lookback S */
+            lookback_s: number;
+            /** Records */
+            records?: components["schemas"]["LogRecord"][];
+        };
+        /** MetricPoint */
+        MetricPoint: {
+            /**
+             * T
+             * Format: date-time
+             */
+            t: string;
+            /** V */
+            v: number;
+        };
+        /** MetricResult */
+        MetricResult: {
+            /** Metric */
+            metric: string;
+            /** Label */
+            label: string;
+            /** Unit */
+            unit: string;
+            /**
+             * Dimension
+             * @enum {string}
+             */
+            dimension: "service" | "container";
+            /** Query */
+            query: string;
+            /**
+             * Result Type
+             * @enum {string}
+             */
+            result_type: "instant" | "range";
+            /** Step S */
+            step_s?: number | null;
+            /** Series */
+            series?: components["schemas"]["MetricSeries"][];
+        };
+        /** MetricSeries */
+        MetricSeries: {
+            /** Labels */
+            labels?: {
+                [key: string]: string;
+            };
+            /** Points */
+            points?: components["schemas"]["MetricPoint"][];
+        };
+        /** MetricSpec */
+        MetricSpec: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /** Unit */
+            unit: string;
+            /**
+             * Dimension
+             * @enum {string}
+             */
+            dimension: "service" | "container";
+            /** Default Window */
+            default_window: string;
+        };
+        /** ServiceInfo */
+        ServiceInfo: {
+            /** Name */
+            name: string;
+            /** Container */
+            container?: string | null;
+            /**
+             * State
+             * @default unknown
+             */
+            state: string;
+            /**
+             * Health
+             * @default none
+             */
+            health: string;
+            /**
+             * Restart Count
+             * @default 0
+             */
+            restart_count: number;
+            /** Error Rate */
+            error_rate?: number | null;
+            /** P95 Ms */
+            p95_ms?: number | null;
+            /** Throughput Rps */
+            throughput_rps?: number | null;
+            /** Cpu Percent */
+            cpu_percent?: number | null;
+            /** Memory Mb */
+            memory_mb?: number | null;
+            /** Cpu Limit Cores */
+            cpu_limit_cores?: number | null;
+            /** Memory Limit Mb */
+            memory_limit_mb?: number | null;
+            /** Sources */
+            sources?: string[];
+        };
+        /** ServiceInventory */
+        ServiceInventory: {
+            /** Services */
+            services?: components["schemas"]["ServiceInfo"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Window S */
+            window_s: number;
+            /**
+             * Containers Total
+             * @default 0
+             */
+            containers_total: number;
+            /**
+             * Containers Running
+             * @default 0
+             */
+            containers_running: number;
+        };
+        /** SpanNode */
+        SpanNode: {
+            /** Span Id */
+            span_id: string;
+            /** Parent Span Id */
+            parent_span_id?: string | null;
+            /** Name */
+            name: string;
+            /** Service */
+            service: string;
+            /** Kind */
+            kind: string;
+            /** Start Ms */
+            start_ms: number;
+            /** Duration Ms */
+            duration_ms: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unset" | "ok" | "error";
+            /**
+             * Depth
+             * @default 0
+             */
+            depth: number;
+            /** Attributes */
+            attributes?: {
+                [key: string]: string;
+            };
+        };
+        /** TraceDetail */
+        TraceDetail: {
+            /** Trace Id */
+            trace_id: string;
+            /** Root Name */
+            root_name: string;
+            /** Root Service */
+            root_service: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Span Count */
+            span_count: number;
+            /** Services */
+            services?: string[];
+            /**
+             * Error Count
+             * @default 0
+             */
+            error_count: number;
+            /** Spans */
+            spans?: components["schemas"]["SpanNode"][];
+        };
+        /** TraceSearchResult */
+        TraceSearchResult: {
+            /** Traces */
+            traces?: components["schemas"]["TraceSummary"][];
+            /** Lookback S */
+            lookback_s: number;
+            /**
+             * Scanned
+             * @default 0
+             */
+            scanned: number;
+        };
+        /** TraceSummary */
+        TraceSummary: {
+            /** Trace Id */
+            trace_id: string;
+            /** Root Name */
+            root_name: string;
+            /** Root Service */
+            root_service: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Span Count */
+            span_count: number;
+            /** Services */
+            services?: string[];
+            /**
+             * Error Count
+             * @default 0
+             */
+            error_count: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -216,6 +641,232 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    metric_catalog_api_telemetry_metrics_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricSpec"][];
+                };
+            };
+        };
+    };
+    metrics_api_telemetry_metrics_get: {
+        parameters: {
+            query: {
+                /** @description Catalog id, e.g. error_rate */
+                metric: string;
+                /** @description Exact service_name */
+                service?: string | null;
+                /** @description Rate window, e.g. 5m */
+                window?: string | null;
+                start?: string | null;
+                end?: string | null;
+                step?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    traces_api_telemetry_traces_get: {
+        parameters: {
+            query?: {
+                service?: string | null;
+                operation?: string | null;
+                lookback_s?: number;
+                limit?: number;
+                errors_only?: boolean;
+                min_duration_ms?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceSearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trace_api_telemetry_traces__trace_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logs_api_telemetry_logs_get: {
+        parameters: {
+            query?: {
+                service?: string | null;
+                level?: string | null;
+                /** @description Phrase matched against the log body */
+                q?: string | null;
+                trace_id?: string | null;
+                lookback_s?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogSearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    services_api_telemetry_services_get: {
+        parameters: {
+            query?: {
+                /** @description Rate window for the KPI columns */
+                window?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceInventory"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    containers_api_telemetry_containers_get: {
+        parameters: {
+            query?: {
+                include_stats?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContainerInfo"][];
                 };
             };
             /** @description Validation Error */

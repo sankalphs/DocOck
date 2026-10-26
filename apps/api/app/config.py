@@ -57,8 +57,8 @@ class Settings(BaseSettings):
     http_timeout_s: float = 8.0
     http_retries: int = 2
     telemetry_cache_ttl_s: float = 10.0
-    health_timeout_s: float = 3.0
-    health_cache_ttl_s: float = 4.0
+    health_timeout_s: float = 5.0
+    health_cache_ttl_s: float = 5.0
 
     # --- Reasoning model ----------------------------------------------------
     llm_provider: str = "zenmux"

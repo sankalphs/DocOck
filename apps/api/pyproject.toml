@@ -64,7 +64,7 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
-addopts = "-q"
+addopts = "-q -m 'not live'"
 markers = [
   "live: requires the local Docker stack (opt-in with -m live)",
 ]

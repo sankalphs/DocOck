@@ -1,0 +1,295 @@
+[
+  {
+    "Id": "5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091",
+    "Created": "2026-10-24T05:04:44.501113452Z",
+    "Path": "/nodejs/bin/node",
+    "Args": [
+      "index.js"
+    ],
+    "State": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 24442,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-24T05:05:21.941135155Z",
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "Health": {
+        "Status": "healthy",
+        "FailingStreak": 0,
+        "Log": [
+          {
+            "Start": "2026-10-24T06:01:19.993498649Z",
+            "End": "2026-10-24T06:01:21.827297966Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-10-24T06:01:26.829837653Z",
+            "End": "2026-10-24T06:01:28.643303455Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-10-24T06:01:33.644221477Z",
+            "End": "2026-10-24T06:01:35.739261818Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-10-24T06:01:40.741613162Z",
+            "End": "2026-10-24T06:01:42.812008906Z",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-10-24T06:01:47.809257515Z",
+            "End": "2026-10-24T06:01:49.579389227Z",
+            "ExitCode": 0,
+            "Output": ""
+          }
+        ]
+      }
+    },
+    "Image": "sha256:9380d1f7aa504902abed9b48aabb95641666c26bc2e23cefd6e6ab630293065f",
+    "ResolvConfPath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/resolv.conf",
+    "HostnamePath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/hostname",
+    "HostsPath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/hosts",
+    "LogPath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091-json.log",
+    "Name": "/payment",
+    "RestartCount": 0,
+    "Driver": "overlayfs",
+    "Platform": "linux",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "AppArmorProfile": "",
+    "ExecIDs": null,
+    "HostConfig": {
+      "Binds": null,
+      "ContainerIDFile": "",
+      "LogConfig": {
+        "Type": "json-file",
+        "Config": {
+          "max-file": "2",
+          "max-size": "5m"
+        }
+      },
+      "NetworkMode": "opentelemetry-demo",
+      "PortBindings": {
+        "50051/tcp": [
+          {
+            "HostIp": "",
+            "HostPort": ""
+          }
+        ]
+      },
+      "RestartPolicy": {
+        "Name": "unless-stopped",
+        "MaximumRetryCount": 0
+      },
+      "AutoRemove": false,
+      "VolumeDriver": "",
+      "VolumesFrom": null,
+      "ConsoleSize": [
+        0,
+        0
+      ],
+      "CapAdd": null,
+      "CapDrop": null,
+      "CgroupnsMode": "private",
+      "Dns": null,
+      "DnsOptions": null,
+      "DnsSearch": null,
+      "ExtraHosts": [],
+      "GroupAdd": null,
+      "IpcMode": "private",
+      "Cgroup": "",
+      "Links": null,
+      "OomScoreAdj": 0,
+      "PidMode": "",
+      "Privileged": false,
+      "PublishAllPorts": false,
+      "ReadonlyRootfs": false,
+      "SecurityOpt": null,
+      "UTSMode": "",
+      "UsernsMode": "",
+      "ShmSize": 67108864,
+      "Runtime": "runc",
+      "Isolation": "",
+      "CpuShares": 0,
+      "Memory": 146800640,
+      "NanoCpus": 0,
+      "CgroupParent": "",
+      "BlkioWeight": 0,
+      "BlkioWeightDevice": null,
+      "BlkioDeviceReadBps": null,
+      "BlkioDeviceWriteBps": null,
+      "BlkioDeviceReadIOps": null,
+      "BlkioDeviceWriteIOps": null,
+      "CpuPeriod": 0,
+      "CpuQuota": 0,
+      "CpuRealtimePeriod": 0,
+      "CpuRealtimeRuntime": 0,
+      "CpusetCpus": "",
+      "CpusetMems": "",
+      "Devices": null,
+      "DeviceCgroupRules": null,
+      "DeviceRequests": null,
+      "MemoryReservation": 0,
+      "MemorySwap": 293601280,
+      "MemorySwappiness": null,
+      "OomKillDisable": null,
+      "PidsLimit": null,
+      "Ulimits": null,
+      "CpuCount": 0,
+      "CpuPercent": 0,
+      "IOMaximumIOps": 0,
+      "IOMaximumBandwidth": 0,
+      "MaskedPaths": [
+        "/proc/acpi",
+        "/proc/asound",
+        "/proc/interrupts",
+        "/proc/kcore",
+        "/proc/keys",
+        "/proc/latency_stats",
+        "/proc/sched_debug",
+        "/proc/scsi",
+        "/proc/timer_list",
+        "/proc/timer_stats",
+        "/sys/devices/virtual/powercap",
+        "/sys/firmware"
+      ],
+      "ReadonlyPaths": [
+        "/proc/bus",
+        "/proc/fs",
+        "/proc/irq",
+        "/proc/sys",
+        "/proc/sysrq-trigger"
+      ]
+    },
+    "Storage": {
+      "RootFS": {
+        "Snapshot": {
+          "Name": "overlayfs"
+        }
+      }
+    },
+    "Mounts": [],
+    "Config": {
+      "Hostname": "5b8299f696d1",
+      "Domainname": "",
+      "User": "65532",
+      "AttachStdin": false,
+      "AttachStdout": true,
+      "AttachStderr": true,
+      "ExposedPorts": {
+        "50051/tcp": {}
+      },
+      "Tty": false,
+      "OpenStdin": false,
+      "StdinOnce": false,
+      "Env": [
+        "OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION=explicit_bucket_histogram",
+        "OTEL_RESOURCE_ATTRIBUTES=service.namespace=opentelemetry-demo,service.version=3.1.0,service.criticality=critical",
+        "FLAGD_HOST=flagd",
+        "OTEL_SERVICE_NAME=payment",
+        "OTEL_EXPORTER_OTLP_PROTOCOL=grpc",
+        "FLAGD_PORT=8013",
+        "PAYMENT_PORT=50051",
+        "OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317",
+        "IPV6_ENABLED=false",
+        "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative",
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt",
+        "NODE_OPTIONS=--require /otel-auto-instrumentation-nodejs/autoinstrumentation.js"
+      ],
+      "Cmd": [
+        "index.js"
+      ],
+      "Healthcheck": {
+        "Test": [
+          "CMD",
+          "/nodejs/bin/node",
+          "-e",
+          "const net=require('net');const c=new net.Socket(); c.setTimeout(2000); c.connect(50051,'127.0.0.1',()=>{c.destroy();process.exit(0)}); c.on('error',()=>process.exit(1)); c.on('timeout',()=>process.exit(1))"
+        ],
+        "Interval": 5000000000,
+        "Timeout": 5000000000,
+        "StartPeriod": 10000000000,
+        "Retries": 20
+      },
+      "Image": "ghcr.io/open-telemetry/demo:latest-payment",
+      "Volumes": null,
+      "WorkingDir": "/usr/src/app/",
+      "Entrypoint": [
+        "/nodejs/bin/node"
+      ],
+      "Labels": {
+        "com.docker.compose.config-hash": "5af82915ae454a9aa09f8fb58f8141f6468203750dfa295d602fc6c275449b3d",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "otel-collector:service_started:false,flagd:service_started:false",
+        "com.docker.compose.image": "sha256:faec3a2ea10dc4f6234c2b3501f55956a5936c143a0c2cbd36d548482653df3a",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "docock-demo",
+        "com.docker.compose.project.config_files": "D:\\Coding\\DocOck\\opentelemetry-demo\\compose.yaml,D:\\Coding\\DocOck\\opentelemetry-demo\\compose.observability.yaml,D:\\Coding\\DocOck\\infra\\compose\\lab.override.yaml",
+        "com.docker.compose.project.working_dir": "D:\\Coding\\DocOck\\opentelemetry-demo",
+        "com.docker.compose.service": "payment",
+        "com.docker.compose.version": "5.6.1"
+      }
+    },
+    "NetworkSettings": {
+      "SandboxID": "1c5ead0b1659300ed90d653a42cb3c9cb939d87ebc1c17a2448e6da4a705ea27",
+      "SandboxKey": "/var/run/docker/netns/1c5ead0b1659",
+      "Ports": {
+        "50051/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "6428"
+          },
+          {
+            "HostIp": "::",
+            "HostPort": "6428"
+          }
+        ]
+      },
+      "Networks": {
+        "opentelemetry-demo": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": [
+            "payment",
+            "payment"
+          ],
+          "DriverOpts": null,
+          "GwPriority": 0,
+          "NetworkID": "107129adf870b83acca553202c45d52f61cf2ad288108d00f5cfeb840ef3af90",
+          "EndpointID": "8464cfcb80c61d46f82b76b98ea7c1a375b71bedc0acd40a3aed08ea6d3dca78",
+          "Gateway": "172.18.0.1",
+          "IPAddress": "172.18.0.16",
+          "MacAddress": "aa:54:54:2d:18:7c",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "DNSNames": [
+            "payment",
+            "5b8299f696d1"
+          ]
+        }
+      }
+    },
+    "ImageManifestDescriptor": {
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:faec3a2ea10dc4f6234c2b3501f55956a5936c143a0c2cbd36d548482653df3a",
+      "size": 5222,
+      "platform": {
+        "architecture": "amd64",
+        "os": "linux"
+      }
+    }
+  }
+]

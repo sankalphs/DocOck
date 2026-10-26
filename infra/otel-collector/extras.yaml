@@ -1,0 +1,14 @@
+# Layered last by the OpenTelemetry Collector (see the `otel-collector` command:
+# `--config=/etc/otelcol-config.yml --config=/etc/otelcol-config-extras.yml`).
+#
+# The collector merges maps deeply and replaces arrays, so only the key below
+# changes: the base file already declares `connectors.span_metrics`.
+#
+# Why: the upstream default flush interval is 60 s. The span metrics that every
+# DocOck chart, detector, and baseline reads are produced by this connector, so
+# a 60 s flush means a fresh fault is invisible for up to a minute and a 15 s
+# detector can never see three consecutive samples. 10 s matches the scrape
+# cadence of the demo's own receivers and keeps the API's cache TTL meaningful.
+connectors:
+  span_metrics:
+    metrics_flush_interval: 10s

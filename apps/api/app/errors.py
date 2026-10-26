@@ -55,6 +55,22 @@ class ApiError(Exception):
         self.headers = headers or {}
 
 
+class DependencyError(Exception):
+    """A telemetry dependency failed in a way the caller should surface as 502/504."""
+
+    def __init__(self, dependency: str, message: str, *, timeout: bool = False) -> None:
+        super().__init__(message)
+        self.dependency = dependency
+        self.timeout = timeout
+
+    def as_api_error(self) -> ApiError:
+        return ApiError(
+            504 if self.timeout else 502,
+            "upstream_timeout" if self.timeout else "upstream_error",
+            f"{self.dependency}: {self}",
+        )
+
+
 def error_payload(
     code: str,
     message: str,
@@ -98,6 +114,20 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=exc.status_code,
             content=error_payload(exc.code, exc.message, _request_id(request), exc.details),
             headers=exc.headers,
+        )
+
+    @app.exception_handler(DependencyError)
+    async def handle_dependency_error(request: Request, exc: DependencyError) -> JSONResponse:
+        log.warning("dependency_error", dependency=exc.dependency, detail=str(exc))
+        api_error = exc.as_api_error()
+        return JSONResponse(
+            status_code=api_error.status_code,
+            content=error_payload(
+                api_error.code,
+                api_error.message,
+                _request_id(request),
+                {"dependency": exc.dependency},
+            ),
         )
 
     @app.exception_handler(StarletteHTTPException)

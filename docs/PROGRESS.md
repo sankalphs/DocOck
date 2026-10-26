@@ -12,7 +12,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P1 | Compose layering, ports, pgvector, up/down/reset, health | DONE | `b0efae0` |
 | P2 | API skeleton + DB + migrations | DONE | `f5840f0` |
 | P3 | Dashboard shell | DONE | `9db0dd3` |
-| P4 | Telemetry adapters | TODO | — |
+| P4 | Telemetry adapters | DONE | `PENDING` |
 | P5 | Overview + Telemetry UI | TODO | — |
 | P6 | Fault controller | TODO | — |
 | P7 | Fault Lab UI | TODO | — |
@@ -150,4 +150,53 @@ Fixes discovered during the phase:
    ESLint resolver) needs `allowBuilds: true` in `pnpm-workspace.yaml`.
 5. `openapi-typescript` must run against the live API, so it stays a dev-time
    step; the generated schema is committed so builds stay offline-safe.
+
+### P4 — 2026-10-24
+
+- **Metric names confirmed live** (348 names at the time; P1 saw 354 — it
+  fluctuates): `traces_span_metrics_calls_total` and
+  `traces_span_metrics_duration_milliseconds_bucket`, labels `service_name`,
+  `status_code`, `span_kind`, `span_name`, `le`. Container metrics
+  (`container_cpu_utilization_ratio`, `container_memory_usage_total_bytes`) are
+  labelled by `container_name`, not `service_name`.
+- **Jaeger parameter casing** verified by experiment: `query.numTraces` is
+  silently ignored (server returns its default 100 traces, a 6.2 MB response);
+  `query.num_traces` returns exactly N. `startTimeMin`/`startTimeMax` are
+  camelCase and required.
+- **OpenSearch** document shape recorded from the live index: `@timestamp`,
+  `body`, `severity.{text,number}`, `resource.service.name`, `traceId`,
+  `spanId`, `attributes`.
+- **Docker**: `docker inspect` returns a JSON array (not NDJSON) — parsing it
+  line-by-line was a real bug caught by the live test.
+- **Metric freshness fixed at the source**: the upstream `span_metrics` flush is
+  60 s, which makes `rate[1m]` empty and a 15 s detector impossible.
+  `infra/otel-collector/extras.yaml` sets `metrics_flush_interval: 10s` through
+  the upstream extras seam. Measured after the change: value changes every
+  10 s over a 120 s range.
+- `scripts\check.ps1 -Live`: **64 unit tests + 10 live contract tests pass**
+  (ruff, format, mypy clean).
+- Endpoints exercised against the stack: `/api/telemetry/metrics` → 18 series;
+  `/traces?service=cart` → 2 full traces; `/logs` → 11,551 hits, 3 returned;
+  `/services` → 27 rows joined across metrics/traces/Docker (`payment`:
+  `error_rate 0`, `p95 3.85 ms`, `memory 71.2 MB / 140 MB`, 3 sources);
+  `/containers` → 25 containers.
+- Fixtures recorded in `apps/api/tests/fixtures/` (12 files) by
+  `scripts/record-telemetry-fixtures.py`; unit tests replay them through
+  `httpx.MockTransport`, so parsing is tested without the stack.
+
+Findings that change later phases:
+
+1. Under the demo's default load the checkout path is genuinely slow (mean
+   SERVER span: `checkout` ~25 s, `recommendation` ~11 s, `product-catalog`
+   ~9 s at 94% of its 20 MB limit), while storefront pages answer in
+   90–230 ms. `frontend`/`checkout` p95 sits at the top finite bucket
+   (15 000 ms) when healthy, so **P8 must use per-service baselines**, never an
+   absolute latency threshold. Recorded in `docs/ARCHITECTURE.md`.
+2. `histogram_quantile` returns `NaN` for empty buckets; serialising it would
+   produce invalid JSON. The adapter drops non-finite values.
+3. `container_cpu_utilization_ratio` is a percentage of one core (0–100+), not
+   a 0–1 ratio; the catalog labels it `%`.
+4. Docker Desktop serialises new loopback connections, so a cold
+   `/api/health` is ~2.5 s and a warm one ~50 ms. Health timeouts were raised to
+   5 s after the first post-restart probe timed out on a cold Postgres connect.
 

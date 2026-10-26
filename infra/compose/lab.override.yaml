@@ -50,6 +50,15 @@ services:
     ports: !override
       - "4000:4000"
 
+  # The span-metrics connector flushes every 60 s upstream, which is too coarse
+  # for a 15 s detector. This file is layered on top of the demo's collector
+  # config (the upstream "extras" seam) and lowers it to 10 s.
+  otel-collector:
+    volumes:
+      - type: bind
+        source: ${DOCOCK_ROOT:?DOCOCK_ROOT must be set to the repository root}/infra/otel-collector/extras.yaml
+        target: /etc/otelcol-config-extras.yml
+
   frontend-proxy:
     ports: !override
       - "8080:8080"
@@ -59,8 +68,7 @@ services:
     ports: !override
       - "8089:8089"
 
-  # These two Go services ship a health probe with no connect/RPC deadline.
-  # On a loaded Windows host the gRPC channel takes longer than the 5s Docker
+  # These two Go services ship a health probe with no connect/RPC deadline.  # On a loaded Windows host the gRPC channel takes longer than the 5s Docker
   # healthcheck timeout, so both containers sit in "unhealthy" while serving
   # fine. Explicit deadlines make the probe return SERVING in <2s.
   checkout:

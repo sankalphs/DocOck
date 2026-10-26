@@ -14,7 +14,7 @@ from typing import Any
 import httpx
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.errors import ApiError
+from app.errors import DependencyError
 
 RETRYABLE_STATUS = frozenset({429, 502, 503, 504})
 
@@ -26,22 +26,6 @@ class RetryableStatus(Exception):
         self.url = url
 
 
-class DependencyError(Exception):
-    """A dependency failed in a way the caller should surface as 502/504."""
-
-    def __init__(self, dependency: str, message: str, *, timeout: bool = False) -> None:
-        super().__init__(message)
-        self.dependency = dependency
-        self.timeout = timeout
-
-    def as_api_error(self) -> ApiError:
-        return ApiError(
-            504 if self.timeout else 502,
-            "upstream_timeout" if self.timeout else "upstream_error",
-            f"{self.dependency}: {self}",
-        )
-
-
 class AsyncHttpClient:
     def __init__(
         self,
@@ -50,6 +34,7 @@ class AsyncHttpClient:
         timeout_s: float = 8.0,
         retries: int = 2,
         dependency: str = "http",
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.dependency = dependency
         self.retries = max(0, retries)
@@ -58,6 +43,7 @@ class AsyncHttpClient:
             timeout=httpx.Timeout(timeout_s, connect=min(timeout_s, 5.0)),
             headers={"User-Agent": "docock-api/0.1"},
             follow_redirects=True,
+            transport=transport,
         )
 
     async def aclose(self) -> None:

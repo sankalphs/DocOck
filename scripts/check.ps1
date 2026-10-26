@@ -3,10 +3,12 @@
 #
 #   scripts/check.ps1
 #   scripts/check.ps1 -ApiOnly
+#   scripts/check.ps1 -Live        # also run the live telemetry contract tests
 
 [CmdletBinding()]
 param(
-    [switch]$ApiOnly
+    [switch]$ApiOnly,
+    [switch]$Live
 )
 
 . "$PSScriptRoot\_common.ps1"
@@ -38,6 +40,12 @@ try {
     Write-Step "api: pytest"
     uv run pytest
     if ($LASTEXITCODE -ne 0) { $failed += "pytest" }
+
+    if ($Live) {
+        Write-Step "api: live telemetry contract tests"
+        uv run pytest -m live -o addopts=-q
+        if ($LASTEXITCODE -ne 0) { $failed += "live contract tests" }
+    }
 } finally {
     Pop-Location
 }

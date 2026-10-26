@@ -1,0 +1,196 @@
+{
+  "took": 312,
+  "timed_out": false,
+  "_shards": {
+    "total": 1,
+    "successful": 1,
+    "skipped": 0,
+    "failed": 0
+  },
+  "hits": {
+    "total": {
+      "value": 12527,
+      "relation": "eq"
+    },
+    "max_score": null,
+    "hits": [
+      {
+        "_index": "otel-logs-2026-10-24",
+        "_id": "FEOAbKEB8Ki4NRn1SQI1",
+        "_score": null,
+        "_source": {
+          "attributes": {
+            "data_stream": {
+              "dataset": "default",
+              "namespace": "namespace",
+              "type": "record"
+            }
+          },
+          "body": "Receive ListRecommendations for product ids:[L9ECAV7KIM, 0PUK6V6EV0, 66VCHSJNUP, LS4PSXUNUM, 9SIQT8TOJO]",
+          "instrumentationScope": {
+            "name": "oteldemo.recommendation.RecommendationService"
+          },
+          "observedTimestamp": "2026-10-24T06:01:49.108185655Z",
+          "resource": {
+            "container.id": "b3744f1d42fa423faa91e19cec038777f258c36cb009c20080a9098c60935844",
+            "host.arch": "amd64",
+            "host.cpu.cache.l2.size": "1024",
+            "host.cpu.family": "26",
+            "host.cpu.model.id": "36",
+            "host.cpu.model.name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+            "host.cpu.stepping": "0",
+            "host.cpu.vendor.id": "AuthenticAMD",
+            "host.name": "docker-desktop",
+            "os.description": "Linux c18d690028b6 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64",
+            "os.type": "linux",
+            "os.version": "6.18.54.1-microsoft-standard-WSL2",
+            "process.command_args": "[\"/opt/java/openjdk/bin/java\",\"-jar\",\"recommendation.jar\"]",
+            "process.executable.path": "/opt/java/openjdk/bin/java",
+            "process.pid": "1",
+            "process.runtime.description": "Eclipse Adoptium OpenJDK 64-Bit Server VM 24.0.2+12",
+            "process.runtime.name": "OpenJDK Runtime Environment",
+            "process.runtime.version": "24.0.2+12",
+            "service.criticality": "medium",
+            "service.instance.id": "dd2b6314-eec2-4739-8f11-7436dafaaff9",
+            "service.name": "recommendation",
+            "service.namespace": "opentelemetry-demo",
+            "service.version": "3.1.0",
+            "telemetry.distro.name": "opentelemetry-spring-boot-starter",
+            "telemetry.distro.version": "2.31.1",
+            "telemetry.sdk.language": "java",
+            "telemetry.sdk.name": "opentelemetry",
+            "telemetry.sdk.version": "1.65.0"
+          },
+          "severity": {
+            "text": "INFO",
+            "number": 9
+          },
+          "spanId": "0062e323916eae40",
+          "@timestamp": "2026-10-24T06:01:48.477531613Z",
+          "traceId": "f0bd56a892098cf2912dc0fdf94c228b"
+        },
+        "sort": [
+          1792821708477
+        ]
+      },
+      {
+        "_index": "otel-logs-2026-10-24",
+        "_id": "EkOAbKEB8Ki4NRn1SQI1",
+        "_score": null,
+        "_source": {
+          "attributes": {
+            "data_stream": {
+              "dataset": "default",
+              "namespace": "namespace",
+              "type": "record"
+            }
+          },
+          "body": "Receive ListRecommendations for product ids:[OLJCESPC7Z, 9SIQT8TOJO, 0PUK6V6EV0, 1YMWWN1N4O, 66VCHSJNUP]",
+          "instrumentationScope": {
+            "name": "oteldemo.recommendation.RecommendationService"
+          },
+          "observedTimestamp": "2026-10-24T06:01:49.108051656Z",
+          "resource": {
+            "container.id": "b3744f1d42fa423faa91e19cec038777f258c36cb009c20080a9098c60935844",
+            "host.arch": "amd64",
+            "host.cpu.cache.l2.size": "1024",
+            "host.cpu.family": "26",
+            "host.cpu.model.id": "36",
+            "host.cpu.model.name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+            "host.cpu.stepping": "0",
+            "host.cpu.vendor.id": "AuthenticAMD",
+            "host.name": "docker-desktop",
+            "os.description": "Linux c18d690028b6 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64",
+            "os.type": "linux",
+            "os.version": "6.18.54.1-microsoft-standard-WSL2",
+            "process.command_args": "[\"/opt/java/openjdk/bin/java\",\"-jar\",\"recommendation.jar\"]",
+            "process.executable.path": "/opt/java/openjdk/bin/java",
+            "process.pid": "1",
+            "process.runtime.description": "Eclipse Adoptium OpenJDK 64-Bit Server VM 24.0.2+12",
+            "process.runtime.name": "OpenJDK Runtime Environment",
+            "process.runtime.version": "24.0.2+12",
+            "service.criticality": "medium",
+            "service.instance.id": "dd2b6314-eec2-4739-8f11-7436dafaaff9",
+            "service.name": "recommendation",
+            "service.namespace": "opentelemetry-demo",
+            "service.version": "3.1.0",
+            "telemetry.distro.name": "opentelemetry-spring-boot-starter",
+            "telemetry.distro.version": "2.31.1",
+            "telemetry.sdk.language": "java",
+            "telemetry.sdk.name": "opentelemetry",
+            "telemetry.sdk.version": "1.65.0"
+          },
+          "severity": {
+            "text": "INFO",
+            "number": 9
+          },
+          "spanId": "da71a65faec67664",
+          "@timestamp": "2026-10-24T06:01:48.349356604Z",
+          "traceId": "f5f6e1ec9695d90a479d59609b472764"
+        },
+        "sort": [
+          1792821708349
+        ]
+      },
+      {
+        "_index": "otel-logs-2026-10-24",
+        "_id": "E0OAbKEB8Ki4NRn1SQI1",
+        "_score": null,
+        "_source": {
+          "attributes": {
+            "data_stream": {
+              "dataset": "default",
+              "namespace": "namespace",
+              "type": "record"
+            }
+          },
+          "body": "Receive ListRecommendations for product ids:[2ZYFJ3GM2N, OLJCESPC7Z, HQTGWGPNH4, 9SIQT8TOJO, LS4PSXUNUM]",
+          "instrumentationScope": {
+            "name": "oteldemo.recommendation.RecommendationService"
+          },
+          "observedTimestamp": "2026-10-24T06:01:49.108161276Z",
+          "resource": {
+            "container.id": "b3744f1d42fa423faa91e19cec038777f258c36cb009c20080a9098c60935844",
+            "host.arch": "amd64",
+            "host.cpu.cache.l2.size": "1024",
+            "host.cpu.family": "26",
+            "host.cpu.model.id": "36",
+            "host.cpu.model.name": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+            "host.cpu.stepping": "0",
+            "host.cpu.vendor.id": "AuthenticAMD",
+            "host.name": "docker-desktop",
+            "os.description": "Linux c18d690028b6 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64",
+            "os.type": "linux",
+            "os.version": "6.18.54.1-microsoft-standard-WSL2",
+            "process.command_args": "[\"/opt/java/openjdk/bin/java\",\"-jar\",\"recommendation.jar\"]",
+            "process.executable.path": "/opt/java/openjdk/bin/java",
+            "process.pid": "1",
+            "process.runtime.description": "Eclipse Adoptium OpenJDK 64-Bit Server VM 24.0.2+12",
+            "process.runtime.name": "OpenJDK Runtime Environment",
+            "process.runtime.version": "24.0.2+12",
+            "service.criticality": "medium",
+            "service.instance.id": "dd2b6314-eec2-4739-8f11-7436dafaaff9",
+            "service.name": "recommendation",
+            "service.namespace": "opentelemetry-demo",
+            "service.version": "3.1.0",
+            "telemetry.distro.name": "opentelemetry-spring-boot-starter",
+            "telemetry.distro.version": "2.31.1",
+            "telemetry.sdk.language": "java",
+            "telemetry.sdk.name": "opentelemetry",
+            "telemetry.sdk.version": "1.65.0"
+          },
+          "severity": {
+            "text": "INFO",
+            "number": 9
+          },
+          "spanId": "746b99e81a614463",
+          "@timestamp": "2026-10-24T06:01:48.349288411Z",
+          "traceId": "88f3905156884446361b163301e77fbd"
+        },
+        "sort": [
+          1792821708349
+        ]
+      }
+    ]
+  }
+}
