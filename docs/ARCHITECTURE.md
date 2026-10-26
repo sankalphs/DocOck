@@ -371,3 +371,28 @@ Rules found while validating the scenarios against the live stack:
 
 One analyzer run on the 63-evidence payment incident takes ~6.4 s.
 
+## Model gateway (P10)
+
+`app/models/gateway.py` turns configuration into two providers:
+
+| Interface | Implementations | Default |
+|---|---|---|
+| `LLMProvider.chat(messages, tools, json_mode)` | `stub`, `zenmux`, `openai_compatible` | `stub` (offline, deterministic) |
+| `EmbeddingProvider.embed(texts, kind)` | `onnx_local` (Qwen3-Embedding-0.6B int8), `remote`, `stub` (feature hashing) | `onnx_local` |
+
+Effective settings are `.env` plus runtime overrides in `settings`
+(`models.overrides`). Overrides cover provider, model, temperature, budgets,
+prices, thresholds. **Base URLs and API keys are `.env` only**: the API is local
+and unauthenticated, and a runtime base-URL change would send the configured key
+to any host. Embedding dimensions are read-only because a width change is a
+re-embed (P12).
+
+Every `ChatResponse` carries usage, locally computed cost
+(`LLM_PRICE_*_PER_M`), latency, attempts, and the model ID the server reported.
+Retries cover transport errors, timeouts, 408/409/425/429/5xx with capped
+exponential backoff (`Retry-After` honoured); auth errors are never retried.
+
+The ONNX export needs an empty KV cache as input and its tokenizer already
+appends the pooling token; see the module docstring of
+`app/models/embeddings/onnx_local.py`.
+

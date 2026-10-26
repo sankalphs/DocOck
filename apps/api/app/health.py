@@ -23,6 +23,7 @@ from sqlalchemy import text
 from app import __version__
 from app.config import settings
 from app.db.session import engine
+from app.models.gateway import gateway
 from app.telemetry.docker import DockerError, docker_json, server_version
 from app.telemetry.http import shared_client
 
@@ -217,24 +218,28 @@ async def _probe_demo() -> tuple[str, dict[str, Any]]:
 
 
 async def _probe_llm() -> tuple[str, dict[str, Any]]:
-    # Config-only probe: never spends tokens on a health check.
-    configured = settings.llm_configured
-    detail = (
-        f"{settings.llm_provider} | {settings.llm_model} | key configured"
-        if configured
-        else f"{settings.llm_provider} | {settings.llm_model} | no API key configured"
-    )
+    # Config-only probe: never spends tokens on a health check. The connection
+    # test (POST /api/settings/models/test) is the one that calls the model.
+    cfg = gateway.config.llm
+    model = gateway.llm().model
+    if cfg.provider == "stub":
+        detail = f"stub | {model} | offline, deterministic"
+    elif gateway.llm_ready:
+        detail = f"{cfg.provider} | {model} | key configured"
+    else:
+        detail = f"{cfg.provider} | {model} | no API key configured"
     return detail, {
-        "provider": settings.llm_provider,
-        "model": settings.llm_model,
-        "configured": configured,
+        "provider": cfg.provider,
+        "model": model,
+        "configured": gateway.llm_ready,
+        "embedding": f"{gateway.config.embedding.provider}:{gateway.config.embedding.model}",
     }
 
 
 async def probe_all() -> list[DependencyProbe]:
     """Probe every dependency concurrently."""
     llm_probe = await _timed("llm", _probe_llm)
-    if llm_probe.status == "ok" and not settings.llm_configured:
+    if llm_probe.status == "ok" and not gateway.llm_ready:
         llm_probe = llm_probe.model_copy(update={"status": "unconfigured"})
 
     others = await asyncio.gather(

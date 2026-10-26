@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api import detection, events, faults, health, incidents, telemetry
+from app.api import detection, events, faults, health, incidents, settings, telemetry
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(health.router)
@@ -17,5 +17,6 @@ api_router.include_router(telemetry.router)
 api_router.include_router(faults.router)
 api_router.include_router(incidents.router)
 api_router.include_router(detection.router)
+api_router.include_router(settings.router)
 
 __all__ = ["api_router"]

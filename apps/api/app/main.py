@@ -16,13 +16,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api import api_router
 from app.config import settings
-from app.db.session import dispose_engine
+from app.db.session import SessionFactory, dispose_engine
 from app.detection.runtime import runtime as detection_runtime
 from app.errors import register_error_handlers
 from app.events.bus import bus
 from app.faults.runtime import FaultRuntime
 from app.logging import configure_logging, get_logger
 from app.middleware import RequestContextMiddleware
+from app.models.gateway import gateway as model_gateway
 from app.telemetry.http import close_shared_clients
 
 log = get_logger(__name__)
@@ -54,6 +55,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         "system.ready",
         {"version": __version__, "environment": settings.environment},
     )
+    try:
+        async with SessionFactory() as session:
+            await model_gateway.load(session)
+    except Exception as exc:  # the DB probe reports this; models fall back to .env
+        log.warning("model_settings_load_failed", error=str(exc))
     runtime = FaultRuntime()
     await runtime.start()
     await detection_runtime.start()
@@ -62,6 +68,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     finally:
         await detection_runtime.stop()
         await runtime.stop()
+        await model_gateway.aclose()
         await dispose_engine()
         await close_shared_clients()
         log.info("api_stop")

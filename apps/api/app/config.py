@@ -63,19 +63,43 @@ class Settings(BaseSettings):
     health_cache_ttl_s: float = 5.0
 
     # --- Reasoning model ----------------------------------------------------
-    llm_provider: str = "zenmux"
+    # stub | zenmux | openai_compatible. The stub is the offline default: it
+    # needs no key and no network, so tests and a key-less lab both work.
+    # Swapping provider is configuration only (here or PATCH /api/settings/models).
+    llm_provider: str = "stub"
     llm_base_url: str = "https://zenmux.ai/api/v1"
     llm_model: str = "meta/muse-spark-1.3-contributor"
     llm_api_key: str = ""
     llm_temperature: float = 0.1
     llm_max_tool_calls: int = 20
+    # Per request; the whole investigation is bounded by AGENT_WALL_CLOCK_S.
     llm_timeout_s: int = 90
+    llm_retries: int = 2
+    llm_max_tokens: int = 1500
+    llm_json_mode: bool = True
+    # USD per million tokens (ADR 001: muse-spark $0.10 in / $0.20 out).
+    llm_price_input_per_m: float = 0.10
+    llm_price_output_per_m: float = 0.20
     llm_daily_budget_usd: float = 2.0
 
     # --- Embeddings ---------------------------------------------------------
+    # onnx_local | remote | stub
     embedding_provider: str = "onnx_local"
     embedding_model: str = "Qwen/Qwen3-Embedding-0.6B"
     embedding_dimensions: int = 1024
+    embedding_onnx_repo: str = "onnx-community/Qwen3-Embedding-0.6B-ONNX"
+    embedding_onnx_file: str = "onnx/model_int8.onnx"
+    embedding_cache_dir: Path = ROOT_DIR / "runtime" / "models"
+    embedding_allow_download: bool = True
+    embedding_max_tokens: int = 512
+    embedding_batch_size: int = 8
+    embedding_threads: int = 4
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+
+    # --- Retrieval ----------------------------------------------------------
+    retrieval_top_k: int = 5
+    retrieval_min_score: float = 0.55
 
     # --- Agent / detection --------------------------------------------------
     agent_confidence_threshold: float = 0.70

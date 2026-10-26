@@ -18,7 +18,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P7 | Fault Lab UI | DONE | `29bc7a2` |
 | P8 | Incident engine + detection | DONE | `6f6d69d` |
 | P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
-| P10 | Model gateway + embeddings | TODO | — |
+| P10 | Model gateway + embeddings | DONE | (this commit) |
 | P11 | Agent orchestrator | TODO | — |
 | P12 | Memory + retrieval | TODO | — |
 | P13 | Agent UI | TODO | — |
@@ -556,3 +556,49 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
       fault at the edge proxy with an untraced caller is now attributed to
       `frontend-web` (the frontend's bundle). Re-scoring INC-00063 with the fix:
       frontend **0.616**, frontend-proxy 0.215.
+
+### P10 — 2026-10-26
+
+- `scripts\check.ps1` exits 0: API ruff/mypy/**149 tests**, dashboard
+  eslint/**39 vitest tests**/`next build`. `pytest -m live
+  tests/test_model_gateway.py` (ONNX on CPU) passes.
+- **Provider swap is config-only**, shown on the live API:
+  `PATCH /api/settings/models {"llm":{"provider":"zenmux"},"embedding":{"provider":"stub"}}`
+  → the next `POST /api/settings/models/test` used `ZenMuxProvider` (reported
+  `unconfigured: no API key configured`, no network call) and the stub embedder
+  (1024-d); `/api/health` showed `llm unconfigured zenmux | …`;
+  `{"reset":true}` restored `stub` + `onnx_local`. The same swap through `.env`
+  (`LLM_PROVIDER`, `EMBEDDING_PROVIDER`) is covered by unit tests.
+- **Embeddings on CPU**: `onnx_local` (Qwen3-Embedding-0.6B, int8 ONNX export,
+  614 MB in `runtime/models/`) → test endpoint `ok`, **1024-d**, L2 norm 1.0000;
+  first call 6.4 s (model load), warm call **47 ms**.
+- **Connection test reports latency and model ID**: stub →
+  `model_reported: stub-deterministic-v1`, 0.08 ms, 14/1 tokens, $0.
+- **Secrets**: `PATCH {"llm":{"api_key":…}}` → 422, `{"llm":{"base_url":…}}` → 422
+  (a runtime base-URL change could send the env key to another host). Keys are
+  reported as `configured` + `••••abcd` only; a unit test asserts the key never
+  appears in the view, an error message, or a log line.
+- **Offline**: the stub provider is the default (`LLM_PROVIDER=stub`); every
+  unit test runs without network. The OpenAI-compatible adapter is covered with
+  `httpx.MockTransport`: tool-call parsing (invalid argument JSON surfaced as
+  `None`), usage → cost ($0.10/$0.20 per M), 429 retried with backoff, 401 not
+  retried, timeout typed, JSON mode dropped once when a server rejects
+  `response_format`.
+- UI: `docs/evidence/p10-models.png` — Models page with effective config,
+  override badges, masked key status, swap form, and the connection test.
+
+Not verified (no key on this host): a real ZenMux completion. The adapter is the
+documented OpenAI wire format; set `LLM_PROVIDER=zenmux` and `LLM_API_KEY` in
+`.env`, restart, and press **Test connection** to verify.
+
+Facts found while building:
+
+1. The `onnx-community` export of Qwen3-Embedding is a decoder with a KV cache:
+   besides `input_ids`/`attention_mask`/`position_ids` it requires 56
+   `past_key_values.*` inputs. An empty cache (`past_sequence_length = 0`) is a
+   plain forward pass.
+2. Its `tokenizer.json` already appends `<|endoftext|>` (id 151643), the token
+   last-token pooling reads; appending it again would shift every embedding.
+3. Queries carry Qwen3's `Instruct: …
+Query:` prefix; documents do not.
+

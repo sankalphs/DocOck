@@ -406,10 +406,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Effective model settings */
+        get: operations["get_model_settings_api_settings_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Override provider/model/thresholds at runtime (no secrets) */
+        patch: operations["patch_model_settings_api_settings_models_patch"];
+        trace?: never;
+    };
+    "/api/settings/models/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Smoke-test the configured LLM and/or embedding provider */
+        post: operations["test_models_api_settings_models_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AgentConfig */
+        AgentConfig: {
+            /** Confidence Threshold */
+            confidence_threshold: number;
+            /** Wall Clock S */
+            wall_clock_s: number;
+            /** Auto Remediate */
+            auto_remediate: boolean;
+        };
+        /** AgentPatch */
+        AgentPatch: {
+            /** Confidence Threshold */
+            confidence_threshold?: number | null;
+            /** Wall Clock S */
+            wall_clock_s?: number | null;
+        };
         /** AnalysisReport */
         AnalysisReport: {
             /** Incident Id */
@@ -611,6 +662,31 @@ export interface components {
                     [key: string]: number | null;
                 };
             };
+        };
+        /** EmbeddingConfig */
+        EmbeddingConfig: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "onnx_local" | "remote" | "stub";
+            /** Model */
+            model: string;
+            /** Dimensions */
+            dimensions: number;
+            /** Base Url */
+            base_url: string;
+            /** Onnx Repo */
+            onnx_repo: string;
+            /** Onnx File */
+            onnx_file: string;
+        };
+        /** EmbeddingPatch */
+        EmbeddingPatch: {
+            /** Provider */
+            provider?: ("onnx_local" | "remote" | "stub") | null;
+            /** Model */
+            model?: string | null;
         };
         /** EvidenceView */
         EvidenceView: {
@@ -999,6 +1075,59 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** LLMConfig */
+        LLMConfig: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "stub" | "zenmux" | "openai_compatible";
+            /** Base Url */
+            base_url: string;
+            /** Model */
+            model: string;
+            /** Temperature */
+            temperature: number;
+            /** Max Tool Calls */
+            max_tool_calls: number;
+            /** Timeout S */
+            timeout_s: number;
+            /** Retries */
+            retries: number;
+            /** Max Tokens */
+            max_tokens: number;
+            /** Json Mode */
+            json_mode: boolean;
+            /** Price Input Per M */
+            price_input_per_m: number;
+            /** Price Output Per M */
+            price_output_per_m: number;
+            /** Daily Budget Usd */
+            daily_budget_usd: number;
+        };
+        /** LLMPatch */
+        LLMPatch: {
+            /** Provider */
+            provider?: ("stub" | "zenmux" | "openai_compatible") | null;
+            /** Model */
+            model?: string | null;
+            /** Temperature */
+            temperature?: number | null;
+            /** Max Tool Calls */
+            max_tool_calls?: number | null;
+            /** Timeout S */
+            timeout_s?: number | null;
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Json Mode */
+            json_mode?: boolean | null;
+            /** Price Input Per M */
+            price_input_per_m?: number | null;
+            /** Price Output Per M */
+            price_output_per_m?: number | null;
+            /** Daily Budget Usd */
+            daily_budget_usd?: number | null;
+        };
         /** LogRecord */
         LogRecord: {
             /**
@@ -1105,6 +1234,98 @@ export interface components {
             /** Default Window */
             default_window: string;
         };
+        /** ModelConfig */
+        ModelConfig: {
+            llm: components["schemas"]["LLMConfig"];
+            embedding: components["schemas"]["EmbeddingConfig"];
+            agent: components["schemas"]["AgentConfig"];
+            retrieval: components["schemas"]["RetrievalConfig"];
+        };
+        /** ModelSettingsPatch */
+        ModelSettingsPatch: {
+            llm?: components["schemas"]["LLMPatch"] | null;
+            embedding?: components["schemas"]["EmbeddingPatch"] | null;
+            agent?: components["schemas"]["AgentPatch"] | null;
+            retrieval?: components["schemas"]["RetrievalPatch"] | null;
+            /**
+             * Reset
+             * @default false
+             */
+            reset: boolean;
+        };
+        /** ModelSettingsView */
+        ModelSettingsView: {
+            config: components["schemas"]["ModelConfig"];
+            /** Overrides */
+            overrides: {
+                [key: string]: unknown;
+            };
+            llm_api_key: components["schemas"]["SecretStatus"];
+            embedding_api_key: components["schemas"]["SecretStatus"];
+            /** Llm Ready */
+            llm_ready: boolean;
+            /** Embedding Ready */
+            embedding_ready: boolean;
+            /** Embedding Loaded */
+            embedding_loaded: boolean;
+            /** Store Dimensions */
+            store_dimensions: number;
+            /** Providers */
+            providers: {
+                [key: string]: string[];
+            };
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** ModelTestReport */
+        ModelTestReport: {
+            /** Results */
+            results: components["schemas"]["ModelTestResult"][];
+            /**
+             * Tested At
+             * Format: date-time
+             */
+            tested_at: string;
+        };
+        /** ModelTestRequest */
+        ModelTestRequest: {
+            /**
+             * Target
+             * @default all
+             * @enum {string}
+             */
+            target: "llm" | "embedding" | "all";
+        };
+        /** ModelTestResult */
+        ModelTestResult: {
+            /**
+             * Target
+             * @enum {string}
+             */
+            target: "llm" | "embedding";
+            /** Ok */
+            ok: boolean;
+            /** Provider */
+            provider: string;
+            /** Model Requested */
+            model_requested: string;
+            /** Model Reported */
+            model_reported?: string | null;
+            /** Latency Ms */
+            latency_ms?: number | null;
+            /** Tokens In */
+            tokens_in?: number | null;
+            /** Tokens Out */
+            tokens_out?: number | null;
+            /** Cost Usd */
+            cost_usd?: number | null;
+            /** Dimensions */
+            dimensions?: number | null;
+            /** Detail */
+            detail: string;
+            /** Error Kind */
+            error_kind?: string | null;
+        };
         /**
          * ParamKind
          * @enum {string}
@@ -1155,6 +1376,33 @@ export interface components {
              * Format: date-time
              */
             generated_at: string;
+        };
+        /** RetrievalConfig */
+        RetrievalConfig: {
+            /** Top K */
+            top_k: number;
+            /** Min Score */
+            min_score: number;
+        };
+        /** RetrievalPatch */
+        RetrievalPatch: {
+            /** Top K */
+            top_k?: number | null;
+            /** Min Score */
+            min_score?: number | null;
+        };
+        /** SecretStatus */
+        SecretStatus: {
+            /** Configured */
+            configured: boolean;
+            /** Masked */
+            masked?: string | null;
+            /**
+             * Source
+             * @default env
+             * @constant
+             */
+            source: "env";
         };
         /** ServiceInfo */
         ServiceInfo: {
@@ -2158,6 +2406,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetectionRunView"];
+                };
+            };
+        };
+    };
+    get_model_settings_api_settings_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelSettingsView"];
+                };
+            };
+        };
+    };
+    patch_model_settings_api_settings_models_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelSettingsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_models_api_settings_models_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ModelTestRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelTestReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

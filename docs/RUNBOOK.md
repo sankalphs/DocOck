@@ -138,6 +138,21 @@ To analyse one incident by hand: open it in the dashboard and press
 **Analyze**, or `curl -X POST http://127.0.0.1:8001/api/incidents/INC-00001/analyze`.
 Re-running is safe; existing evidence keeps its `E####` code.
 
+## Models (P10)
+
+The lab runs offline by default: `LLM_PROVIDER=stub`. To use a real model, put
+`LLM_PROVIDER=zenmux` (or `openai_compatible` with `LLM_BASE_URL`) and
+`LLM_API_KEY` in `.env`, restart the API, then:
+
+```powershell
+curl.exe -X POST -H "content-type: application/json" -d '{\"target\":\"all\"}' http://127.0.0.1:8001/api/settings/models/test
+```
+
+The first `onnx_local` embedding downloads ~614 MB into `runtime/models/` and
+loads in ~2–6 s; later calls take tens of milliseconds. Set
+`EMBEDDING_ALLOW_DOWNLOAD=false` to forbid network access after the first
+download, or `EMBEDDING_PROVIDER=stub` to skip the model entirely.
+
 ## Endpoints
 
 | What | URL |
