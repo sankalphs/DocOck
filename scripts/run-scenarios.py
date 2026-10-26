@@ -2,12 +2,18 @@
 
     uv run --project apps/api python scripts/run-scenarios.py
     uv run --project apps/api python scripts/run-scenarios.py --only S1,S6
+    uv run --project apps/api python scripts/run-scenarios.py --agent --resolve
 
 For each scenario: reset → settle → inject → wait for the detector to open exactly
 one incident → run the deterministic analysis → record the top-1 suspect →
 revert → close the incident → settle.
 
 The gate from PLAN §15 is top-1 == injected target in at least 7 of 8 scenarios.
+
+`--agent` also runs the P11 investigation (`/investigate?wait=true`) and checks
+every cited evidence code against the incident's own evidence list. `--resolve`
+lets the detector resolve the incident after the revert (DIAGNOSED → RESOLVED,
+the input for P12 memory) instead of closing it by hand.
 The JSON result is written to `runtime/scenarios.json`; the console prints the
 scoreboard. The stack is left clean (no faults, no open incidents).
 
@@ -39,6 +45,8 @@ SETTLE_S = 900
 QUIET_S = 240
 # Mirrors DETECTOR_WARMUP_S (apps/api/app/config.py); the API does not expose it.
 WARMUP_S = 300
+# After a revert the detector needs its recovery window plus flagd propagation.
+RESOLVE_TIMEOUT_S = 420
 
 
 @dataclass
@@ -136,10 +144,22 @@ class Result:
     evidence: int = 0
     error: str | None = None
     note: str = ""
+    agent: dict[str, Any] | None = None
+    final_status: str | None = None
 
     @property
     def passed(self) -> bool:
         return self.top == self.expected and not self.error
+
+    @property
+    def agent_passed(self) -> bool:
+        agent = self.agent or {}
+        return (
+            agent.get("status") == "DIAGNOSED"
+            and agent.get("root_cause") == self.expected
+            and agent.get("invalid_codes") == []
+            and int(agent.get("tool_calls") or 0) <= 20
+        )
 
 
 def _get(client: httpx.Client, path: str) -> httpx.Response:
@@ -249,7 +269,53 @@ def wait_for_warmup(client: httpx.Client) -> None:
         time.sleep(min(30.0, WARMUP_S - watched + 5))
 
 
-def run_one(client: httpx.Client, scenario: Scenario) -> Result:
+def investigate(client: httpx.Client, ref: str) -> dict[str, Any]:
+    response = _post(client, f"/api/incidents/{ref}/investigate?wait=true&actor=scenarios")
+    if response.status_code not in (200, 202):
+        return {"error": f"investigate {response.status_code}: {response.text[:200]}"}
+    run = response.json()
+    diagnosis = run.get("diagnosis") or {}
+    known = {row["code"] for row in _get(client, f"/api/incidents/{ref}/evidence").json()}
+    cited = diagnosis.get("evidence_codes") or []
+    return {
+        "run_id": run["id"],
+        "status": run["status"],
+        "error": run.get("error"),
+        "root_cause": diagnosis.get("root_cause_service"),
+        "fault_class": diagnosis.get("fault_class"),
+        "confidence": diagnosis.get("confidence"),
+        "valid": diagnosis.get("valid"),
+        "validation_errors": diagnosis.get("validation_errors") or [],
+        "action": diagnosis.get("recommended_action"),
+        "cited": cited,
+        # Independent of the validator: every cited code must be this incident's.
+        "invalid_codes": [code for code in cited if code not in known],
+        "tool_calls": run.get("tool_calls"),
+        "llm_calls": run.get("llm_calls"),
+        "latency_ms": run.get("latency_ms"),
+        "cost_usd": run.get("cost_usd"),
+        "model": run.get("model"),
+    }
+
+
+def wait_resolved(client: httpx.Client, ref: str, timeout_s: float) -> str:
+    deadline = time.monotonic() + timeout_s
+    status = ""
+    while time.monotonic() < deadline:
+        status = _get(client, f"/api/incidents/{ref}").json()["status"]
+        if status in ("RESOLVED", "ESCALATED", "FAILED"):
+            return status
+        time.sleep(5)
+    return status
+
+
+def run_one(
+    client: httpx.Client,
+    scenario: Scenario,
+    *,
+    agent: bool = False,
+    resolve: bool = False,
+) -> Result:
     result = Result(
         id=scenario.id,
         name=scenario.name,
@@ -303,11 +369,20 @@ def run_one(client: httpx.Client, scenario: Scenario) -> Result:
         ]
         result.score = result.ranking[0]["score"] if result.ranking else None
         result.evidence = body.get("evidence_total", 0)
+    if agent:
+        result.agent = investigate(client, incident["public_id"])
 
     _delete(client, f"/api/faults/{fault_id}?actor=scenarios")
-    _post(
-        client, f"/api/incidents/{incident['public_id']}/close?actor=scenarios&note=scenario_done"
-    )
+    if resolve:
+        result.final_status = wait_resolved(client, incident["public_id"], RESOLVE_TIMEOUT_S)
+    if result.final_status not in ("RESOLVED", "ESCALATED", "FAILED"):
+        _post(
+            client,
+            f"/api/incidents/{incident['public_id']}/close?actor=scenarios&note=scenario_done",
+        )
+        result.final_status = _get(client, f"/api/incidents/{incident['public_id']}").json()[
+            "status"
+        ]
     total_after = _get(client, "/api/incidents?limit=200").json()["total"]
     if total_after != baseline_total + 1:
         result.note = (
@@ -323,6 +398,11 @@ def _iso(epoch: float) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", default="", help="comma-separated scenario ids, e.g. S1,S6")
+    parser.add_argument("--agent", action="store_true", help="run the P11 investigation too")
+    parser.add_argument(
+        "--resolve", action="store_true", help="wait for the detector to resolve after revert"
+    )
+    parser.add_argument("--out", default=RESULTS_FILE, help="where to write the JSON result")
     args = parser.parse_args()
     wanted = {item.strip().upper() for item in args.only.split(",") if item.strip()}
     scenarios = [item for item in SCENARIOS if not wanted or item.id in wanted]
@@ -335,7 +415,12 @@ def main() -> int:
         wait_for_warmup(client)
         for scenario in scenarios:
             print(f"\n== {scenario.id} {scenario.name} -> expect {scenario.expected}")
-            result = run_one(client, scenario)
+            result = run_one(
+                client,
+                scenario,
+                agent=args.agent,
+                resolve=args.resolve,
+            )
             results.append(result)
             verdict = "PASS" if result.passed else "FAIL"
             print(
@@ -345,6 +430,20 @@ def main() -> int:
             )
             if result.error:
                 print(f"       error: {result.error}")
+            if result.agent is not None:
+                item = result.agent
+                print(
+                    f"       agent {'PASS' if result.agent_passed else 'FAIL'} "
+                    f"status={item.get('status')} root={item.get('root_cause')} "
+                    f"class={item.get('fault_class')} conf={item.get('confidence')} "
+                    f"valid={item.get('valid')} invalid_codes={item.get('invalid_codes')} "
+                    f"tools={item.get('tool_calls')} ms={item.get('latency_ms')} "
+                    f"final={result.final_status}"
+                )
+                if item.get("error") or item.get("validation_errors"):
+                    print(
+                        f"       agent error: {item.get('error')} {item.get('validation_errors')}"
+                    )
             if result.ranking:
                 print(
                     "       ranking: "
@@ -364,15 +463,31 @@ def main() -> int:
             f"expected={item.expected} top={item.top or '—'} "
             f"incident={item.incident or '—'} detected={item.detected_s or 0:.0f}s"
         )
+    agent_runs = [item for item in results if item.agent is not None]
+    agent_passed = sum(1 for item in agent_runs if item.agent_passed)
+    invalid = sum(len((item.agent or {}).get("invalid_codes") or []) for item in agent_runs)
+    if agent_runs:
+        print(
+            f"agent: {agent_passed}/{len(agent_runs)} diagnosed correctly, "
+            f"{invalid} invalid evidence code(s), max tool calls "
+            f"{max(int((item.agent or {}).get('tool_calls') or 0) for item in agent_runs)}"
+        )
     payload = {
         "generated_at": datetime.now(UTC).isoformat(),
         "passed": passed,
         "total": len(results),
-        "results": [{**asdict(item), "passed": item.passed} for item in results],
+        "agent_passed": agent_passed if agent_runs else None,
+        "invalid_evidence_codes": invalid if agent_runs else None,
+        "results": [
+            {**asdict(item), "passed": item.passed, "agent_passed": item.agent_passed}
+            for item in results
+        ],
     }
-    with open(RESULTS_FILE, "w", encoding="utf-8") as handle:
+    with open(args.out, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
-    print(f"\nwrote {RESULTS_FILE}")
+    print(f"\nwrote {args.out}")
+    if agent_runs and (invalid or agent_passed < len(agent_runs)):
+        return 1
     return 0 if passed >= 7 else 1
 
 

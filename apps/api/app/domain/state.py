@@ -46,8 +46,12 @@ TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
         {IncidentStatus.INVESTIGATING, IncidentStatus.RESOLVED, IncidentStatus.ESCALATED}
     ),
     IncidentStatus.INVESTIGATING: frozenset({IncidentStatus.DIAGNOSED, IncidentStatus.ESCALATED}),
+    # DIAGNOSED -> RESOLVED is the same recovery edge after a diagnosis: the
+    # symptom cleared (the fault was reverted or expired) before any remediation
+    # was approved. Memory (P12) is written from RESOLVED incidents, which is
+    # what makes this edge necessary before P14/P15 exist.
     IncidentStatus.DIAGNOSED: frozenset(
-        {IncidentStatus.AWAITING_APPROVAL, IncidentStatus.ESCALATED}
+        {IncidentStatus.AWAITING_APPROVAL, IncidentStatus.RESOLVED, IncidentStatus.ESCALATED}
     ),
     IncidentStatus.AWAITING_APPROVAL: frozenset(
         {IncidentStatus.REMEDIATING, IncidentStatus.REJECTED, IncidentStatus.ESCALATED}
@@ -94,11 +98,12 @@ def close_target(current: IncidentStatus) -> IncidentStatus:
 
 
 def recovery_target(current: IncidentStatus) -> IncidentStatus | None:
-    """Where an un-investigated incident goes when the symptom clears.
+    """Where an incident goes when the symptom clears on its own.
 
-    Only OPEN qualifies: once the agent has started, a recovery is evidence for
-    its diagnosis and the verification phase closes the loop, not the detector.
+    OPEN (never investigated) and DIAGNOSED (investigated, nothing executed yet)
+    qualify. While the agent runs (INVESTIGATING) or once remediation has started,
+    the agent and the verification phase own the outcome, not the detector.
     """
-    if current == IncidentStatus.OPEN:
+    if current in (IncidentStatus.OPEN, IncidentStatus.DIAGNOSED):
         return IncidentStatus.RESOLVED
     return None

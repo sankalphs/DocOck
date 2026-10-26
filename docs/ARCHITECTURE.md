@@ -396,3 +396,38 @@ The ONNX export needs an empty KV cache as input and its tokenizer already
 appends the pooling token; see the module docstring of
 `app/models/embeddings/onnx_local.py`.
 
+## Agent orchestrator (P11)
+
+`app/agent/` runs one investigation per incident as a background task:
+
+```
+analysis (if no suspects) → context → LLM tool loop → diagnosis JSON
+   → validator (one repair turn) → confidence gate → DIAGNOSED | ESCALATED
+```
+
+| Part | Module | Rule |
+|---|---|---|
+| Context | `context.py` | One JSON document: trigger, top-5 suspects with the codes behind each signal, an evidence index (≤ 140 rows), topology edges, fault targets, the action catalog. Every listed code counts as *shown*. |
+| Tools | `tools.py` | 11 read-only tools with `extra=forbid` JSON schemas. Service names must match `^[a-z0-9][a-z0-9-]{0,63}$` **and** a known service (Prometheus selectors are not escaped). Every live observation is stored as an evidence row under the store lock and returns its `E####` code, so the model can cite what it saw. |
+| Budget | `budget.py` | ≤ 20 tool calls (the 21st is refused, not run), ≤ 90 s wall clock with a 25 s reserve for the final answer, ≤ tools + 4 model turns, and the daily USD cap summed from `agent_runs.cost_usd`. Running out of tools or time asks for the answer without tools; only the hard clock, the turn cap and the spend cap fail a run. |
+| Validator | `validator.py` | PLAN §11 rules: codes exist **for this incident** and were shown (context or a tool result); root cause in the observed topology; action in the catalog with an allowed target (`app/remediation/catalog.py`); summary ≤ 1200 chars, no tables, every number traceable to a cited row; affected services known. Telemetry aliases fold (`frontend-web` → `frontend`). Validity and the confidence gate are separate. |
+| Persistence | `orchestrator.py` | `agent_runs` (status, tokens, cost, latency, error) and ordered `agent_steps`; each step is also published as SSE `agent.step`, framed by `agent.run.started` / `agent.run.finished`. |
+
+Incident state: a run started on `OPEN` moves it to `INVESTIGATING`, then to
+`DIAGNOSED` (valid and ≥ `AGENT_CONFIDENCE_THRESHOLD`) or `ESCALATED` (invalid
+after the repair turn, below the gate, failed, or cancelled). A rerun on a
+`DIAGNOSED`/`ESCALATED` incident records a new run and diagnosis without moving
+the incident. A run left `RUNNING` by an API restart is marked `FAILED` at
+startup and its incident escalated.
+
+Deviation from PLAN §7: `DIAGNOSED → RESOLVED` is allowed when the detector sees
+the symptom clear. Without it, no incident could resolve before remediation
+(P14), and P12 memory stores only resolved incidents.
+
+**Offline reasoning.** With `LLM_PROVIDER=stub` the gateway uses
+`app/agent/stub_policy.py`: a deterministic investigator that speaks the same
+protocol (two tool rounds, then one JSON answer) and reasons only from the
+context and tool results. The root is the top suspect unless a recorded
+fault/flag change targets another top-3 suspect. The whole pipeline —
+persistence, validation, gate, SSE, UI — is therefore exercised without a key.
+

@@ -441,6 +441,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/incidents/{ref}/investigate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start an agent investigation
+         * @description Starts a background run. `wait=true` blocks until the run finishes (at most `timeout_s`) and returns the finished run with its steps.
+         */
+        post: operations["investigate_api_incidents__ref__investigate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Agent runs of one incident */
+        get: operations["incident_runs_api_incidents__ref__runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/diagnosis/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a diagnosis against an incident (read-only)
+         * @description Runs the PLAN §11 validator on an arbitrary diagnosis object. Nothing is stored; this is how seeded bad outputs are checked.
+         */
+        post: operations["validate_diagnosis_api_incidents__ref__diagnosis_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent agent runs */
+        get: operations["runs_api_agent_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One run with steps */
+        get: operations["run_detail_api_agent_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/runs/{run_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a running run */
+        post: operations["cancel_api_agent_runs__run_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -460,6 +568,132 @@ export interface components {
             confidence_threshold?: number | null;
             /** Wall Clock S */
             wall_clock_s?: number | null;
+        };
+        /** AgentRunDetail */
+        AgentRunDetail: {
+            /** Id */
+            id: number;
+            /** Incident Id */
+            incident_id: number;
+            /** Incident Ref */
+            incident_ref: string;
+            /** Status */
+            status: string;
+            /** Provider */
+            provider: string | null;
+            /** Model */
+            model: string | null;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Latency Ms */
+            latency_ms: number | null;
+            /**
+             * Tool Calls
+             * @default 0
+             */
+            tool_calls: number;
+            /**
+             * Llm Calls
+             * @default 0
+             */
+            llm_calls: number;
+            diagnosis?: components["schemas"]["DiagnosisView"] | null;
+            /** Steps */
+            steps?: components["schemas"]["AgentStepView"][];
+        };
+        /** AgentRunList */
+        AgentRunList: {
+            /** Items */
+            items: components["schemas"]["AgentRunSummary"][];
+            /** Total */
+            total: number;
+        };
+        /** AgentRunSummary */
+        AgentRunSummary: {
+            /** Id */
+            id: number;
+            /** Incident Id */
+            incident_id: number;
+            /** Incident Ref */
+            incident_ref: string;
+            /** Status */
+            status: string;
+            /** Provider */
+            provider: string | null;
+            /** Model */
+            model: string | null;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Latency Ms */
+            latency_ms: number | null;
+            /**
+             * Tool Calls
+             * @default 0
+             */
+            tool_calls: number;
+            /**
+             * Llm Calls
+             * @default 0
+             */
+            llm_calls: number;
+            diagnosis?: components["schemas"]["DiagnosisView"] | null;
+        };
+        /** AgentStepView */
+        AgentStepView: {
+            /** Seq */
+            seq: number;
+            /** Kind */
+            kind: string;
+            /** Tool */
+            tool?: string | null;
+            /** Input */
+            input?: {
+                [key: string]: unknown;
+            } | null;
+            /** Output */
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            /** Latency Ms */
+            latency_ms?: number | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** AlternativeHypothesis */
+        AlternativeHypothesis: {
+            /** Service */
+            service: string;
+            /** Confidence */
+            confidence: number;
         };
         /** AnalysisReport */
         AnalysisReport: {
@@ -662,6 +896,58 @@ export interface components {
                     [key: string]: number | null;
                 };
             };
+        };
+        /**
+         * Diagnosis
+         * @description Exactly the PLAN §11 shape. `extra=forbid` rejects smuggled fields.
+         */
+        Diagnosis: {
+            root_cause: components["schemas"]["RootCause"];
+            /** Confidence */
+            confidence: number;
+            /** Summary */
+            summary: string;
+            /** Evidence Codes */
+            evidence_codes: string[];
+            /** Affected Services */
+            affected_services?: string[];
+            recommended_action: components["schemas"]["RecommendedAction"];
+            /** Alternative Hypotheses */
+            alternative_hypotheses?: components["schemas"]["AlternativeHypothesis"][];
+        };
+        /** DiagnosisView */
+        DiagnosisView: {
+            /** Id */
+            id: number;
+            /** Root Cause Service */
+            root_cause_service: string;
+            /** Fault Class */
+            fault_class: string;
+            /** Confidence */
+            confidence: number;
+            /** Summary */
+            summary: string;
+            /** Evidence Codes */
+            evidence_codes: string[];
+            /** Affected Services */
+            affected_services: string[];
+            /** Recommended Action */
+            recommended_action: {
+                [key: string]: unknown;
+            };
+            /** Alternative Hypotheses */
+            alternative_hypotheses: {
+                [key: string]: unknown;
+            }[];
+            /** Valid */
+            valid: boolean;
+            /** Validation Errors */
+            validation_errors: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** EmbeddingConfig */
         EmbeddingConfig: {
@@ -1359,6 +1645,13 @@ export interface components {
              */
             description: string;
         };
+        /** RecommendedAction */
+        RecommendedAction: {
+            /** Action Id */
+            action_id: string;
+            /** Target */
+            target: string;
+        };
         /** ResetReport */
         ResetReport: {
             /** Reverted */
@@ -1390,6 +1683,16 @@ export interface components {
             top_k?: number | null;
             /** Min Score */
             min_score?: number | null;
+        };
+        /** RootCause */
+        RootCause: {
+            /** Service */
+            service: string;
+            /**
+             * Fault Class
+             * @enum {string}
+             */
+            fault_class: "application_error" | "resource_exhaustion" | "dependency_unavailable" | "network" | "traffic" | "configuration" | "unknown";
         };
         /** SecretStatus */
         SecretStatus: {
@@ -1630,6 +1933,23 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** ValidationReport */
+        ValidationReport: {
+            /** Valid */
+            valid: boolean;
+            /** Errors */
+            errors?: string[];
+            /** Warnings */
+            warnings?: string[];
+            /**
+             * Passes Gate
+             * @default false
+             */
+            passes_gate: boolean;
+            /** Threshold */
+            threshold: number;
+            diagnosis?: components["schemas"]["Diagnosis"] | null;
         };
     };
     responses: never;
@@ -2483,6 +2803,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelTestReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    investigate_api_incidents__ref__investigate_post: {
+        parameters: {
+            query?: {
+                actor?: string;
+                wait?: boolean;
+                timeout_s?: number;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_runs_api_incidents__ref__runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_diagnosis_api_incidents__ref__diagnosis_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    runs_api_agent_runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_detail_api_agent_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_api_agent_runs__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunSummary"];
                 };
             };
             /** @description Validation Error */

@@ -153,6 +153,31 @@ loads in ~2–6 s; later calls take tens of milliseconds. Set
 `EMBEDDING_ALLOW_DOWNLOAD=false` to forbid network access after the first
 download, or `EMBEDDING_PROVIDER=stub` to skip the model entirely.
 
+## Agent (P11)
+
+Start an investigation from the dashboard (**Agent** page, or **Agent** on an
+incident) or with:
+
+```powershell
+curl.exe -X POST "http://127.0.0.1:8001/api/incidents/INC-00001/investigate?wait=true"
+curl.exe http://127.0.0.1:8001/api/agent/runs/1          # run + ordered steps
+curl.exe -X POST http://127.0.0.1:8001/api/agent/runs/1/cancel
+```
+
+One run per incident at a time (409 otherwise); resolved incidents are refused.
+To check a hand-written (or deliberately bad) diagnosis against an incident
+without storing anything:
+
+```powershell
+curl.exe -X POST -H "content-type: application/json" -d '{\"root_cause\":{...}}' http://127.0.0.1:8001/api/incidents/INC-00001/diagnosis/validate
+```
+
+`scripts\run-scenarios.py --agent --resolve` adds the investigation to every
+scenario, checks each cited code against `GET /api/incidents/{ref}/evidence`,
+and lets the detector resolve the incident after the revert (results:
+`--out runtime\scenarios-p11.json`). Set `PYTHONIOENCODING=utf-8` when the output
+goes to a file on Windows.
+
 ## Endpoints
 
 | What | URL |

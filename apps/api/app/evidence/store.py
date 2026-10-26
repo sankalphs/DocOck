@@ -13,6 +13,7 @@ The agent may cite only codes returned by this store (the validator in P11).
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -52,6 +53,12 @@ def evidence_hash(*, type_: str, source: str, service: str | None, data: dict[st
 
 
 class EvidenceStore:
+    def __init__(self) -> None:
+        # Writers (the analyzer, the agent's tools) hold this while allocating
+        # codes: two writers would both compute the same next E#### and the
+        # second would fail on the (incident_id, code) unique constraint.
+        self.lock = asyncio.Lock()
+
     async def add(
         self,
         session: AsyncSession,

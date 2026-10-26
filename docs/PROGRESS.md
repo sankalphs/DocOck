@@ -19,7 +19,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P8 | Incident engine + detection | DONE | `6f6d69d` |
 | P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
 | P10 | Model gateway + embeddings | DONE | `75227b0` |
-| P11 | Agent orchestrator | TODO | — |
+| P11 | Agent orchestrator | DONE | (this commit) |
 | P12 | Memory + retrieval | TODO | — |
 | P13 | Agent UI | TODO | — |
 | P14 | Remediation + approval | TODO | — |
@@ -602,3 +602,55 @@ Facts found while building:
 3. Queries carry Qwen3's `Instruct: …
 Query:` prefix; documents do not.
 
+### P11 — 2026-10-26
+
+- **8 scenarios end to end** on the live stack, stub provider (offline):
+  `scriptsun-scenarios.py --agent --resolve` → **8/8 DIAGNOSED with the
+  injected root cause**, every diagnosis `valid`, **0 invalid evidence codes**
+  (each cited code checked independently against
+  `GET /api/incidents/{ref}/evidence`), **4 tool calls per run** (cap 20), 3
+  model turns, ~4 s per run, $0. All eight incidents then went
+  `DIAGNOSED → RESOLVED` through the detector after the revert. Result file:
+  `docs/evidence/p11-scenarios.json` (also 8/8 P9 top-1 in the same run).
+
+  | Scenario | Root | Class | Conf. |
+  |---|---|---|---|
+  | S1 payment failure | payment | application_error | 0.85 |
+  | S2 catalog lock contention | product-catalog | application_error | 0.85 |
+  | S3 payment unreachable | payment | configuration | 0.75 |
+  | S4 slow image loading | frontend | application_error | 0.85 |
+  | S5 email down | email | dependency_unavailable | 0.95 |
+  | S6 ad CPU pressure | ad | resource_exhaustion | 0.89 |
+  | S7 payment partition | payment | network | 0.88 |
+  | S8 traffic flood | frontend | traffic | 0.95 |
+
+- **Validator rejects seeded bad outputs**, live
+  (`POST /api/incidents/INC-00066/diagnosis/validate`): invented `E9999`;
+  `E0090` (exists only in INC-00053); root `postgres` outside the topology;
+  action `drop_database`; `restart_service` on `postgres`; an invented number
+  (731); a markdown table; a 1400-char summary; affected `warp-drive`;
+  confidence 1.5 — all `valid=false`, `passes_gate=false`, with the rule named.
+  The well-formed control passes. Unit tests add: malformed code, code never
+  shown, empty citations, unknown fault class, wrong action target, smuggled
+  field, alias folding, traced numbers.
+- **Budget**: unit tests prove the 21st tool call is refused, the turn cap,
+  the 25 s final-answer reserve, and the daily spend cap.
+- **SSE**: one run replayed from `Last-Event-ID: 0` as `agent.run.started`,
+  11 × `agent.step`, `agent.run.finished`; steps are persisted in `agent_steps`.
+- Gates: ruff, mypy (105 files), **184 API tests** pass.
+
+Not verified: a real-model investigation (no key on this host). The stub
+investigator uses the same protocol, so persistence, validation, the gate and
+the UI are exercised; prompt quality with a real model is not.
+
+Facts found while building:
+
+1. The demo's checkout/payment path errors show up as incidents on the caller
+   (`primary_service` checkout, recommendation, frontend-proxy) — the root comes
+   from the suspects, not from `primary_service`.
+2. Without `DIAGNOSED → RESOLVED` (deviation from PLAN §7) a diagnosed
+   incident could only be escalated before P14, so nothing would ever reach
+   memory.
+3. Background jobs launched by the agent harness are stopped after their time
+   limit; the API is now started with `Start-Process` (see RUNBOOK) when a long
+   run must survive.

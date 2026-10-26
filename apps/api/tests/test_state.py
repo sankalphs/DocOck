@@ -40,6 +40,10 @@ def test_recovery_edge_only_leaves_open() -> None:
         ensure_transition(IncidentStatus.INVESTIGATING, IncidentStatus.RESOLVED)
     assert recovery_target(IncidentStatus.OPEN) == IncidentStatus.RESOLVED
     assert recovery_target(IncidentStatus.INVESTIGATING) is None
+    # A diagnosed incident whose symptom cleared before remediation resolves.
+    assert recovery_target(IncidentStatus.DIAGNOSED) == IncidentStatus.RESOLVED
+    assert recovery_target(IncidentStatus.REMEDIATING) is None
+    ensure_transition(IncidentStatus.DIAGNOSED, IncidentStatus.RESOLVED)
 
 
 def test_rejection_escalates() -> None:

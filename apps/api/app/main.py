@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.agent.orchestrator import orchestrator as agent_orchestrator
 from app.api import api_router
 from app.config import settings
 from app.db.session import SessionFactory, dispose_engine
@@ -60,12 +61,19 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await model_gateway.load(session)
     except Exception as exc:  # the DB probe reports this; models fall back to .env
         log.warning("model_settings_load_failed", error=str(exc))
+    try:
+        stale = await agent_orchestrator.recover_stale()
+        if stale:
+            log.warning("agent_runs_interrupted", runs=stale)
+    except Exception as exc:
+        log.warning("agent_recover_failed", error=str(exc))
     runtime = FaultRuntime()
     await runtime.start()
     await detection_runtime.start()
     try:
         yield
     finally:
+        await agent_orchestrator.shutdown()
         await detection_runtime.stop()
         await runtime.stop()
         await model_gateway.aclose()

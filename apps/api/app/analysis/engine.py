@@ -10,7 +10,6 @@ It never calls an LLM and never mutates infrastructure.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -85,10 +84,11 @@ class Analyzer:
         self.docker = docker or DockerAdapter(ttl_s=0)
         self.evidence = evidence or evidence_store
         self.incidents = incidents or incident_service
-        # Two concurrent runs on one incident would both compute the same next
-        # E#### code and the second would fail on the unique constraint. A run
-        # takes seconds and the API is one process, so one lock is enough.
-        self._lock = asyncio.Lock()
+        # Two concurrent writers on one incident would both compute the same next
+        # E#### code and the second would fail on the unique constraint. The
+        # store's lock is shared with the agent's tools; a run takes seconds and
+        # the API is one process, so one lock is enough.
+        self._lock = self.evidence.lock
 
     async def analyze(self, ref: str) -> AnalysisReport:
         async with self._lock:

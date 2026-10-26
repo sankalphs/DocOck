@@ -1,0 +1,516 @@
+{
+  "generated_at": "2026-10-25T22:41:19.807742+00:00",
+  "passed": 8,
+  "total": 8,
+  "agent_passed": 8,
+  "invalid_evidence_codes": 0,
+  "results": [
+    {
+      "id": "S1",
+      "name": "payment failure",
+      "expected": "payment",
+      "incident": "INC-00070",
+      "primary_service": "payment",
+      "detected_s": 74.21900000001187,
+      "top": "payment",
+      "score": 0.4759,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4759
+        },
+        {
+          "service": "checkout",
+          "score": 0.1586
+        },
+        {
+          "service": "frontend",
+          "score": 0.1586
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1586
+        },
+        {
+          "service": "quote",
+          "score": 0.0481
+        }
+      ],
+      "evidence": 40,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 2,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0009",
+          "E0004",
+          "E0002",
+          "E0038",
+          "E0033",
+          "E0018",
+          "E0010",
+          "E0011",
+          "E0041",
+          "E0042",
+          "E0043"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3983,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S2",
+      "name": "catalog lock contention",
+      "expected": "product-catalog",
+      "incident": "INC-00071",
+      "primary_service": "recommendation",
+      "detected_s": 146.88999999998487,
+      "top": "product-catalog",
+      "score": 0.4002,
+      "ranking": [
+        {
+          "service": "product-catalog",
+          "score": 0.4002
+        },
+        {
+          "service": "frontend",
+          "score": 0.1334
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1334
+        },
+        {
+          "service": "recommendation",
+          "score": 0.1334
+        },
+        {
+          "service": "cart",
+          "score": 0.0667
+        },
+        {
+          "service": "image-provider",
+          "score": 0.0473
+        },
+        {
+          "service": "checkout",
+          "score": 0.0302
+        },
+        {
+          "service": "payment",
+          "score": 0.0236
+        }
+      ],
+      "evidence": 45,
+      "error": null,
+      "note": "the only ERROR is the proxy's 15 s timeout; the delay is product-catalog's DB call",
+      "agent": {
+        "run_id": 3,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "product-catalog",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "product-catalog",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0015",
+          "E0014",
+          "E0005",
+          "E0043",
+          "E0039",
+          "E0045",
+          "E0046",
+          "E0047",
+          "E0048"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3750,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S3",
+      "name": "payment unreachable",
+      "expected": "payment",
+      "incident": "INC-00072",
+      "primary_service": "checkout",
+      "detected_s": 130.15600000001723,
+      "top": "payment",
+      "score": 0.4061,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4061
+        },
+        {
+          "service": "checkout",
+          "score": 0.2771
+        },
+        {
+          "service": "frontend",
+          "score": 0.1584
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1584
+        }
+      ],
+      "evidence": 39,
+      "error": null,
+      "note": "enforced in checkout (badAddress:50051), so the symptom is a silent peer",
+      "agent": {
+        "run_id": 4,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "configuration",
+        "confidence": 0.75,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0012",
+          "E0007",
+          "E0001",
+          "E0006",
+          "E0037",
+          "E0032",
+          "E0013",
+          "E0014",
+          "E0040",
+          "E0041",
+          "E0042"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3969,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S4",
+      "name": "slow image loading",
+      "expected": "frontend",
+      "incident": "INC-00073",
+      "primary_service": "frontend-proxy",
+      "detected_s": 146.42199999999139,
+      "top": "frontend",
+      "score": 0.5992,
+      "ranking": [
+        {
+          "service": "frontend",
+          "score": 0.5992
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.2048
+        },
+        {
+          "service": "image-provider",
+          "score": 0.1276
+        },
+        {
+          "service": "payment",
+          "score": 0.0256
+        },
+        {
+          "service": "currency",
+          "score": 0.0255
+        },
+        {
+          "service": "checkout",
+          "score": 0.0173
+        }
+      ],
+      "evidence": 34,
+      "error": null,
+      "note": "the delay is applied by the frontend's ProductCard",
+      "agent": {
+        "run_id": 5,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "frontend",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "frontend",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0007",
+          "E0003",
+          "E0032",
+          "E0023",
+          "E0034",
+          "E0035",
+          "E0036",
+          "E0037"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 4092,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S5",
+      "name": "email service down",
+      "expected": "email",
+      "incident": "INC-00074",
+      "primary_service": "email",
+      "detected_s": 27.375,
+      "top": "email",
+      "score": 1.0,
+      "ranking": [
+        {
+          "service": "email",
+          "score": 1.0
+        }
+      ],
+      "evidence": 18,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 6,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "email",
+        "fault_class": "dependency_unavailable",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0017",
+          "E0007",
+          "E0018",
+          "E0002",
+          "E0019",
+          "E0020",
+          "E0021"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3921,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S6",
+      "name": "ad CPU pressure",
+      "expected": "ad",
+      "incident": "INC-00076",
+      "primary_service": "ad",
+      "detected_s": 34.15700000000652,
+      "top": "ad",
+      "score": 0.8347,
+      "ranking": [
+        {
+          "service": "ad",
+          "score": 0.8347
+        },
+        {
+          "service": "checkout",
+          "score": 0.1653
+        }
+      ],
+      "evidence": 21,
+      "error": null,
+      "note": "ad uses 1.3 % CPU at this cap; the limit itself is the only symptom",
+      "agent": {
+        "run_id": 7,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "ad",
+        "fault_class": "resource_exhaustion",
+        "confidence": 0.89,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "ad",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0020",
+          "E0006",
+          "E0021",
+          "E0005",
+          "E0022",
+          "E0023",
+          "E0024"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3891,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S7",
+      "name": "payment network partition",
+      "expected": "payment",
+      "incident": "INC-00077",
+      "primary_service": "payment",
+      "detected_s": 26.469000000011874,
+      "top": "payment",
+      "score": 0.8121,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.8121
+        },
+        {
+          "service": "checkout",
+          "score": 0.1879
+        }
+      ],
+      "evidence": 21,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 8,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "network",
+        "confidence": 0.88,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0020",
+          "E0015",
+          "E0021",
+          "E0005",
+          "E0022",
+          "E0023",
+          "E0024"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3969,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    },
+    {
+      "id": "S8",
+      "name": "traffic flood",
+      "expected": "frontend",
+      "incident": "INC-00079",
+      "primary_service": "frontend",
+      "detected_s": 78.17199999999139,
+      "top": "frontend",
+      "score": 1.0,
+      "ranking": [
+        {
+          "service": "frontend",
+          "score": 1.0
+        }
+      ],
+      "evidence": 25,
+      "error": null,
+      "note": "catalog target is frontend; PLAN \u00a717 expected frontend-proxy",
+      "agent": {
+        "run_id": 9,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "frontend",
+        "fault_class": "traffic",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "frontend",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0001",
+          "E0024",
+          "E0015",
+          "E0004",
+          "E0005",
+          "E0006",
+          "E0007",
+          "E0008",
+          "E0026",
+          "E0027",
+          "E0028"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3984,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "passed": true,
+      "agent_passed": true
+    }
+  ]
+}
