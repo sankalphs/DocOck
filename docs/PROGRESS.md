@@ -60,6 +60,11 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
   fix).
 - flagd hot reload verified end to end: `paymentFailure` `off → 100% → off`
   with no flagd restart.
+- Cold start validated: `scripts\down.ps1` → `scripts\up.ps1 -SkipPull`
+  recreated all 25 demo containers plus Postgres, and `health.ps1` returned
+  10/10 with exit 0.
+- All 25 demo containers carry `com.docker.compose.project=docock-demo`; P6
+  should use that label (not a network name) as the safety boundary.
 
 Fixes discovered during the phase:
 
