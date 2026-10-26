@@ -82,7 +82,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Self-contained JSON and Markdown incident reports.",
     icon: FileText,
     phase: "P15",
-    ready: false,
+    ready: true,
   },
   {
     href: "/memory",

@@ -20,6 +20,7 @@ describe("EVENT_TYPES", () => {
         "approval",
         "action",
         "verification",
+        "report",
       ]),
     );
   });

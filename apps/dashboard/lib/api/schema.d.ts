@@ -746,6 +746,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/incidents/{ref}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Verification verdicts of one incident, with the actions still being verified */
+        get: operations["incident_verifications_api_incidents__ref__verifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Incidents with their report status */
+        get: operations["list_reports_api_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Self-contained incident report (JSON) */
+        get: operations["incident_report_api_incidents__ref__report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/report.md": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Incident report as Markdown (download=true for an attachment) */
+        get: operations["incident_report_markdown_api_incidents__ref__report_md_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2197,6 +2265,42 @@ export interface components {
             /** Target */
             target: string;
         };
+        /** ReportList */
+        ReportList: {
+            /** Items */
+            items: components["schemas"]["ReportSummary"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /** ReportSummary */
+        ReportSummary: {
+            /** Incident Ref */
+            incident_ref: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Severity */
+            severity: string;
+            /** Primary Service */
+            primary_service: string | null;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Closed At */
+            closed_at: string | null;
+            /** Action */
+            action: string | null;
+            /** Verdict */
+            verdict: string | null;
+            /** Stored At */
+            stored_at: string | null;
+        };
         /** ResetReport */
         ResetReport: {
             /** Reverted */
@@ -2495,6 +2599,45 @@ export interface components {
             /** Threshold */
             threshold: number;
             diagnosis?: components["schemas"]["Diagnosis"] | null;
+        };
+        /** VerificationList */
+        VerificationList: {
+            /** Items */
+            items: components["schemas"]["VerificationView"][];
+            /** Running */
+            running: number[];
+        };
+        /** VerificationView */
+        VerificationView: {
+            /** Id */
+            id: number;
+            /** Action Row Id */
+            action_row_id: number;
+            /** Action Id */
+            action_id: string;
+            /** Target */
+            target: string;
+            /** Verdict */
+            verdict: string;
+            /** Observed For S */
+            observed_for_s: number;
+            /** Criteria */
+            criteria: {
+                [key: string]: unknown;
+            };
+            /** Before */
+            before: {
+                [key: string]: unknown;
+            };
+            /** After */
+            after: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
     };
     responses: never;
@@ -3934,6 +4077,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_verifications_api_incidents__ref__verifications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reports_api_reports_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_report_api_incidents__ref__report_get: {
+        parameters: {
+            query?: {
+                refresh?: boolean;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_report_markdown_api_incidents__ref__report_md_get: {
+        parameters: {
+            query?: {
+                refresh?: boolean;
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */

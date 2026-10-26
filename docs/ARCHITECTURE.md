@@ -513,3 +513,64 @@ pending approval is withdrawn in the same transaction. Every exit from
 planned preconditions and steps, dry-run, approve/reject with a note) and the
 decided history with snapshots, rollback and the audit trail. The page never
 receives a token.
+
+## Verification and reports (P15)
+
+`app/verification/` decides whether an executed action fixed the incident. The
+executor hands every EXECUTED action (incident `VERIFYING`) to the verifier,
+which runs as a background task:
+
+```
+before: metrics at action start (Prometheus range query) + planner pre-snapshot
+loop:   each fresh detector report → per-action criteria → clean-cycle counter
+        all criteria on VERIFICATION_CLEAN_CYCLES consecutive cycles → PASSED
+        VERIFICATION_TIMEOUT_S without that → FAILED (no report at all → INCONCLUSIVE)
+after:  current metrics, post-snapshot, last breaches, every sample
+```
+
+| Action | Criteria (all must hold on the same cycle) |
+|---|---|
+| every action | no detector breach on the focus services (target, primary, trigger services, diagnosed root) |
+| `reset_fault`, `clear_feature_flag`, `restore_network`, `remove_resource_limit`, `stop_load_generator` | the reverted faults stay REVERTED/EXPIRED |
+| `clear_feature_flag` | the flag reads back `off` from flagd |
+| `restart_service` | container running and not unhealthy; no restart loop (StartedAt and RestartCount unchanged); target error rate < max(2 %, 1.5× baseline) |
+| `restore_network` | the container has a network again |
+| `remove_resource_limit` | no restart loop; no `container_resource` breach |
+| `stop_load_generator` | no `throughput` breach |
+
+The detector is the judge: "fixed" means the signal that opened the incident
+is gone, measured the same way. Noise on services outside the focus set does
+not fail a correct action. PASSED moves the incident to `RESOLVED` (memory
+stores it, with the executed action and the verdict text, e.g. `PASSED after
+52 s (symptoms_clear, faults_reverted)`); FAILED/INCONCLUSIVE runs the action's
+rollback policy (only `restart_service` makes sure the container runs again;
+nothing that would re-inject a fault) and escalates. A verification cut short
+by an API restart resumes at startup.
+
+Deviation from PLAN §9 ("within 90 s"): flagd needs 30–45 s to propagate and the
+detector's error rate is a 2-minute window, so a correct revert clears the
+breach after about 2–3 minutes. The verifier therefore waits for 4 clean
+detector cycles (40 s) within a 420 s timeout — the same budget the scenario
+runner already used for detector recovery.
+
+`app/reports/` builds one self-contained JSON document per incident
+(`docock.report/v1`): incident, outcome, timeline, suspects, diagnosis, the
+full rows of every cited evidence code plus an evidence index, agent runs
+(model, tokens, cost, latency), faults overlapping the incident, every action
+with its approval decision (token issued/used flags only), verification
+verdict, criteria and before/after metrics, and the audit entries. The
+Markdown export renders that document and nothing else. A closed incident's
+report is stored in `reports` (JSON and Markdown) when the verifier concludes
+or on first read; an open incident's report is built live.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/incidents/{ref}/verifications` | verdicts with criteria, before/after, samples; actions still being verified |
+| `GET /api/incidents/{ref}/report` | the JSON report (`refresh=true` rebuilds a stored one) |
+| `GET /api/incidents/{ref}/report.md` | Markdown (`download=true` → attachment) |
+| `GET /api/reports` | incidents with action, verdict and stored state |
+
+`/reports` lists incidents and shows the selected report: verdict, criteria,
+before → after per focus service, a strip of detector cycles, cited evidence
+linked to the agent page, timeline and audit trail, with Markdown download,
+JSON and copy actions.

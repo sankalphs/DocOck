@@ -23,7 +23,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P12 | Memory + retrieval | DONE | 8484efa |
 | P13 | Agent UI | DONE | b418fa9 |
 | P14 | Remediation + approval | DONE | 473dc80 |
-| P15 | Verification + reports | TODO | — |
+| P15 | Verification + reports | DONE | (pending) |
 | P16 | Hardening + evaluation | TODO | — |
 
 ## Milestones
@@ -766,5 +766,47 @@ Facts found while building:
 - Migration `c3a91d0e7b21` (action/approval columns); `scripts\db-check.ps1`
   passed (16 tables, clean downgrade/upgrade).
 - Gates: `scripts\check.ps1` passes (API 201 tests, dashboard 50 tests, ruff,
+  mypy, eslint, `next build`); `scripts\check.ps1 -Live` passes (11 live
+  telemetry contract tests).
+
+### P15 — 2026-10-26
+
+- **Live scenario run, 4/4 PASS** (`run-scenarios.py --only S1,S5,S7,W1
+  --remediate`, real stack, stub provider, result
+  `docs/evidence/p15-scenarios.json`, 02:51–03:34 UTC). Each scenario went
+  inject → detect → analyse → investigate → auto-plan → approve (single-use
+  token) → execute → verify → report → clean up.
+  | Scenario | Incident | Detect | Action | Verdict | Final |
+  |---|---|---|---|---|---|
+  | S1 payment failure | INC-00092 | 126 s | `reset_fault payment` | PASSED after 70 s | RESOLVED |
+  | S5 email down | INC-00093 | 35 s | `reset_fault email` | PASSED after 44 s | RESOLVED |
+  | S7 payment partition | INC-00095 | 34 s | `reset_fault payment` | PASSED after 35 s | RESOLVED |
+  | W1 payment failure, wrong action | INC-00097 | 122 s | `restart_service payment` (operator override) | FAILED after 420 s | ESCALATED |
+- **Verified recovery on 3 scenarios**: every criterion (no detector breach on
+  the focus services, faults stay reverted, flag off, container healthy) held
+  for 4 consecutive detector cycles.
+- **Wrong action fails and escalates**: W1 replaced the proposal with
+  `restart_service payment`; the flag fault stayed active, failing criteria
+  `symptoms_clear` (payment 37.8% vs baseline 0%) and `error_rate` (26.3% vs
+  ceiling 2%) for the whole 420 s window → `VERIFYING → ESCALATED by verifier;
+  verdict=FAILED`. Rollback is recorded as "not needed: the container is
+  running" (restarting is not reversible; the fault TTL cleaned up).
+- **Self-contained report** (`docock.report/v1`, stored when the verifier
+  closes the incident): summary, timeline, diagnosis with every cited evidence
+  item and its data, actions with the criteria table, before → after error
+  rate / p95 / throughput per focus service, detector cycles, audit trail. All
+  4 reports passed the runner's completeness check (no missing citation,
+  Markdown attachment with every section). UI: `docs/evidence/p15-report.png`
+  (INC-00092, PASSED), `docs/evidence/p15-report-escalated.png` (INC-00097,
+  FAILED); Markdown export `docs/evidence/p15-report-INC-00092.md`.
+- Found during the evidence pass and fixed: the timeline's `opened` row read
+  `None None:` (the trigger holds a `signals` list); `memory.remember` crashed
+  on an executed action with no verification row (`reembed --resummarize`
+  re-summarized 17 memories after the fix).
+- PLAN §9 updated: "recovered within 90 s" cannot hold for a correct revert
+  (flagd 30–45 s plus the detector's 2-minute window); the verifier needs 4
+  clean cycles within 420 s.
+- No migration (the `verifications` table already existed).
+- Gates: `scripts\check.ps1` passes (API 212 tests, dashboard 54 tests, ruff,
   mypy, eslint, `next build`); `scripts\check.ps1 -Live` passes (11 live
   telemetry contract tests).

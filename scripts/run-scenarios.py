@@ -16,6 +16,10 @@ lets the detector resolve the incident after the revert (DIAGNOSED → RESOLVED,
 the input for P12 memory) instead of closing it by hand. `--history FILE` (a
 previous result file) checks P12 retrieval: before investigating, the new
 incident's memory search must rank the same scenario's earlier incident top-3.
+`--remediate` (P15) approves the auto-planned proposal, lets the executor clear
+the fault and the verifier decide (PASSED → RESOLVED), then checks the report;
+scenario W1 replaces the proposal with a deliberately wrong action that must
+FAIL verification and escalate.
 The JSON result is written to `runtime/scenarios.json`; the console prints the
 scoreboard. The stack is left clean (no faults, no open incidents).
 
@@ -51,6 +55,12 @@ WARMUP_S = 300
 RESOLVE_TIMEOUT_S = 420
 
 
+# --remediate: the verifier's own timeout (VERIFICATION_TIMEOUT_S) plus margin
+# for the approval, the execution and the report.
+VERIFY_TIMEOUT_S = 540
+APPROVAL_WAIT_S = 60
+
+
 @dataclass
 class Scenario:
     id: str
@@ -58,6 +68,11 @@ class Scenario:
     fault: dict[str, Any]
     expected: str
     note: str = ""
+    # --remediate only: replace the recommendation with this (action, target)
+    # and expect this verdict. A deliberately wrong action must FAIL.
+    override: tuple[str, str] | None = None
+    expect_verdict: str = "PASSED"
+    remediate_only: bool = False
 
 
 SCENARIOS = [
@@ -114,6 +129,18 @@ SCENARIOS = [
         "frontend",
         note="catalog target is frontend; PLAN §17 expected frontend-proxy",
     ),
+    # M4: restarting payment does not clear a feature-flag fault, so the
+    # verification must fail and the incident escalate.
+    Scenario(
+        "W1",
+        "payment failure, wrong action",
+        {"fault_id": "payment_failure", "params": {"variant": "100%"}},
+        "payment",
+        note="operator replaces reset_fault with restart_service payment",
+        override=("restart_service", "payment"),
+        expect_verdict="FAILED",
+        remediate_only=True,
+    ),
 ]
 
 # Two PLAN §17 entries were measured to be unobservable at the demo's default
@@ -149,10 +176,15 @@ class Result:
     agent: dict[str, Any] | None = None
     final_status: str | None = None
     memory: dict[str, Any] | None = None
+    remediation: dict[str, Any] | None = None
 
     @property
     def passed(self) -> bool:
         return self.top == self.expected and not self.error
+
+    @property
+    def remediation_passed(self) -> bool:
+        return bool((self.remediation or {}).get("ok"))
 
     @property
     def agent_passed(self) -> bool:
@@ -334,6 +366,123 @@ def wait_resolved(client: httpx.Client, ref: str, timeout_s: float) -> str:
     return status
 
 
+def _pending(client: httpx.Client, ref: str) -> dict[str, Any] | None:
+    items = _get(client, f"/api/incidents/{ref}/approvals").json().get("items", [])
+    return next((item for item in items if item["status"] == "PENDING"), None)
+
+
+def report_check(client: httpx.Client, ref: str) -> dict[str, Any]:
+    """The M4 report gate: timeline + cited evidence + before/after, both formats."""
+    response = _get(client, f"/api/incidents/{ref}/report")
+    if response.status_code != 200:
+        return {"ok": False, "error": f"report {response.status_code}"}
+    report = response.json()
+    verified = [r["verification"] for r in report.get("remediation") or [] if r["verification"]]
+    last = verified[-1] if verified else {}
+    before = (last.get("before") or {}).get("metrics") or {}
+    after = (last.get("after") or {}).get("metrics") or {}
+    md = _get(client, f"/api/incidents/{ref}/report.md?download=true")
+    text = md.text if md.status_code == 200 else ""
+    checks = {
+        "timeline": len(report.get("timeline") or []),
+        "cited_evidence": len((report.get("evidence") or {}).get("cited") or []),
+        "cited_with_data": all(
+            "data" in row for row in (report.get("evidence") or {}).get("cited") or []
+        ),
+        "missing_citations": (report.get("evidence") or {}).get("missing_citations"),
+        "criteria": len((last.get("criteria") or {}).get("final") or []),
+        "before_after_services": sorted(set(before) & set(after)),
+        "markdown_bytes": len(text.encode("utf-8")),
+        "markdown_attachment": "attachment" in md.headers.get("content-disposition", ""),
+        "markdown_sections": all(
+            section in text
+            for section in ("## Timeline", "### Cited evidence", "#### Verification", "→")
+        ),
+    }
+    checks["ok"] = bool(
+        checks["timeline"]
+        and checks["cited_evidence"]
+        and checks["cited_with_data"]
+        and not checks["missing_citations"]
+        and checks["criteria"]
+        and checks["before_after_services"]
+        and checks["markdown_attachment"]
+        and checks["markdown_sections"]
+    )
+    return checks
+
+
+def remediate(client: httpx.Client, ref: str, scenario: Scenario) -> dict[str, Any]:
+    """Approve the proposal (or the override), then wait for the verifier."""
+    out: dict[str, Any] = {"ok": False, "expect_verdict": scenario.expect_verdict}
+    started = time.monotonic()
+    approval = None
+    deadline = time.monotonic() + APPROVAL_WAIT_S
+    while time.monotonic() < deadline and approval is None:
+        approval = _pending(client, ref)
+        if approval is None:
+            time.sleep(3)
+    if approval is None:
+        status = _get(client, f"/api/incidents/{ref}").json()["status"]
+        out["error"] = f"no pending approval (incident {status})"
+        return out
+    out["proposed"] = f"{approval['action']['action_id']} on {approval['action']['target']}"
+    if scenario.override:
+        action_id, target = scenario.override
+        response = _post(
+            client,
+            f"/api/incidents/{ref}/approvals",
+            json={
+                "action_id": action_id,
+                "target": target,
+                "replace": True,
+                "actor": "scenarios",
+                "note": scenario.note or "scenario override",
+            },
+        )
+        if response.status_code != 201 or not (response.json() or {}).get("approval"):
+            out["error"] = f"override {response.status_code}: {response.text[:200]}"
+            return out
+        approval = response.json()["approval"]
+    response = _post(
+        client,
+        f"/api/approvals/{approval['id']}/approve?wait=true",
+        json={"actor": "scenarios", "note": "scenario runner"},
+    )
+    if response.status_code != 200:
+        out["error"] = f"approve {response.status_code}: {response.text[:200]}"
+        return out
+    decided = response.json()
+    action = decided["action"]
+    out.update(
+        approval_id=approval["id"],
+        action=f"{action['action_id']} on {action['target']}",
+        action_status=action["status"],
+        token_used=decided.get("token_used"),
+        executed_s=round(time.monotonic() - started, 1),
+    )
+    out["final_status"] = wait_resolved(client, ref, VERIFY_TIMEOUT_S)
+    out["remediate_s"] = round(time.monotonic() - started, 1)
+    verifications = _get(client, f"/api/incidents/{ref}/verifications").json().get("items", [])
+    if verifications:
+        last = verifications[-1]
+        failing = [c["id"] for c in last["criteria"].get("final", []) if not c.get("ok")]
+        out.update(
+            verdict=last["verdict"],
+            observed_for_s=last["observed_for_s"],
+            failing=failing,
+            rollback=(last["criteria"].get("rollback") or {}).get("detail"),
+        )
+    out["report"] = report_check(client, ref)
+    expected_final = "RESOLVED" if scenario.expect_verdict == "PASSED" else "ESCALATED"
+    out["ok"] = (
+        out.get("verdict") == scenario.expect_verdict
+        and out["final_status"] == expected_final
+        and bool(out["report"].get("ok"))
+    )
+    return out
+
+
 def run_one(
     client: httpx.Client,
     scenario: Scenario,
@@ -341,6 +490,7 @@ def run_one(
     agent: bool = False,
     resolve: bool = False,
     previous: list[str] | None = None,
+    remediate_flow: bool = False,
 ) -> Result:
     result = Result(
         id=scenario.id,
@@ -397,11 +547,16 @@ def run_one(
         result.evidence = body.get("evidence_total", 0)
     if previous:
         result.memory = memory_check(client, incident["public_id"], previous)
-    if agent:
+    if agent or remediate_flow:
         result.agent = investigate(client, incident["public_id"])
+    if remediate_flow:
+        # The approved action must clear the fault itself; the revert below is
+        # only cleanup (idempotent) for a wrong or failed action.
+        result.remediation = remediate(client, incident["public_id"], scenario)
+        result.final_status = result.remediation.get("final_status")
 
     _delete(client, f"/api/faults/{fault_id}?actor=scenarios")
-    if resolve:
+    if resolve and not remediate_flow:
         result.final_status = wait_resolved(client, incident["public_id"], RESOLVE_TIMEOUT_S)
     if result.final_status not in ("RESOLVED", "ESCALATED", "FAILED"):
         _post(
@@ -434,6 +589,11 @@ def main() -> int:
     parser.add_argument(
         "--history", default="", help="earlier result file: check memory retrieval against it"
     )
+    parser.add_argument(
+        "--remediate",
+        action="store_true",
+        help="approve the proposal, let the verifier decide, check the report (implies --agent)",
+    )
     args = parser.parse_args()
     history: dict[str, list[str]] = {}
     if args.history:
@@ -442,7 +602,11 @@ def main() -> int:
                 if item.get("incident") and item.get("final_status") == "RESOLVED":
                     history.setdefault(item["id"], []).append(item["incident"])
     wanted = {item.strip().upper() for item in args.only.split(",") if item.strip()}
-    scenarios = [item for item in SCENARIOS if not wanted or item.id in wanted]
+    scenarios = [
+        item
+        for item in SCENARIOS
+        if (not wanted or item.id in wanted) and (args.remediate or not item.remediate_only)
+    ]
 
     client = httpx.Client(timeout=TIMEOUT, transport=httpx.HTTPTransport(retries=2))
     results: list[Result] = []
@@ -458,6 +622,7 @@ def main() -> int:
                 agent=args.agent,
                 resolve=args.resolve,
                 previous=history.get(scenario.id),
+                remediate_flow=args.remediate,
             )
             results.append(result)
             verdict = "PASS" if result.passed else "FAIL"
@@ -488,6 +653,18 @@ def main() -> int:
                     print(
                         f"       agent error: {item.get('error')} {item.get('validation_errors')}"
                     )
+            if result.remediation is not None:
+                item = result.remediation
+                print(
+                    f"       remediation {'PASS' if result.remediation_passed else 'FAIL'} "
+                    f"proposed={item.get('proposed')} action={item.get('action')} "
+                    f"status={item.get('action_status')} verdict={item.get('verdict')} "
+                    f"(expect {item.get('expect_verdict')}) observed={item.get('observed_for_s')}s "
+                    f"failing={item.get('failing')} final={item.get('final_status')} "
+                    f"report={'ok' if (item.get('report') or {}).get('ok') else item.get('report')}"
+                )
+                if item.get("error"):
+                    print(f"       remediation error: {item['error']}")
             if result.ranking:
                 print(
                     "       ranking: "
@@ -520,14 +697,27 @@ def main() -> int:
     if memory_runs:
         top3 = sum(1 for item in memory_runs if (item.memory or {}).get("top3"))
         print(f"memory: {top3}/{len(memory_runs)} matching incident in top-3")
+    remediation_runs = [item for item in results if item.remediation is not None]
+    remediation_passed = sum(1 for item in remediation_runs if item.remediation_passed)
+    if remediation_runs:
+        print(
+            f"remediation: {remediation_passed}/{len(remediation_runs)} verdicts as expected "
+            "(verified recovery, wrong action escalated, report complete)"
+        )
     payload = {
         "generated_at": datetime.now(UTC).isoformat(),
         "passed": passed,
         "total": len(results),
         "agent_passed": agent_passed if agent_runs else None,
         "invalid_evidence_codes": invalid if agent_runs else None,
+        "remediation_passed": remediation_passed if remediation_runs else None,
         "results": [
-            {**asdict(item), "passed": item.passed, "agent_passed": item.agent_passed}
+            {
+                **asdict(item),
+                "passed": item.passed,
+                "agent_passed": item.agent_passed,
+                "remediation_passed": item.remediation_passed,
+            }
             for item in results
         ],
     }
@@ -536,7 +726,11 @@ def main() -> int:
     print(f"\nwrote {args.out}")
     if agent_runs and (invalid or agent_passed < len(agent_runs)):
         return 1
-    return 0 if passed >= 7 else 1
+    if remediation_runs and remediation_passed < len(remediation_runs):
+        return 1
+    # PLAN §15: 7 of the 8 analysis scenarios; a subset (--only) must pass fully.
+    need = len(results) - 1 if len(results) >= 8 else len(results)
+    return 0 if passed >= need else 1
 
 
 if __name__ == "__main__":

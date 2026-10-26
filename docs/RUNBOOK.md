@@ -256,6 +256,31 @@ Restart the API detached (survives the agent harness; logs in
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\api-detached.ps1
 ```
 
+## Verification and reports (P15)
+
+After an approved action executes, the verifier watches the detector until
+every criterion holds for 4 consecutive cycles (PASSED → RESOLVED) or 420 s
+pass (FAILED → rollback where safe → ESCALATED). Follow it on the **Reports**
+page or with:
+
+```powershell
+curl.exe http://127.0.0.1:8001/api/incidents/INC-00095/verifications
+curl.exe http://127.0.0.1:8001/api/incidents/INC-00095/report
+curl.exe -o INC-00095.md "http://127.0.0.1:8001/api/incidents/INC-00095/report.md?download=true"
+```
+
+The full loop on the live stack (inject → detect → agent → approve → execute →
+verify → report), including the deliberately wrong action W1 that must fail
+verification and escalate:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+uv run --project apps\api python -u scripts\run-scenarios.py --only S1,S5,S7,W1 --remediate --out docs\evidence\p15-scenarios.json
+```
+
+After changing the verdict wording, rebuild the memory summaries:
+`uv run --project apps\api python scripts\reembed.py --resummarize`.
+
 ## Endpoints
 
 | What | URL |

@@ -363,6 +363,11 @@ self-inflicted flag outage).
 | `stop_load_generator` | load-generator | low | auto-eligible | request rate falls, error rate normalizes |
 | `escalate_human` | incident | — | — | terminates the loop |
 
+P15 measured that "within 90 s" cannot hold for a correct revert: flagd needs
+30–45 s to propagate and the detector's error rate is a 2-minute window. The
+verifier instead requires every criterion on 4 consecutive detector cycles
+(40 s) within 420 s (`VERIFICATION_CLEAN_CYCLES`, `VERIFICATION_TIMEOUT_S`).
+
 `approval=auto` actions still write an audit row. `AGENT_AUTO_REMEDIATE=false`
 in `.env` keeps even low-risk actions manual until you flip it.
 

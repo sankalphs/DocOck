@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.validator import canonical
 from app.db.models import (
     EMBEDDING_DIMENSIONS,
+    Action,
     AgentRun,
     Diagnosis,
     Evidence,
@@ -40,6 +41,7 @@ from app.db.models import (
     Memory,
     Setting,
     Suspect,
+    Verification,
 )
 from app.db.session import SessionFactory
 from app.domain.state import IncidentStatus
@@ -228,14 +230,35 @@ class MemoryService:
                 .where(IncidentEvent.incident_id == incident.id)
                 .order_by(IncidentEvent.seq.desc())
             )
+            # P15: the action that actually ran and its verified outcome beat
+            # the diagnosis' recommendation and the closing event.
+            executed = (
+                await session.execute(
+                    select(Action, Verification)
+                    .outerjoin(Verification, Verification.action_row_id == Action.id)
+                    .where(Action.incident_id == incident.id, Action.started_at.is_not(None))
+                    .order_by(Action.started_at.desc(), Verification.id.desc().nulls_last())
+                    .limit(1)
+                )
+            ).first()
+            action = (
+                {"action_id": executed[0].action_id, "target": executed[0].target}
+                if executed is not None
+                else diagnosis.recommended_action
+            )
+            verification = (
+                _verified(executed[1])
+                if executed is not None and executed[1] is not None
+                else _verdict(closing)
+            )
             facts = build_facts(
                 incident,
                 evidence,
                 root=diagnosis.root_cause_service,
                 fault_class=diagnosis.fault_class,
-                action=diagnosis.recommended_action,
+                action=action,
                 affected=list(diagnosis.affected_services or []),
-                verification=_verdict(closing),
+                verification=verification,
             )
             summary = facts.text()
             vector = await self.gateway.embedder().embed_one(summary, kind="document")
@@ -244,7 +267,12 @@ class MemoryService:
                 "diagnosis_id": diagnosis.id,
                 "run_id": diagnosis.run_id,
                 "confidence": diagnosis.confidence,
-                "action": diagnosis.recommended_action,
+                "action": action,
+                "verification": (
+                    executed[1].verdict
+                    if executed is not None and executed[1] is not None
+                    else None
+                ),
                 "resolved_at": incident.closed_at.isoformat() if incident.closed_at else None,
                 "embedding": self.identity(),
             }
@@ -503,6 +531,15 @@ def _verdict(event: IncidentEvent | None) -> str:
     if payload.get("to") == IncidentStatus.RESOLVED:
         return f"resolved by {payload.get('actor') or 'system'}"
     return event.kind
+
+
+def _verified(row: Verification) -> str:
+    """`PASSED after 52 s (symptoms_clear, faults_reverted, flag_off)`."""
+    final = (row.criteria or {}).get("final") or []
+    held = [str(c.get("id")) for c in final if c.get("ok")]
+    failed = [str(c.get("id")) for c in final if not c.get("ok")]
+    names = ", ".join(failed if failed else held)
+    return f"{row.verdict} after {row.observed_for_s} s" + (f" ({names})" if names else "")
 
 
 def hypothesis(hit: MemoryHit) -> dict[str, Any]:

@@ -28,7 +28,10 @@ from app.memory.tool import register_memory_tool
 from app.middleware import RequestContextMiddleware
 from app.models.gateway import gateway as model_gateway
 from app.remediation.approval import approvals
+from app.remediation.executor import executor
+from app.reports.service import reports
 from app.telemetry.http import close_shared_clients
+from app.verification.verifier import verifier
 
 log = get_logger(__name__)
 
@@ -41,6 +44,7 @@ TAGS = [
     {"name": "detection", "description": "Deterministic detector status and cycles."},
     {"name": "agent", "description": "Investigation runs and diagnoses."},
     {"name": "approvals", "description": "Human approval of remediation actions."},
+    {"name": "reports", "description": "Verification verdicts and incident reports."},
     {"name": "memory", "description": "Resolved-incident retrieval."},
     {"name": "settings", "description": "Runtime model and detector settings."},
 ]
@@ -77,13 +81,22 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # P14: a gated diagnosis proposes its action; approvals expire on a sweep.
     agent_orchestrator.on_diagnosed = approvals.auto_plan
     await approvals.start()
+    # P15: every executed action is verified against the detector; the verdict
+    # closes the incident and stores its report.
+    executor.on_executed = verifier.hook
+    verifier.on_verified = reports.generate
     runtime = FaultRuntime()
     await runtime.start()
     await detection_runtime.start()
     try:
+        await verifier.start()
+    except Exception as exc:
+        log.warning("verification_resume_failed", error=str(exc))
+    try:
         yield
     finally:
         await agent_orchestrator.shutdown()
+        await verifier.shutdown()
         await approvals.stop()
         await memory.stop()
         await detection_runtime.stop()

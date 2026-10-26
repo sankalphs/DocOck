@@ -116,6 +116,14 @@ class Settings(BaseSettings):
     remediation_sweep_interval_s: float = 5.0
     remediation_audit_file: Path = ROOT_DIR / "runtime" / "audit" / "actions.jsonl"
 
+    # --- Verification (P15) -------------------------------------------------
+    # An executed action passes when every criterion holds on this many
+    # consecutive detector cycles. PLAN §9 says 90 s; flagd propagation (30-45 s)
+    # plus the detector's 2-minute rate window make the clear time ~3 min, so
+    # the timeout matches the scenario runner's resolve timeout.
+    verification_clean_cycles: int = 4
+    verification_timeout_s: int = 420
+
     detector_enabled: bool = True
     # The collector's span-metric flush is 10 s (P4), so 10 s is the finest
     # cadence that observes a new sample; three consecutive breaches still

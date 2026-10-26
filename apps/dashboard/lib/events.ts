@@ -34,7 +34,10 @@ export const EVENT_TYPES = [
   "action.failed",
   "action.refused",
   "action.rolled_back",
+  "verification.started",
+  "verification.progress",
   "verification.completed",
+  "report.generated",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
