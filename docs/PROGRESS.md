@@ -20,7 +20,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
 | P10 | Model gateway + embeddings | DONE | `75227b0` |
 | P11 | Agent orchestrator | DONE | a2cd0de |
-| P12 | Memory + retrieval | DONE | (this commit) |
+| P12 | Memory + retrieval | DONE | 8484efa |
 | P13 | Agent UI | TODO | — |
 | P14 | Remediation + approval | TODO | — |
 | P15 | Verification + reports | TODO | — |
