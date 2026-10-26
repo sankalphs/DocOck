@@ -11,6 +11,10 @@ dependencies = [
   "httpx>=0.27,<1.0",
   "structlog>=24.4,<26.0",
   "tenacity>=9.0,<10.0",
+  "sqlalchemy[asyncio]>=2.0.36,<2.1",
+  "asyncpg>=0.30,<1.0",
+  "alembic>=1.13,<2.0",
+  "pgvector>=0.3.6,<0.4",
 ]
 
 [dependency-groups]
@@ -28,6 +32,8 @@ package = false
 line-length = 100
 target-version = "py311"
 src = ["."]
+# Alembic writes these; reformatting them makes every autogenerate diff noisy.
+extend-exclude = ["migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
@@ -51,8 +57,8 @@ no_implicit_optional = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
+module = ["pgvector.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

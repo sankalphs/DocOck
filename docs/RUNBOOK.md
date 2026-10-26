@@ -39,6 +39,22 @@ cd apps\api
 uv run uvicorn app.main:app --reload --port 8001
 ```
 
+Apply database migrations (Alembic reads `DATABASE_URL` from `.env`):
+
+```powershell
+cd apps\api
+uv run alembic upgrade head
+uv run alembic current
+```
+
+`scripts\db-check.ps1` proves the baseline against a **scratch empty database**
+without touching `docock`: it creates `docock_migrate_check`, upgrades,
+downgrades, and drops it. Run it after adding a migration.
+
+The API keeps one keep-alive HTTP connection per telemetry dependency. Docker
+Desktop's loopback proxy costs ~0.5 s per new TCP connection, so the first
+`/api/health` after a restart takes ~2.5 s and later ones are milliseconds.
+
 ## Endpoints
 
 | What | URL |
@@ -68,6 +84,7 @@ scripts\reset.ps1 -Hard             # also restart every demo container
 scripts\down.ps1                    # stop everything, keep data
 scripts\down.ps1 -Volumes           # stop and delete Postgres data
 scripts\check.ps1                   # API lint + types + tests
+scripts\db-check.ps1                # migrations against an empty scratch DB
 ```
 
 ## What runs where

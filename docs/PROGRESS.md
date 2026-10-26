@@ -10,7 +10,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 |---|---|---|---|
 | P0 | Repo skeleton, tooling, API health, bootstrap script | DONE | `2fd8062` |
 | P1 | Compose layering, ports, pgvector, up/down/reset, health | DONE | `b0efae0` |
-| P2 | API skeleton + DB + migrations | TODO | — |
+| P2 | API skeleton + DB + migrations | DONE | `PENDING` |
 | P3 | Dashboard shell | TODO | — |
 | P4 | Telemetry adapters | TODO | — |
 | P5 | Overview + Telemetry UI | TODO | — |
@@ -77,3 +77,38 @@ Fixes discovered during the phase:
 5. The frontend caches a failed gRPC address; restart it after recreating a
    backend.
 6. flagd rejects UTF-8 BOM and ignores a flag file whose mtime moved backwards.
+
+### P2 — 2026-10-24
+
+- `scripts\check.ps1` (ruff, ruff format, mypy, pytest): **26 tests passed**.
+- `GET http://127.0.0.1:8001/docs` → 200; `/openapi.json` lists
+  `/api/health`, `/api/version`, `/api/events`.
+- `/api/health` against the live stack returns `status: ok` with six real
+  probes: postgres (`PostgreSQL 18.6 | pgvector 0.8.7 | 16 tables`), docker
+  (`29.9.2 | 25/25 docock-demo containers running`), prometheus
+  (`ready | 139 span-metric series`), jaeger (`18 services`), opensearch
+  (`cluster yellow | 1 index | 206 docs`), llm (`unconfigured`, no key in
+  `.env` — reported, not faked).
+- `scripts\db-check.ps1` on a **new empty database**: `alembic upgrade head`
+  created 16 tables (15 domain + `alembic_version`), `downgrade base` left only
+  `alembic_version`, scratch DB dropped. Exit 0.
+- Live schema check via `psql`: `memories.embedding` is `vector(1024)` with an
+  `hnsw (embedding vector_cosine_ops)` index; all 15 §7 tables present.
+- `GET /api/events` streams `text/event-stream`, replays
+  `id: 1 / event: system.ready / data: {...}` on connect, and sets `retry: 3000`.
+- Error envelope confirmed by `pytest`: 404 → `not_found`, bad query param →
+  `validation_error` with `details[].loc`, and `X-Request-ID` is echoed when
+  supplied.
+
+Fixes discovered during the phase:
+
+1. The `vector` extension is created only in `$POSTGRES_DB`, so the baseline
+   migration now runs `CREATE EXTENSION IF NOT EXISTS vector` itself — that is
+   what makes "migrations apply on an empty database" true.
+2. Docker Desktop's loopback proxy costs ~0.5 s per new TCP connection; health
+   probes use one keep-alive client per dependency, which took a warm
+   `/api/health` from ~2.1 s to ~50 ms.
+3. `docker version` / `docker ps` spawns a large CLI (~0.5 s); the probe caches
+   the server version for 60 s and the container summary for 10 s.
+4. The request-id middleware must look up the incoming header as lowercase
+   **bytes** (`scope["headers"]`), not a str.
