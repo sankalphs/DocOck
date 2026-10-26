@@ -727,6 +727,6 @@ Facts found while building:
   detail links to the agent page.
 - After the revert the detector resolved INC-00084 and it was stored as a
   memory.
-- Gates: `scriptseck.ps1` passes (API 184 tests, dashboard 46 tests, eslint,
+- Gates: `scripts\check.ps1` passes (API 184 tests, dashboard 46 tests, eslint,
   mypy, `next build`); new vitest units cover agent step titles/tones, citation
-  mapping, tool-call count, memory helpers, event namespaces).
+  mapping, tool-call count, memory helpers and event namespaces.
