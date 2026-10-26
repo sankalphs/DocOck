@@ -18,7 +18,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P7 | Fault Lab UI | DONE | `29bc7a2` |
 | P8 | Incident engine + detection | DONE | `6f6d69d` |
 | P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
-| P10 | Model gateway + embeddings | DONE | (this commit) |
+| P10 | Model gateway + embeddings | DONE | `75227b0` |
 | P11 | Agent orchestrator | TODO | — |
 | P12 | Memory + retrieval | TODO | — |
 | P13 | Agent UI | TODO | — |
