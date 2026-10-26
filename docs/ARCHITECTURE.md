@@ -467,3 +467,21 @@ Action: <action_id> on <target>. Verification: <verdict>.
   `E####` code, the validator accepts only this incident's codes, and the
   diagnosis schema (`extra=forbid`) has no memory field.
 
+
+## Agent UI (P13)
+
+`/agent` (`components/agent/`) is the investigation workspace. It needs no
+extra API: the run detail, the incident aggregate and SSE.
+
+| Panel | Source | Behaviour |
+|---|---|---|
+| Header | `GET /api/incidents/{ref}/runs` | incident picker, Investigate/Rerun, Cancel, budget stats (tool calls / 20, turns, tokens, cost, wall clock, model), run history |
+| Live timeline | `GET /api/agent/runs/{id}` | refetched on every `agent.*`/`incident.*` SSE event; 2 s poll fallback while `RUNNING` |
+| Tool inspector | selected step | arguments/input and trimmed output; evidence codes in the output are links |
+| Diagnosis card | run diagnosis + incident evidence | root cause, class, confidence vs gate, summary, affected services, recommended action (not executed), alternatives, validator errors; **each citation links to its evidence row**, unknown codes are shown in red |
+| Suspect board | incident suspects | P9 ranking with the agent's root and alternatives marked; per-service codes, cited ones highlighted |
+| Evidence viewer | incident evidence | filter, "cited only", full row JSON + hash for the selected code |
+
+The URL carries `?incident=…&run=…`, so a run can be linked. `/memory` shows the
+guard state, the stored summaries, and the debug search.
+

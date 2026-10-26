@@ -66,7 +66,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Investigation timeline, tool calls, and the validated diagnosis.",
     icon: Bot,
     phase: "P11–P13",
-    ready: false,
+    ready: true,
   },
   {
     href: "/approvals",

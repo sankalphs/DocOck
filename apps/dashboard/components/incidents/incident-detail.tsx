@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, ArrowRight, Check, Clock, RefreshCw, X } from "lucide-react";
+import Link from "next/link";
+import { Activity, ArrowRight, Bot, Check, Clock, RefreshCw, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,13 @@ export function IncidentDetailPanel({
               <Activity className={cn("size-3.5", analyzing && "animate-pulse")} />
               {analyzing ? "Analyzing…" : "Analyze"}
             </Button>
+            <Link
+              href={`/agent?incident=${encodeURIComponent(incident.public_id)}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs hover:bg-accent"
+            >
+              <Bot className="size-3.5" />
+              Agent
+            </Link>
             {!terminal ? (
               confirmClose ? (
                 <>

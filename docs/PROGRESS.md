@@ -21,7 +21,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P10 | Model gateway + embeddings | DONE | `75227b0` |
 | P11 | Agent orchestrator | DONE | a2cd0de |
 | P12 | Memory + retrieval | DONE | 8484efa |
-| P13 | Agent UI | TODO | — |
+| P13 | Agent UI | DONE | (this commit) |
 | P14 | Remediation + approval | TODO | — |
 | P15 | Verification + reports | TODO | — |
 | P16 | Hardening + evaluation | TODO | — |
@@ -32,7 +32,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 |---|---|---|
 | M1 Fault → observe → recover | P0–P7 | yes (P7 `29bc7a2`) |
 | M2 Deterministic suspects | P8–P9 | yes (7/8 top-1, P9) |
-| M3 Agent diagnosis | P10–P13 | no |
+| M3 Agent diagnosis | P10–P13 | yes (8/8 agent, 3/3 memory top-3, P13) |
 | M4 Approval → verify → report | P14–P16 | no |
 
 ## Verification log
@@ -701,3 +701,32 @@ Facts found while building:
 3. A fault-class filter on every query drops correct matches when the class
    differs between similar faults (S1 application_error, S3 configuration); the
    filter applies only when Docker shows a direct cause.
+
+### P13 — 2026-10-26
+
+- **A full investigation watched live** in the browser (Playwright,
+  `runtime/pw/capture.js`, result `docs/evidence/p13-capture.json`): S5 (`email`
+  container stopped) opened INC-00084; **Investigate** on `/agent` started run
+  #13 and the page was sampled every 250 ms with no reload. The timeline went
+  0 → 1 (analysis, 7.4 s) → 4 → 5 → 7 → 12 steps and the diagnosis card
+  appeared after 13.6 s: root `email`, `dependency_unavailable`, confidence
+  0.81 ≥ gate 0.70, action `reset_fault → email` (not executed), 4 tool calls.
+  Screenshots: `docs/evidence/p13-agent-live.png` (run RUNNING, Cancel active,
+  one step), `p13-agent-diagnosis.png` and `p13-agent-citation.png`.
+- **Every claim links to an evidence row**: the card listed 11 citations; each
+  `#evidence-E####` link resolved to a row in the evidence viewer
+  (`missing: []`). Clicking `E0004` scrolled to and opened that row
+  (`error_origin`, jaeger, email) with its JSON; cited rows carry a `cited`
+  badge and the viewer has a cited-only filter.
+- Live updates come from the SSE events (`agent.run.started`, `agent.step`,
+  `agent.run.finished`) plus a 2 s poll of the run while it is RUNNING. The
+  workspace also shows the tool inspector (input/output per step), the suspect
+  board (P9 ranking with the agent's root marked and alternatives), budget
+  counters (tool calls x/20, turns, tokens, cost, wall clock), the run list,
+  **Rerun** and **Cancel**, and keeps `?incident=&run=` in the URL. Incident
+  detail links to the agent page.
+- After the revert the detector resolved INC-00084 and it was stored as a
+  memory.
+- Gates: `scriptseck.ps1` passes (API 184 tests, dashboard 46 tests, eslint,
+  mypy, `next build`); new vitest units cover agent step titles/tones, citation
+  mapping, tool-call count, memory helpers, event namespaces).

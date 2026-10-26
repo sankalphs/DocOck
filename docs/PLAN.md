@@ -257,6 +257,10 @@ OPEN → INVESTIGATING → DIAGNOSED → AWAITING_APPROVAL
                      ↘ REJECTED → ESCALATED
 ```
 
+`DIAGNOSED → RESOLVED` is also allowed (added in P11): when the symptoms clear
+without a remediation (the fault was reverted or expired), the detector resolves
+the incident, so it can reach memory before P14 exists.
+
 Every transition writes an `incident_event` and publishes to SSE.
 
 ---

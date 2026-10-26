@@ -1,0 +1,269 @@
+{
+ "ref": "INC-00084",
+ "before": 0,
+ "samples": [
+  {
+   "ms": 114,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 387,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 707,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 974,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 1240,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 1513,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 1776,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 2093,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 2363,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 2626,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 2897,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 3169,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 3433,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 3700,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 3972,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 4230,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 4493,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 4774,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 5054,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 5328,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 5589,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 5854,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 6130,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 6395,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 6663,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 6988,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 7253,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 7532,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 7798,
+   "steps": 0,
+   "diagnosis": false
+  },
+  {
+   "ms": 8075,
+   "steps": 2,
+   "diagnosis": false
+  },
+  {
+   "ms": 8944,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 9213,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 9473,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 9738,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 9999,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 10283,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 10563,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 10853,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 11121,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 11386,
+   "steps": 4,
+   "diagnosis": false
+  },
+  {
+   "ms": 11647,
+   "steps": 5,
+   "diagnosis": false
+  },
+  {
+   "ms": 11945,
+   "steps": 7,
+   "diagnosis": false
+  },
+  {
+   "ms": 12211,
+   "steps": 7,
+   "diagnosis": false
+  },
+  {
+   "ms": 12470,
+   "steps": 7,
+   "diagnosis": false
+  },
+  {
+   "ms": 12761,
+   "steps": 7,
+   "diagnosis": false
+  },
+  {
+   "ms": 13052,
+   "steps": 7,
+   "diagnosis": false
+  },
+  {
+   "ms": 13345,
+   "steps": 7,
+   "diagnosis": false
+  },
+  {
+   "ms": 13605,
+   "steps": 12,
+   "diagnosis": true
+  }
+ ],
+ "shotLive": true,
+ "cited": [
+  "E0004error_origin",
+  "E0002onset",
+  "E0023flag_state",
+  "E0013container_state",
+  "E0005trace_sample",
+  "E0024topology",
+  "E0025suspect_ranking",
+  "E0008log_cluster",
+  "E0026container_health",
+  "E0027active_faults",
+  "E0028trace_search"
+ ],
+ "first": "evidence-E0004",
+ "visible": true,
+ "box": {
+  "x": 309,
+  "y": 1218.5,
+  "width": 480.53125,
+  "height": 31
+ },
+ "missing": []
+}
