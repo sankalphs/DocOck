@@ -44,6 +44,7 @@ def test_health_returns_every_dependency(monkeypatch: pytest.MonkeyPatch) -> Non
     report = _report(
         _probe("postgres", "ok", critical=True),
         _probe("docker", "ok"),
+        _probe("demo", "ok"),
         _probe("prometheus", "ok"),
         _probe("jaeger", "ok"),
         _probe("opensearch", "ok"),
@@ -60,12 +61,13 @@ def test_health_returns_every_dependency(monkeypatch: pytest.MonkeyPatch) -> Non
     assert [dep["name"] for dep in body["dependencies"]] == [
         "postgres",
         "docker",
+        "demo",
         "prometheus",
         "jaeger",
         "opensearch",
         "llm",
     ]
-    assert body["dependencies"][5]["status"] == "unconfigured"
+    assert body["dependencies"][6]["status"] == "unconfigured"
 
 
 def test_critical_dependency_down_returns_503(monkeypatch: pytest.MonkeyPatch) -> None:

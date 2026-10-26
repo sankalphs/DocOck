@@ -63,3 +63,6 @@ desktop.ini
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json.example
+
+# --- Playwright / browser tooling --------------------------------------------
+.playwright-mcp/

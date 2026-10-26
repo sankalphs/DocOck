@@ -197,6 +197,25 @@ async def _probe_opensearch() -> tuple[str, dict[str, Any]]:
     )
 
 
+async def _probe_demo() -> tuple[str, dict[str, Any]]:
+    """Storefront reachability — the one URL a human actually looks at."""
+    client = shared_client(
+        "health:demo",
+        base_url=settings.demo_frontend_url,
+        timeout_s=settings.health_timeout_s,
+        retries=0,
+    )
+    started = time.perf_counter()
+    response = await client.request("GET", "/")
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if response.status_code >= 400:
+        raise RuntimeError(f"storefront returned HTTP {response.status_code}")
+    return (
+        f"storefront HTTP {response.status_code} in {elapsed_ms:.0f} ms",
+        {"status": response.status_code, "latency_ms": round(elapsed_ms, 1)},
+    )
+
+
 async def _probe_llm() -> tuple[str, dict[str, Any]]:
     # Config-only probe: never spends tokens on a health check.
     configured = settings.llm_configured
@@ -221,11 +240,20 @@ async def probe_all() -> list[DependencyProbe]:
     others = await asyncio.gather(
         _timed("postgres", _probe_postgres, critical=True),
         _timed("docker", _probe_docker),
+        _timed("demo", _probe_demo),
         _timed("prometheus", _probe_prometheus),
         _timed("jaeger", _probe_jaeger),
         _timed("opensearch", _probe_opensearch),
     )
-    order = {"postgres": 0, "docker": 1, "prometheus": 2, "jaeger": 3, "opensearch": 4, "llm": 5}
+    order = {
+        "postgres": 0,
+        "docker": 1,
+        "demo": 2,
+        "prometheus": 3,
+        "jaeger": 4,
+        "opensearch": 5,
+        "llm": 6,
+    }
     return sorted([*others, llm_probe], key=lambda item: order.get(item.name, 99))
 
 

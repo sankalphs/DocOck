@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * DocOck is a dark-first operator console: one accent (blue), one alarm (red),
+ * one attention colour (amber), and one healthy colour (green). Everything else
+ * is neutral so telemetry data is what stands out.
+ */
+:root {
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.16 0.01 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.01 260);
+  --primary: oklch(0.55 0.16 250);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.004 250);
+  --secondary-foreground: oklch(0.22 0.01 260);
+  --muted: oklch(0.96 0.004 250);
+  --muted-foreground: oklch(0.5 0.012 260);
+  --accent: oklch(0.94 0.01 250);
+  --accent-foreground: oklch(0.2 0.01 260);
+  --destructive: oklch(0.58 0.21 25);
+  --success: oklch(0.55 0.14 155);
+  --warning: oklch(0.66 0.14 80);
+  --border: oklch(0.9 0.005 250);
+  --input: oklch(0.9 0.005 250);
+  --ring: oklch(0.6 0.12 250);
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: oklch(0.145 0.012 260);
+  --foreground: oklch(0.96 0.004 260);
+  --card: oklch(0.185 0.014 260);
+  --card-foreground: oklch(0.96 0.004 260);
+  --popover: oklch(0.19 0.014 260);
+  --popover-foreground: oklch(0.96 0.004 260);
+  --primary: oklch(0.72 0.13 245);
+  --primary-foreground: oklch(0.15 0.012 260);
+  --secondary: oklch(0.24 0.012 260);
+  --secondary-foreground: oklch(0.96 0.004 260);
+  --muted: oklch(0.235 0.012 260);
+  --muted-foreground: oklch(0.68 0.012 260);
+  --accent: oklch(0.27 0.018 255);
+  --accent-foreground: oklch(0.97 0.004 260);
+  --destructive: oklch(0.64 0.21 25);
+  --success: oklch(0.74 0.15 155);
+  --warning: oklch(0.8 0.14 85);
+  --border: oklch(0.29 0.012 260);
+  --input: oklch(0.32 0.014 260);
+  --ring: oklch(0.6 0.1 245);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, "Cascadia Code", "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    @apply bg-primary/30;
+  }
+}
+
+@layer utilities {
+  /* Numbers in tables and KPI cards should align column to column. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .shell-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--border) 45%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--border) 45%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at top, black 10%, transparent 75%);
+  }
+}

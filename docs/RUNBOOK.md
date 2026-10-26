@@ -55,6 +55,32 @@ The API keeps one keep-alive HTTP connection per telemetry dependency. Docker
 Desktop's loopback proxy costs ~0.5 s per new TCP connection, so the first
 `/api/health` after a restart takes ~2.5 s and later ones are milliseconds.
 
+## Dashboard
+
+```powershell
+cd apps\dashboard
+pnpm install
+pnpm dev        # http://127.0.0.1:3001, hot reload
+pnpm build      # production build; also type-checks
+pnpm test       # vitest (pure formatting/client units, no stack required)
+```
+
+The typed API client lives in `lib/api/schema.d.ts`, generated from the running
+API. Regenerate it whenever a router or response model changes, and commit the
+result:
+
+```powershell
+# API must be running on 8001
+pnpm gen:api
+```
+
+The browser talks to `http://127.0.0.1:8001` by default. To point it elsewhere,
+set `NEXT_PUBLIC_API_URL` in the shell (or in `apps/dashboard/.env.local`) before
+`pnpm dev` / `pnpm build`. The API's CORS allowlist only accepts `:3001`, so a
+different dashboard port needs a matching `CORS_ORIGINS` entry.
+
+Verification screenshots for each phase are kept in `docs/evidence/`.
+
 ## Endpoints
 
 | What | URL |
@@ -69,7 +95,6 @@ Desktop's loopback proxy costs ~0.5 s per new TCP connection, so the first
 | Postgres (pgvector) | `127.0.0.1:5433`, db/user `docock` |
 | DocOck API | http://127.0.0.1:8001/api/health |
 | DocOck dashboard *(P3+)* | http://127.0.0.1:3001 |
-
 Jaeger's query API lives under the configured base path — do not assume
 `/api/traces`. The health script probes `/jaeger/ui/api/services`; if upstream
 changes the base path, update `JAEGER_BASE_PATH` and `scripts/_common.ps1`.
@@ -83,7 +108,8 @@ scripts\reset.ps1                   # restore flags, reload flagd
 scripts\reset.ps1 -Hard             # also restart every demo container
 scripts\down.ps1                    # stop everything, keep data
 scripts\down.ps1 -Volumes           # stop and delete Postgres data
-scripts\check.ps1                   # API lint + types + tests
+scripts\check.ps1                   # API lint + types + tests, dashboard lint + tests + build
+scripts\check.ps1 -ApiOnly          # skip the dashboard steps
 scripts\db-check.ps1                # migrations against an empty scratch DB
 ```
 
