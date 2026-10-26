@@ -30,6 +30,7 @@ def _adapter(transport: httpx.AsyncBaseTransport, ttl_s: float = 30.0) -> Promet
 def test_error_rate_query_filters_on_status_code() -> None:
     query = error_rate_query("payment", "5m")
     assert 'status_code="STATUS_CODE_ERROR"' in query
+    assert 'span_kind="SPAN_KIND_SERVER"' in query
     assert 'service_name="payment"' in query
     assert "or on(service_name)" in query  # services without errors report 0
 

@@ -77,3 +77,40 @@ const TONES: Record<string, Tone> = {
 export function toneFor(status: string | null | undefined): Tone {
   return TONES[status ?? "unknown"] ?? TONES.unknown;
 }
+
+/** Format a metric value by its catalog unit. */
+export function formatMetric(value: number | null | undefined, unit: string): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  switch (unit) {
+    case "ratio":
+      return `${(value * 100).toFixed(2)}%`;
+    case "ms":
+      if (value >= 10_000) return `${(value / 1000).toFixed(1)} s`;
+      if (value >= 1000) return `${(value / 1000).toFixed(2)} s`;
+      return `${value.toFixed(1)} ms`;
+    case "rps":
+      return `${value.toFixed(2)}/s`;
+    case "%":
+      return `${value.toFixed(1)}%`;
+    case "MB":
+      return `${value.toFixed(0)} MB`;
+    default:
+      return value.toFixed(2);
+  }
+}
+
+export function severityVariant(
+  severity: string,
+): "success" | "warning" | "destructive" | "secondary" {
+  switch (severity.toLowerCase()) {
+    case "error":
+    case "fatal":
+      return "destructive";
+    case "warn":
+      return "warning";
+    case "info":
+      return "secondary";
+    default:
+      return "secondary";
+  }
+}

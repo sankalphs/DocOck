@@ -36,7 +36,7 @@ CPU = "container_cpu_utilization_ratio"
 MEMORY = "container_memory_usage_total_bytes"
 
 SERVICE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,62}$")
-ALLOWED_WINDOWS = ("2m", "5m", "10m", "15m", "30m", "1h")
+ALLOWED_WINDOWS = ("1m", "2m", "5m", "10m", "15m", "30m", "1h")
 DEFAULT_WINDOW = "5m"
 
 
@@ -48,8 +48,18 @@ def _selector(service: str | None, extra: dict[str, str] | None = None) -> str:
 
 
 def error_rate_query(service: str | None, window: str) -> str:
-    errors = _selector(service, {"status_code": "STATUS_CODE_ERROR"})
-    calls = _selector(service)
+    """Share of inbound (SERVER) spans that failed.
+
+    All-span error rate is unusable here: the demo marks `flagd` client spans as
+    errors, so a low-traffic service like `payment` reads as 100% failed from a
+    single event-stream span. Inbound spans are the honest "this service is
+    returning errors" signal, and propagated failures still surface in the
+    caller's SERVER spans.
+    """
+    errors = _selector(
+        service, {"status_code": "STATUS_CODE_ERROR", "span_kind": "SPAN_KIND_SERVER"}
+    )
+    calls = _selector(service, {"span_kind": "SPAN_KIND_SERVER"})
     numerator = f"sum by (service_name) (rate({CALLS}{errors}[{window}]))"
     denominator = f"clamp_min(sum by (service_name) (rate({CALLS}{calls}[{window}])), 0.0001)"
     zeros = f"0 * sum by (service_name) (rate({CALLS}{calls}[{window}]))"
@@ -105,7 +115,7 @@ CATALOG: dict[str, MetricSpec] = {
     "error_rate": MetricSpec(
         id="error_rate",
         label="Error rate",
-        description="Share of spans with STATUS_CODE_ERROR, per service.",
+        description="Share of inbound (SERVER) spans with STATUS_CODE_ERROR, per service.",
         unit="ratio",
         dimension="service",
         default_window=DEFAULT_WINDOW,
@@ -279,8 +289,11 @@ class PrometheusAdapter:
             async def load_range() -> list[MetricSeries]:
                 return await self.range(query, start, end, step)
 
-            series = await self._cache.get(
-                ("range", metric, service, effective_window, start, end, step), load_range
+            series = _sanitize(
+                metric,
+                await self._cache.get(
+                    ("range", metric, service, effective_window, start, end, step), load_range
+                ),
             )
             return MetricResult(
                 metric=spec.id,
@@ -296,7 +309,10 @@ class PrometheusAdapter:
         async def load_instant() -> list[MetricSeries]:
             return await self.instant(query)
 
-        series = await self._cache.get(("instant", metric, service, effective_window), load_instant)
+        series = _sanitize(
+            metric,
+            await self._cache.get(("instant", metric, service, effective_window), load_instant),
+        )
         return MetricResult(
             metric=spec.id,
             label=spec.label,
@@ -310,6 +326,24 @@ class PrometheusAdapter:
 
 def catalog() -> list[MetricSpec]:
     return list(CATALOG.values())
+
+
+def _sanitize(metric: str, series: list[MetricSeries]) -> list[MetricSeries]:
+    """Drop impossible values before they reach a chart.
+
+    A histogram with no observations yields `histogram_quantile == 0` for some
+    steps between real samples. A zero p95 is not a measurement, so those points
+    become gaps instead of a fake dive to zero. NaN/Inf are already dropped in
+    `_parse`.
+    """
+    if metric != "p95_latency":
+        return series
+    cleaned: list[MetricSeries] = []
+    for item in series:
+        points = [point for point in item.points if point.v > 0]
+        if points:
+            cleaned.append(MetricSeries(labels=item.labels, points=points))
+    return cleaned
 
 
 __all__: list[str] = [

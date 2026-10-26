@@ -30,7 +30,7 @@ from app.config import settings
 from app.errors import ApiError
 from app.telemetry.cache import TTLCache
 from app.telemetry.dto import SpanNode, TraceDetail, TraceSearchResult, TraceSummary
-from app.telemetry.http import AsyncHttpClient, shared_client
+from app.telemetry.http import AsyncHttpClient, ensure_ok, shared_client
 
 TRACE_ID_RE = re.compile(r"^[0-9a-f]{16,32}$")
 
@@ -285,7 +285,13 @@ class JaegerAdapter:
             params["query.service_name"] = service
 
         async def load() -> list[TraceSummary]:
-            payload = await self._http.get_json("/api/v3/traces", params=params)
+            response = await self._http.request("GET", "/api/v3/traces", params=params)
+            # Jaeger v3 answers 404 {"message": "No traces found"} for an empty
+            # result — that is a normal search outcome, not a dependency failure.
+            if response.status_code == 404:
+                return []
+            ensure_ok(response)
+            payload = response.json()
             result = payload.get("result") or {}
             grouped = _group_by_trace(_extract_spans(result))
             return [_summary(spans) for spans in grouped.values()]
@@ -314,7 +320,11 @@ class JaegerAdapter:
             raise ApiError(422, "invalid_trace_id", "Trace id must be 16-32 lowercase hex chars")
 
         async def load() -> TraceDetail:
-            payload = await self._http.get_json(f"/api/v3/traces/{trace_id}")
+            response = await self._http.request("GET", f"/api/v3/traces/{trace_id}")
+            if response.status_code == 404:
+                raise ApiError(404, "trace_not_found", f"Trace {trace_id} not found")
+            ensure_ok(response)
+            payload = response.json()
             result = payload.get("result") or {}
             spans = _extract_spans(result)
             if not spans:

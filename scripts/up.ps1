@@ -15,6 +15,11 @@ param(
 
 . "$PSScriptRoot\_common.ps1"
 
+# Docker Compose writes progress to stderr; Windows PowerShell turns any stderr
+# line into a terminating error under $ErrorActionPreference = "Stop". Native
+# calls are checked through $LASTEXITCODE instead.
+$ErrorActionPreference = "Continue"
+
 $root = Get-DocockRoot
 Set-Location $root
 

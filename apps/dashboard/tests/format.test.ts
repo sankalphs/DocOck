@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatClock, formatLatency, formatNumber, formatRelative, toneFor } from "@/lib/format";
+import { formatClock, formatLatency, formatMetric, formatNumber, formatRelative, toneFor } from "@/lib/format";
 
 describe("formatLatency", () => {
   it("keeps sub-second values in milliseconds", () => {
@@ -56,5 +56,18 @@ describe("formatClock", () => {
   it("renders a local HH:MM:SS clock and rejects garbage", () => {
     expect(formatClock("2026-10-24T05:30:00Z")).toMatch(/\d{2}:\d{2}:\d{2}/);
     expect(formatClock("not-a-date")).toBe("—");
+  });
+});
+
+describe("formatMetric", () => {
+  it("formats by catalog unit", () => {
+    expect(formatMetric(0.0345, "ratio")).toBe("3.45%");
+    expect(formatMetric(42.5, "ms")).toBe("42.5 ms");
+    expect(formatMetric(1500, "ms")).toBe("1.50 s");
+    expect(formatMetric(15_000, "ms")).toBe("15.0 s");
+    expect(formatMetric(2.5, "rps")).toBe("2.50/s");
+    expect(formatMetric(17.3, "%")).toBe("17.3%");
+    expect(formatMetric(71.2, "MB")).toBe("71 MB");
+    expect(formatMetric(null, "ms")).toBe("—");
   });
 });

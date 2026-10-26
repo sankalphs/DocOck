@@ -129,6 +129,11 @@ def _raise_for_status(response: httpx.Response) -> None:
         raise DependencyError("http", f"HTTP {response.status_code} from {response.url}: {body}")
 
 
+def ensure_ok(response: httpx.Response) -> None:
+    """Public status check for adapters that need to inspect a specific code first."""
+    _raise_for_status(response)
+
+
 _shared: dict[str, AsyncHttpClient] = {}
 
 

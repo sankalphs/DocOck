@@ -102,6 +102,21 @@ uv run --project apps\api python scripts\record-telemetry-fixtures.py
 Confirmed contracts (metric names, labels, Jaeger parameter casing, log fields,
 freshness) are documented in `docs/ARCHITECTURE.md`.
 
+## Verifying observability end to end
+
+`scripts\verify-observability.py` flips the `paymentFailure` flag exactly the way
+the fault controller will, confirms the change through OFREP, and polls the API
+until the symptom is visible in metrics, traces, and logs:
+
+```powershell
+uv run --project apps\api python scripts\verify-observability.py inject
+uv run --project apps\api python scripts\verify-observability.py revert
+```
+
+Expect 30–45 s before the payment service observes a flag change (its flagd SDK
+polls), then one dashboard poll (10–15 s) before all three panes show it. The
+script reverts the flag at the end of a run; always leave it `off`.
+
 ## Endpoints
 
 | What | URL |

@@ -13,7 +13,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P2 | API skeleton + DB + migrations | DONE | `f5840f0` |
 | P3 | Dashboard shell | DONE | `9db0dd3` |
 | P4 | Telemetry adapters | DONE | `c23726f` |
-| P5 | Overview + Telemetry UI | TODO | — |
+| P5 | Overview + Telemetry UI | DONE | `PENDING` |
 | P6 | Fault controller | TODO | — |
 | P7 | Fault Lab UI | TODO | — |
 | P8 | Incident engine + detection | TODO | — |
@@ -199,4 +199,64 @@ Findings that change later phases:
 4. Docker Desktop serialises new loopback connections, so a cold
    `/api/health` is ~2.5 s and a warm one ~50 ms. Health timeouts were raised to
    5 s after the first post-restart probe timed out on a cold Postgres connect.
+
+### P5 — 2026-10-24
+
+- `scripts\check.ps1 -Live` exits 0: API ruff/mypy/**66 tests** + **10 live
+  contract tests**, dashboard eslint/**27 vitest tests**/`next build`.
+- Overview against the live stack: KPI row (`worst error rate`, `worst p95`,
+  throughput, services, containers), three Recharts panes over a 15 m / 30 s
+  range, a 27-row service health table with error rate, p95, throughput, CPU,
+  memory, sources, and the live SSE feed. `docs/evidence/p5-overview.png`.
+- Telemetry page: Traces (service/lookback/min-duration/errors-only filters,
+  trace list), Logs (service/severity/contains/lookback), Services tab with
+  inventory KPIs and the sortable table. `p5-traces.png`, `p5-services.png`.
+- Trace waterfall: 66 spans with depth indentation, per-span bars, error spans
+  highlighted, selectable span attributes, and a Jaeger deep link.
+  `p5-waterfall.png`, `p5-fault-waterfall.png`.
+- **Trace ↔ log navigation verified in the browser**: the waterfall's `Logs`
+  button produced
+  `/api/telemetry/logs?…&trace_id=9876bad5…` with the trace chip in the pane;
+  clicking a trace id in the log row switched to Traces with that trace
+  selected. `p5-trace-to-logs.png`, `p5-log-to-trace.png`.
+- **DoD measurement** (`scripts/verify-observability.py`, `paymentFailure`
+  `off → 100%`, OFREP confirms in 0.5 s):
+  - run 1: metrics visible at **23 s**, traces **4 s**, logs **4 s** — pass;
+  - run 2 on a clean 60 s lookback: logs **61 s**, traces/metrics **74 s** —
+    over the 60 s line. Root cause measured separately: the demo's flagd SDK
+    clients take **30–45 s** to observe the file change (the payment
+    EventStream span is itself ERROR, i.e. likely polling), plus payment's
+    ~10 s request cadence and a 1-minute rate window.
+  - **Verdict: the dashboard itself renders any signal within one poll
+    (10–15 s); end-to-end from a flag write to a low-traffic service is
+    60–75 s.** Recorded in ARCHITECTURE.md and handed to P6, which owns
+    injection UX and must show a fault as "propagating" until observed.
+- Revert verified: `paymentFailure` → `off` brought payment error rate from
+  100 % to 0 % in **41 s**; both flags are `off` and `scripts\health.ps1`
+  returns 10/10.
+
+Fixes discovered during the phase:
+
+1. Jaeger v3 answers **404** with `"No traces found"` for an empty search and
+   for a missing trace. The adapter now treats search-404 as an empty result and
+   trace-404 as `trace_not_found` — an empty window used to surface as a 502 in
+   the UI.
+2. Error rate over **all** spans was unusable: the demo marks `flagd` client
+   spans as errors, so `payment` read 100 % failed from one event-stream span.
+   The metric is now inbound (`SPAN_KIND_SERVER`) spans only; propagated
+   failures still show in the caller's SERVER spans.
+3. `histogram_quantile` returns 0 for some empty-bucket steps between real
+   samples; a zero p95 is not a measurement, so those points become gaps.
+4. Recharts' numeric `scale="time"` axis rendered a 9-hour tick range for
+   15 minutes of data. The chart now uses an explicit local `HH:MM:SS` category
+   label per row.
+5. KPI "error rate" as a throughput-weighted average hid a 100 % failure of a
+   low-volume service (payment). It is now the **worst** service rate with the
+   service name; the weighted value is shown as secondary context.
+6. `scripts\down.ps1` / `up.ps1` aborted on Compose's stderr progress under
+   `$ErrorActionPreference = "Stop"`; both now check `$LASTEXITCODE` instead.
+7. The demo stack had drifted into a degraded state (checkout 39 % server
+   errors, 15 s median at the load generator) after hours of load. A
+   `down.ps1` + `up.ps1 -SkipPull` cycle restored a clean baseline: every
+   service at 0 % error, 25/25 containers healthy.
 

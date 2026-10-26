@@ -135,6 +135,41 @@ async def test_unknown_trace_maps_to_404(fixture_transport: FixtureFactory) -> N
     assert caught.value.code == "trace_not_found"
 
 
+async def test_empty_search_is_not_an_error() -> None:
+    """Jaeger v3 returns 404 for 'No traces found'; that is an empty result."""
+
+    class EmptySearch(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                404,
+                json={"error": {"httpCode": 404, "message": "No traces found"}},
+                request=request,
+            )
+
+    adapter = _adapter(EmptySearch())
+
+    result = await adapter.search(service="payment", lookback_s=300)
+
+    assert result.traces == []
+    assert result.scanned == 0
+
+
+async def test_jaeger_404_on_trace_is_not_found() -> None:
+    class Missing(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                404,
+                json={"error": {"httpCode": 404, "message": "trace not found"}},
+                request=request,
+            )
+
+    adapter = _adapter(Missing())
+
+    with pytest.raises(ApiError) as caught:
+        await adapter.trace("0123456789abcdef0123456789abcdef")
+    assert caught.value.status_code == 404
+
+
 async def test_services_are_sorted(fixture_transport: FixtureFactory) -> None:
     adapter = _adapter(fixture_transport({"api/v3/services": load_fixture("jaeger_services.json")}))
 

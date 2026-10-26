@@ -48,9 +48,12 @@ over OTLP — there is no scrape of the services.
 
 Queries the API exposes (never raw PromQL from the browser):
 
-- error rate — `sum by (service_name) (rate(calls{status=ERROR}[w])) /
-  clamp_min(sum by (service_name) (rate(calls[w])), 0.0001)`, `or`-ed with a
-  zero series so services without errors report `0` instead of disappearing.
+- error rate — `sum by (service_name) (rate(calls{status=ERROR,
+  span_kind="SPAN_KIND_SERVER"}[w])) / clamp_min(sum by (service_name)
+  (rate(calls{span_kind="SPAN_KIND_SERVER"}[w])), 0.0001)`, `or`-ed with a zero
+  series so services without errors report `0` instead of disappearing.
+  **Inbound spans only**: the demo marks `flagd` client spans as errors, so an
+  all-span ratio reads 100% for low-traffic services like `payment`.
 - p95 latency — `histogram_quantile(0.95, sum by (le, service_name)
   (rate(duration_bucket{span_kind="SPAN_KIND_SERVER"}[w])))`, falling back to
   all spans for services with no SERVER spans. `> 0` drops `NaN` before the
@@ -120,7 +123,6 @@ in `docock-demo` is never a target.
   hang a request.
 
 ## Observed baseline quirk
-
 Under the demo's default load the storefront pages are fast (~90–230 ms) but the
 synthetic checkout path is slow: mean SERVER span duration is ~25 s for
 `checkout`, ~11 s for `recommendation`, and ~9 s for `product-catalog`
@@ -133,3 +135,25 @@ healthy. Consequences:
 - a latency alert for `checkout` is only meaningful if it exceeds its own noisy
   baseline;
 - error rate remains the cleaner signal for the scripted scenarios.
+
+## Fault propagation latency (measured 2026-10-24, P5)
+
+Writing the runtime flag file is instant and OFREP reflects the new variant in
+~0.5 s (P1 verified this and it still holds), but a **service** only starts
+failing 30–45 s later. Measured on `paymentFailure` (`off → 100%`): the first
+failed charge appeared ~38 s after the write, the first error trace ~49 s, and
+the 1-minute error-rate series crossed 20 % at ~62 s.
+
+The delay is in the demo's flagd SDK clients (the payment service's
+`flagd.evaluation.v2.Service/EventStream` span is itself marked ERROR, so it is
+likely falling back to polling), not in the file write or the API. Combined with
+payment's ~10 s request cadence and a 1-minute rate window, end-to-end
+"flag write → visible in three panes" is ~60–75 s for a low-traffic service.
+
+Consequences for later phases:
+
+- P6 must show an injected fault as *propagating* until the first symptom is
+  observed, and must not assume the service has changed the moment OFREP does.
+- P8's detector already waits for symptoms, so this delay is absorbed there.
+- A high-traffic target (frontend-proxy, cart) reacts sooner than payment.
+
