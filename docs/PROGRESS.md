@@ -13,7 +13,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P2 | API skeleton + DB + migrations | DONE | `f5840f0` |
 | P3 | Dashboard shell | DONE | `9db0dd3` |
 | P4 | Telemetry adapters | DONE | `c23726f` |
-| P5 | Overview + Telemetry UI | DONE | `PENDING` |
+| P5 | Overview + Telemetry UI | DONE | `4f644b9` |
 | P6 | Fault controller | TODO | — |
 | P7 | Fault Lab UI | TODO | — |
 | P8 | Incident engine + detection | TODO | — |
