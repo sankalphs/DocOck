@@ -23,7 +23,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P12 | Memory + retrieval | DONE | 8484efa |
 | P13 | Agent UI | DONE | b418fa9 |
 | P14 | Remediation + approval | DONE | 473dc80 |
-| P15 | Verification + reports | DONE | (pending) |
+| P15 | Verification + reports | DONE | ead14e4 |
 | P16 | Hardening + evaluation | TODO | — |
 
 ## Milestones
