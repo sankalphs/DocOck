@@ -17,7 +17,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P6 | Fault controller | DONE | `5e410fd` |
 | P7 | Fault Lab UI | DONE | `29bc7a2` |
 | P8 | Incident engine + detection | DONE | `6f6d69d` |
-| P9 | Deterministic analysis + evidence | DONE | pending |
+| P9 | Deterministic analysis + evidence | DONE | `f2f8946` |
 | P10 | Model gateway + embeddings | TODO | — |
 | P11 | Agent orchestrator | TODO | — |
 | P12 | Memory + retrieval | TODO | — |
