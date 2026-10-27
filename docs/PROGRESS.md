@@ -25,7 +25,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P14 | Remediation + approval | DONE | 473dc80 |
 | P15 | Verification + reports | DONE | ead14e4 |
 | P16 | Hardening + evaluation | DONE | 6bcc21d |
-| Post-P16 | Verification pass: fixes found on the live stack, real-model run | DONE | (pending) |
+| Post-P16 | Verification pass: fixes found on the live stack, real-model run | DONE | 609a8cd |
 
 ## Milestones
 
