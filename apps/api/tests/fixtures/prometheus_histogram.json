@@ -5,110 +5,11 @@
     "result": [
       {
         "metric": {
-          "service_name": "flagd"
+          "service_name": "quote"
         },
         "value": [
-          1792821709.373,
-          "1.971736785329018"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "ad"
-        },
-        "value": [
-          1792821709.373,
-          "4.250000000000002"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "flagd-ui"
-        },
-        "value": [
-          1792821709.373,
-          "NaN"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "recommendation"
-        },
-        "value": [
-          1792821709.373,
-          "15000"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "frontend"
-        },
-        "value": [
-          1792821709.373,
-          "15000"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "product-catalog"
-        },
-        "value": [
-          1792821709.373,
-          "15000"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "shipping"
-        },
-        "value": [
-          1792821709.373,
-          "59.99999999999998"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "frontend-web"
-        },
-        "value": [
-          1792821709.373,
-          "446.6666666666675"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "frontend-proxy"
-        },
-        "value": [
-          1792821709.373,
-          "10423.611111111133"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "telemetry-docs"
-        },
-        "value": [
-          1792821709.373,
-          "1.9"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "checkout"
-        },
-        "value": [
-          1792821709.373,
-          "15000"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "email"
-        },
-        "value": [
-          1792821709.373,
-          "169.99999999999994"
+          1793020919.692,
+          "34.28571428571423"
         ]
       },
       {
@@ -116,8 +17,62 @@
           "service_name": "payment"
         },
         "value": [
-          1792821709.373,
-          "41.999999999999986"
+          1793020919.692,
+          "124.9999999999997"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "currency"
+        },
+        "value": [
+          1793020919.692,
+          "1.9"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "email"
+        },
+        "value": [
+          1793020919.692,
+          "40.15384615384613"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "shipping"
+        },
+        "value": [
+          1793020919.692,
+          "92.50000000000003"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "ad"
+        },
+        "value": [
+          1793020919.692,
+          "19.000349853194415"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "product-catalog"
+        },
+        "value": [
+          1793020919.692,
+          "39.24299065420557"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "flagd-ui"
+        },
+        "value": [
+          1793020919.692,
+          "NaN"
         ]
       },
       {
@@ -125,7 +80,7 @@
           "service_name": "image-provider"
         },
         "value": [
-          1792821709.373,
+          1793020919.692,
           "1.9"
         ]
       },
@@ -134,8 +89,44 @@
           "service_name": "load-generator"
         },
         "value": [
-          1792821709.373,
-          "15000"
+          1793020919.692,
+          "4331.818181818184"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "frontend-web"
+        },
+        "value": [
+          1793020919.692,
+          "387.9345955249569"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "frontend"
+        },
+        "value": [
+          1793020919.692,
+          "46.97565217391305"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "frontend-proxy"
+        },
+        "value": [
+          1793020919.692,
+          "48.30366492146595"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "telemetry-docs"
+        },
+        "value": [
+          1793020919.692,
+          "1.9"
         ]
       },
       {
@@ -143,26 +134,35 @@
           "service_name": "cart"
         },
         "value": [
-          1792821709.373,
-          "5.7518518518518515"
+          1793020919.692,
+          "5.713942307692308"
         ]
       },
       {
         "metric": {
-          "service_name": "currency"
+          "service_name": "recommendation"
         },
         "value": [
-          1792821709.373,
-          "1.9166666666666665"
+          1793020919.692,
+          "9.784968888888866"
         ]
       },
       {
         "metric": {
-          "service_name": "quote"
+          "service_name": "checkout"
         },
         "value": [
-          1792821709.373,
-          "1.9"
+          1793020919.692,
+          "179.99999999999994"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "flagd"
+        },
+        "value": [
+          1793020919.692,
+          "1.9611643835616437"
         ]
       }
     ]

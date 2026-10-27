@@ -5,6 +5,300 @@
         "resource": {
           "attributes": [
             {
+              "key": "host.arch",
+              "value": {
+                "stringValue": "amd64"
+              }
+            },
+            {
+              "key": "host.cpu.cache.l2.size",
+              "value": {
+                "intValue": "1024"
+              }
+            },
+            {
+              "key": "host.cpu.family",
+              "value": {
+                "stringValue": "26"
+              }
+            },
+            {
+              "key": "host.cpu.model.id",
+              "value": {
+                "stringValue": "36"
+              }
+            },
+            {
+              "key": "host.cpu.model.name",
+              "value": {
+                "stringValue": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M"
+              }
+            },
+            {
+              "key": "host.cpu.stepping",
+              "value": {
+                "stringValue": "0"
+              }
+            },
+            {
+              "key": "host.cpu.vendor.id",
+              "value": {
+                "stringValue": "AuthenticAMD"
+              }
+            },
+            {
+              "key": "host.name",
+              "value": {
+                "stringValue": "docker-desktop"
+              }
+            },
+            {
+              "key": "os.description",
+              "value": {
+                "stringValue": "Linux 53047bb96823 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
+              }
+            },
+            {
+              "key": "os.type",
+              "value": {
+                "stringValue": "linux"
+              }
+            },
+            {
+              "key": "service.criticality",
+              "value": {
+                "stringValue": "critical"
+              }
+            },
+            {
+              "key": "service.name",
+              "value": {
+                "stringValue": "frontend-proxy"
+              }
+            },
+            {
+              "key": "service.namespace",
+              "value": {
+                "stringValue": "opentelemetry-demo"
+              }
+            },
+            {
+              "key": "service.version",
+              "value": {
+                "stringValue": "3.1.0"
+              }
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "value": {
+                "stringValue": "cpp"
+              }
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "value": {
+                "stringValue": "envoy"
+              }
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "value": {
+                "stringValue": "9e5580933739775e8bce696a57a2e1bc99368f23/1.40.0/Clean/RELEASE/BoringSSL"
+              }
+            }
+          ]
+        },
+        "scopeSpans": [
+          {
+            "scope": {
+              "name": "envoy",
+              "version": "9e5580933739775e8bce696a57a2e1bc99368f23/1.40.0/Clean/RELEASE/BoringSSL"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "168ea615b9ecde7c",
+                "parentSpanId": "9bcef24644b44701",
+                "flags": 257,
+                "name": "router frontend egress",
+                "kind": 3,
+                "startTimeUnixNano": "1793020911423490000",
+                "endTimeUnixNano": "1793020911439509000",
+                "attributes": [
+                  {
+                    "key": "component",
+                    "value": {
+                      "stringValue": "proxy"
+                    }
+                  },
+                  {
+                    "key": "http.protocol",
+                    "value": {
+                      "stringValue": "HTTP/1.1"
+                    }
+                  },
+                  {
+                    "key": "http.status_code",
+                    "value": {
+                      "stringValue": "200"
+                    }
+                  },
+                  {
+                    "key": "peer.address",
+                    "value": {
+                      "stringValue": "172.18.0.14:8080"
+                    }
+                  },
+                  {
+                    "key": "response_flags",
+                    "value": {
+                      "stringValue": "-"
+                    }
+                  },
+                  {
+                    "key": "upstream_address",
+                    "value": {
+                      "stringValue": "172.18.0.14:8080"
+                    }
+                  },
+                  {
+                    "key": "upstream_cluster",
+                    "value": {
+                      "stringValue": "frontend"
+                    }
+                  },
+                  {
+                    "key": "upstream_cluster.name",
+                    "value": {
+                      "stringValue": "frontend"
+                    }
+                  }
+                ],
+                "status": {}
+              },
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "9bcef24644b44701",
+                "parentSpanId": "863473162014f8ee",
+                "flags": 769,
+                "name": "GET",
+                "kind": 2,
+                "startTimeUnixNano": "1793020911423180000",
+                "endTimeUnixNano": "1793020911439557000",
+                "attributes": [
+                  {
+                    "key": "component",
+                    "value": {
+                      "stringValue": "proxy"
+                    }
+                  },
+                  {
+                    "key": "downstream_cluster",
+                    "value": {
+                      "stringValue": "-"
+                    }
+                  },
+                  {
+                    "key": "guid:x-request-id",
+                    "value": {
+                      "stringValue": "6a1e324a-af77-94f5-9c27-38cd3bad4001"
+                    }
+                  },
+                  {
+                    "key": "http.method",
+                    "value": {
+                      "stringValue": "GET"
+                    }
+                  },
+                  {
+                    "key": "http.protocol",
+                    "value": {
+                      "stringValue": "HTTP/1.1"
+                    }
+                  },
+                  {
+                    "key": "http.status_code",
+                    "value": {
+                      "stringValue": "200"
+                    }
+                  },
+                  {
+                    "key": "http.url",
+                    "value": {
+                      "stringValue": "http://frontend-proxy:8080/api/cart?sessionId=ce94be13-87bf-44ce-9dc2-b88d0aec113e&currencyCode=USD"
+                    }
+                  },
+                  {
+                    "key": "node_id",
+                    "value": {
+                      "stringValue": ""
+                    }
+                  },
+                  {
+                    "key": "original_span_name",
+                    "value": {
+                      "stringValue": "ingress"
+                    }
+                  },
+                  {
+                    "key": "peer.address",
+                    "value": {
+                      "stringValue": "172.18.0.26"
+                    }
+                  },
+                  {
+                    "key": "request_size",
+                    "value": {
+                      "stringValue": "0"
+                    }
+                  },
+                  {
+                    "key": "response_flags",
+                    "value": {
+                      "stringValue": "-"
+                    }
+                  },
+                  {
+                    "key": "response_size",
+                    "value": {
+                      "stringValue": "666"
+                    }
+                  },
+                  {
+                    "key": "upstream_cluster",
+                    "value": {
+                      "stringValue": "frontend"
+                    }
+                  },
+                  {
+                    "key": "upstream_cluster.name",
+                    "value": {
+                      "stringValue": "frontend"
+                    }
+                  },
+                  {
+                    "key": "user_agent",
+                    "value": {
+                      "stringValue": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36"
+                    }
+                  },
+                  {
+                    "key": "zone",
+                    "value": {
+                      "stringValue": ""
+                    }
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "resource": {
+          "attributes": [
+            {
               "key": "browser.language",
               "value": {
                 "stringValue": "en-US"
@@ -61,7 +355,7 @@
             {
               "key": "os.description",
               "value": {
-                "stringValue": "Linux c18d690028b6 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
+                "stringValue": "Linux 53047bb96823 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
               }
             },
             {
@@ -110,13 +404,13 @@
             },
             "spans": [
               {
-                "traceId": "a13b7e23ddb836ad9fca370c932e013c",
-                "spanId": "d80da0c6f6e83ae3",
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "863473162014f8ee",
                 "flags": 257,
                 "name": "GET",
                 "kind": 3,
-                "startTimeUnixNano": "1792821705594000000",
-                "endTimeUnixNano": "1792821705626000000",
+                "startTimeUnixNano": "1793020911413000000",
+                "endTimeUnixNano": "1793020911449000000",
                 "attributes": [
                   {
                     "key": "demo.synthetic_request",
@@ -127,7 +421,7 @@
                   {
                     "key": "enduser.id",
                     "value": {
-                      "stringValue": "6f7699c3-58d2-40fb-aaea-37b5b57de4dc"
+                      "stringValue": "ce94be13-87bf-44ce-9dc2-b88d0aec113e"
                     }
                   },
                   {
@@ -157,48 +451,587 @@
                   {
                     "key": "session.id",
                     "value": {
-                      "stringValue": "6f7699c3-58d2-40fb-aaea-37b5b57de4dc"
+                      "stringValue": "ce94be13-87bf-44ce-9dc2-b88d0aec113e"
                     }
                   },
                   {
                     "key": "url.full",
                     "value": {
-                      "stringValue": "http://frontend-proxy:8080/api/cart?sessionId=6f7699c3-58d2-40fb-aaea-37b5b57de4dc&currencyCode=USD"
+                      "stringValue": "http://frontend-proxy:8080/api/cart?sessionId=ce94be13-87bf-44ce-9dc2-b88d0aec113e&currencyCode=USD"
                     }
                   }
                 ],
                 "events": [
                   {
-                    "timeUnixNano": "1792821705594399951",
+                    "timeUnixNano": "1793020911413600000",
                     "name": "connectEnd"
                   },
                   {
-                    "timeUnixNano": "1792821705594399951",
+                    "timeUnixNano": "1793020911413600000",
                     "name": "connectStart"
                   },
                   {
-                    "timeUnixNano": "1792821705594399951",
+                    "timeUnixNano": "1793020911413600000",
                     "name": "domainLookupEnd"
                   },
                   {
-                    "timeUnixNano": "1792821705594399951",
+                    "timeUnixNano": "1793020911413600000",
                     "name": "domainLookupStart"
                   },
                   {
-                    "timeUnixNano": "1792821705594399951",
+                    "timeUnixNano": "1793020911413600000",
                     "name": "fetchStart"
                   },
                   {
-                    "timeUnixNano": "1792821705602399951",
+                    "timeUnixNano": "1793020911422200000",
                     "name": "requestStart"
                   },
                   {
-                    "timeUnixNano": "1792821705618999951",
+                    "timeUnixNano": "1793020911443700000",
                     "name": "responseEnd"
                   },
                   {
-                    "timeUnixNano": "1792821705614899951",
+                    "timeUnixNano": "1793020911439700000",
                     "name": "responseStart"
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "resource": {
+          "attributes": [
+            {
+              "key": "host.arch",
+              "value": {
+                "stringValue": "amd64"
+              }
+            },
+            {
+              "key": "host.cpu.cache.l2.size",
+              "value": {
+                "intValue": "1024"
+              }
+            },
+            {
+              "key": "host.cpu.family",
+              "value": {
+                "stringValue": "26"
+              }
+            },
+            {
+              "key": "host.cpu.model.id",
+              "value": {
+                "stringValue": "36"
+              }
+            },
+            {
+              "key": "host.cpu.model.name",
+              "value": {
+                "stringValue": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M"
+              }
+            },
+            {
+              "key": "host.cpu.stepping",
+              "value": {
+                "stringValue": "0"
+              }
+            },
+            {
+              "key": "host.cpu.vendor.id",
+              "value": {
+                "stringValue": "AuthenticAMD"
+              }
+            },
+            {
+              "key": "host.name",
+              "value": {
+                "stringValue": "docker-desktop"
+              }
+            },
+            {
+              "key": "os.description",
+              "value": {
+                "stringValue": "Linux 53047bb96823 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
+              }
+            },
+            {
+              "key": "os.type",
+              "value": {
+                "stringValue": "linux"
+              }
+            },
+            {
+              "key": "service.criticality",
+              "value": {
+                "stringValue": "high"
+              }
+            },
+            {
+              "key": "service.instance.id",
+              "value": {
+                "stringValue": "a9609716f2b5da5a678aa1c474b93f5d"
+              }
+            },
+            {
+              "key": "service.name",
+              "value": {
+                "stringValue": "product-catalog"
+              }
+            },
+            {
+              "key": "service.namespace",
+              "value": {
+                "stringValue": "opentelemetry-demo"
+              }
+            },
+            {
+              "key": "service.version",
+              "value": {
+                "stringValue": "3.1.0"
+              }
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "value": {
+                "stringValue": "go"
+              }
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "value": {
+                "stringValue": "opentelemetry"
+              }
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "value": {
+                "stringValue": "1.47.0"
+              }
+            }
+          ]
+        },
+        "scopeSpans": [
+          {
+            "scope": {
+              "name": "github.com/XSAM/otelsql",
+              "version": "0.44.0"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "15b40ad67db78f26",
+                "parentSpanId": "ec86dbe5d18fe45a",
+                "flags": 257,
+                "name": "astronomy-db",
+                "kind": 3,
+                "startTimeUnixNano": "1793020911435869022",
+                "endTimeUnixNano": "1793020911437550793",
+                "attributes": [
+                  {
+                    "key": "db.query.text",
+                    "value": {
+                      "stringValue": "\n\t\tSELECT p.id, p.name, p.description, p.picture, \n\t\t       p.price_currency_code, p.price_units, p.price_nanos, p.categories\n\t\tFROM catalog.products p\n\t\tWHERE p.id = $1\n\t"
+                    }
+                  },
+                  {
+                    "key": "db.system.name",
+                    "value": {
+                      "stringValue": "postgresql"
+                    }
+                  },
+                  {
+                    "key": "original_span_name",
+                    "value": {
+                      "stringValue": "sql.conn.query"
+                    }
+                  },
+                  {
+                    "key": "server.address",
+                    "value": {
+                      "stringValue": "astronomy-db"
+                    }
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          },
+          {
+            "scope": {
+              "name": "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc",
+              "version": "0.72.0"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "ec86dbe5d18fe45a",
+                "parentSpanId": "52389cbee42d96f4",
+                "flags": 769,
+                "name": "oteldemo.ProductCatalogService/GetProduct",
+                "kind": 2,
+                "startTimeUnixNano": "1793020911433106113",
+                "endTimeUnixNano": "1793020911437758178",
+                "attributes": [
+                  {
+                    "key": "demo.product.id",
+                    "value": {
+                      "stringValue": "2ZYFJ3GM2N"
+                    }
+                  },
+                  {
+                    "key": "demo.product.name",
+                    "value": {
+                      "stringValue": "Roof Binoculars"
+                    }
+                  },
+                  {
+                    "key": "rpc.method",
+                    "value": {
+                      "stringValue": "oteldemo.ProductCatalogService/GetProduct"
+                    }
+                  },
+                  {
+                    "key": "rpc.response.status_code",
+                    "value": {
+                      "stringValue": "OK"
+                    }
+                  },
+                  {
+                    "key": "rpc.system.name",
+                    "value": {
+                      "stringValue": "grpc"
+                    }
+                  },
+                  {
+                    "key": "server.address",
+                    "value": {
+                      "stringValue": "172.18.0.15"
+                    }
+                  },
+                  {
+                    "key": "server.port",
+                    "value": {
+                      "intValue": "3550"
+                    }
+                  }
+                ],
+                "events": [
+                  {
+                    "timeUnixNano": "1793020911437680091",
+                    "name": "Product Found"
+                  },
+                  {
+                    "timeUnixNano": "1793020911435819332",
+                    "name": "feature_flag.evaluation",
+                    "attributes": [
+                      {
+                        "key": "feature_flag.context.id",
+                        "value": {
+                          "stringValue": ""
+                        }
+                      },
+                      {
+                        "key": "feature_flag.key",
+                        "value": {
+                          "stringValue": "productCatalogFailure"
+                        }
+                      },
+                      {
+                        "key": "feature_flag.provider.name",
+                        "value": {
+                          "stringValue": "flagd"
+                        }
+                      },
+                      {
+                        "key": "feature_flag.result.reason",
+                        "value": {
+                          "stringValue": "targeting_match"
+                        }
+                      },
+                      {
+                        "key": "feature_flag.result.value",
+                        "value": {
+                          "boolValue": false
+                        }
+                      },
+                      {
+                        "key": "feature_flag.result.variant",
+                        "value": {
+                          "stringValue": "off"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "resource": {
+          "attributes": [
+            {
+              "key": "host.arch",
+              "value": {
+                "stringValue": "amd64"
+              }
+            },
+            {
+              "key": "host.cpu.cache.l2.size",
+              "value": {
+                "intValue": "1024"
+              }
+            },
+            {
+              "key": "host.cpu.family",
+              "value": {
+                "stringValue": "26"
+              }
+            },
+            {
+              "key": "host.cpu.model.id",
+              "value": {
+                "stringValue": "36"
+              }
+            },
+            {
+              "key": "host.cpu.model.name",
+              "value": {
+                "stringValue": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M"
+              }
+            },
+            {
+              "key": "host.cpu.stepping",
+              "value": {
+                "stringValue": "0"
+              }
+            },
+            {
+              "key": "host.cpu.vendor.id",
+              "value": {
+                "stringValue": "AuthenticAMD"
+              }
+            },
+            {
+              "key": "host.name",
+              "value": {
+                "stringValue": "docker-desktop"
+              }
+            },
+            {
+              "key": "os.description",
+              "value": {
+                "stringValue": "Linux 53047bb96823 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
+              }
+            },
+            {
+              "key": "os.type",
+              "value": {
+                "stringValue": "linux"
+              }
+            },
+            {
+              "key": "process.runtime.version",
+              "value": {
+                "stringValue": "go1.25.10"
+              }
+            },
+            {
+              "key": "service.criticality",
+              "value": {
+                "stringValue": "low"
+              }
+            },
+            {
+              "key": "service.name",
+              "value": {
+                "stringValue": "flagd"
+              }
+            },
+            {
+              "key": "service.namespace",
+              "value": {
+                "stringValue": "opentelemetry-demo"
+              }
+            },
+            {
+              "key": "service.version",
+              "value": {
+                "stringValue": "3.1.0"
+              }
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "value": {
+                "stringValue": "go"
+              }
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "value": {
+                "stringValue": "opentelemetry"
+              }
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "value": {
+                "stringValue": "1.43.0"
+              }
+            }
+          ]
+        },
+        "scopeSpans": [
+          {
+            "scope": {
+              "name": "connectrpc.com/otelconnect",
+              "version": "semver:0.6.0-dev"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "9db8cd5c906ba0c0",
+                "parentSpanId": "68e3248d12e9c16e",
+                "flags": 769,
+                "name": "flagd.evaluation.v2.Service/ResolveBoolean",
+                "kind": 2,
+                "startTimeUnixNano": "1793020911429038188",
+                "endTimeUnixNano": "1793020911429341684",
+                "attributes": [
+                  {
+                    "key": "rpc.grpc.status_code",
+                    "value": {
+                      "intValue": "0"
+                    }
+                  },
+                  {
+                    "key": "rpc.method",
+                    "value": {
+                      "stringValue": "ResolveBoolean"
+                    }
+                  },
+                  {
+                    "key": "rpc.service",
+                    "value": {
+                      "stringValue": "flagd.evaluation.v2.Service"
+                    }
+                  },
+                  {
+                    "key": "rpc.system",
+                    "value": {
+                      "stringValue": "grpc"
+                    }
+                  }
+                ],
+                "events": [
+                  {
+                    "timeUnixNano": "1793020911429049812",
+                    "name": "message",
+                    "attributes": [
+                      {
+                        "key": "message.id",
+                        "value": {
+                          "intValue": "1"
+                        }
+                      },
+                      {
+                        "key": "message.type",
+                        "value": {
+                          "stringValue": "RECEIVED"
+                        }
+                      },
+                      {
+                        "key": "message.uncompressed_size",
+                        "value": {
+                          "intValue": "33"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "timeUnixNano": "1793020911429320342",
+                    "name": "message",
+                    "attributes": [
+                      {
+                        "key": "message.id",
+                        "value": {
+                          "intValue": "1"
+                        }
+                      },
+                      {
+                        "key": "message.type",
+                        "value": {
+                          "stringValue": "SENT"
+                        }
+                      },
+                      {
+                        "key": "message.uncompressed_size",
+                        "value": {
+                          "intValue": "17"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          },
+          {
+            "scope": {
+              "name": "jsonEvaluator"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "4579c17653087133",
+                "parentSpanId": "1fcae004836aa073",
+                "flags": 257,
+                "name": "resolveBoolean",
+                "kind": 1,
+                "startTimeUnixNano": "1793020911429066285",
+                "endTimeUnixNano": "1793020911429209000",
+                "status": {}
+              }
+            ]
+          },
+          {
+            "scope": {
+              "name": "flagd.evaluation.v2"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "1fcae004836aa073",
+                "parentSpanId": "9db8cd5c906ba0c0",
+                "flags": 257,
+                "name": "resolveBoolean",
+                "kind": 2,
+                "startTimeUnixNano": "1793020911429055814",
+                "endTimeUnixNano": "1793020911429305072",
+                "attributes": [
+                  {
+                    "key": "feature_flag.key",
+                    "value": {
+                      "stringValue": "cartMetricCardinalityOverflow"
+                    }
+                  },
+                  {
+                    "key": "feature_flag.provider.name",
+                    "value": {
+                      "stringValue": "flagd"
+                    }
+                  },
+                  {
+                    "key": "feature_flag.result.variant",
+                    "value": {
+                      "stringValue": "off"
+                    }
                   }
                 ],
                 "status": {}
@@ -213,7 +1046,7 @@
             {
               "key": "container.id",
               "value": {
-                "stringValue": "9d9586be1b57ec2d568a4371213f2026af2ab91c7dcaea1d82ea2cab44255d65"
+                "stringValue": "51f7f325e15fb661a0a6e5d6b8132b9cb7fb3a7440e197ae0067be95d3308b69"
               }
             },
             {
@@ -273,7 +1106,7 @@
             {
               "key": "os.description",
               "value": {
-                "stringValue": "Linux c18d690028b6 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
+                "stringValue": "Linux 53047bb96823 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
               }
             },
             {
@@ -291,7 +1124,7 @@
             {
               "key": "service.instance.id",
               "value": {
-                "stringValue": "ecb0525f-36f2-43bf-ba87-53ae62ef2c38"
+                "stringValue": "184041c9-f48e-4981-85f1-16318442ab12"
               }
             },
             {
@@ -339,14 +1172,14 @@
             },
             "spans": [
               {
-                "traceId": "a13b7e23ddb836ad9fca370c932e013c",
-                "spanId": "f9f594545507cc01",
-                "parentSpanId": "f37952707cdfbcfe",
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "68e3248d12e9c16e",
+                "parentSpanId": "ba9daccab80847da",
                 "flags": 257,
                 "name": "POST",
                 "kind": 3,
-                "startTimeUnixNano": "1792821705609208600",
-                "endTimeUnixNano": "1792821705611442600",
+                "startTimeUnixNano": "1793020911427833200",
+                "endTimeUnixNano": "1793020911430134100",
                 "attributes": [
                   {
                     "key": "http.request.method",
@@ -396,14 +1229,14 @@
             },
             "spans": [
               {
-                "traceId": "a13b7e23ddb836ad9fca370c932e013c",
-                "spanId": "f37952707cdfbcfe",
-                "parentSpanId": "9210bfac80fd23f0",
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "ba9daccab80847da",
+                "parentSpanId": "22b2e0eba6230ce5",
                 "flags": 257,
                 "name": "flagd.evaluation.v2.Service/ResolveBoolean",
                 "kind": 3,
-                "startTimeUnixNano": "1792821705609166100",
-                "endTimeUnixNano": "1792821705611793800",
+                "startTimeUnixNano": "1793020911427789400",
+                "endTimeUnixNano": "1793020911430328600",
                 "attributes": [
                   {
                     "key": "rpc.method",
@@ -446,19 +1279,19 @@
             },
             "spans": [
               {
-                "traceId": "a13b7e23ddb836ad9fca370c932e013c",
-                "spanId": "9210bfac80fd23f0",
-                "parentSpanId": "11c49ffa267162f0",
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "22b2e0eba6230ce5",
+                "parentSpanId": "bee6eec7e408f9f9",
                 "flags": 769,
                 "name": "POST /oteldemo.CartService/GetCart",
                 "kind": 2,
-                "startTimeUnixNano": "1792821705608942100",
-                "endTimeUnixNano": "1792821705613133400",
+                "startTimeUnixNano": "1793020911427579500",
+                "endTimeUnixNano": "1793020911431440700",
                 "attributes": [
                   {
                     "key": "demo.cart.items.count",
                     "value": {
-                      "intValue": "0"
+                      "intValue": "1"
                     }
                   },
                   {
@@ -524,7 +1357,7 @@
                   {
                     "key": "user.id",
                     "value": {
-                      "stringValue": "6f7699c3-58d2-40fb-aaea-37b5b57de4dc"
+                      "stringValue": "ce94be13-87bf-44ce-9dc2-b88d0aec113e"
                     }
                   },
                   {
@@ -532,27 +1365,15 @@
                     "value": {
                       "stringValue": "grpc-node-js/1.14.6"
                     }
-                  },
-                  {
-                    "key": "@jaeger@warnings",
-                    "value": {
-                      "arrayValue": {
-                        "values": [
-                          {
-                            "stringValue": "parent span ID=11c49ffa267162f0 is not in the trace; skipping clock skew adjustment"
-                          }
-                        ]
-                      }
-                    }
                   }
                 ],
                 "events": [
                   {
-                    "timeUnixNano": "1792821705609047500",
+                    "timeUnixNano": "1793020911427695100",
                     "name": "Fetch cart"
                   },
                   {
-                    "timeUnixNano": "1792821705611855300",
+                    "timeUnixNano": "1793020911430386700",
                     "name": "feature_flag.evaluation",
                     "attributes": [
                       {
@@ -599,14 +1420,14 @@
             },
             "spans": [
               {
-                "traceId": "a13b7e23ddb836ad9fca370c932e013c",
-                "spanId": "947f4f6198a63612",
-                "parentSpanId": "9210bfac80fd23f0",
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "9b56c2757034e896",
+                "parentSpanId": "22b2e0eba6230ce5",
                 "flags": 257,
                 "name": "valkey-cart:6379",
                 "kind": 3,
-                "startTimeUnixNano": "1792821705612075000",
-                "endTimeUnixNano": "1792821705612873200",
+                "startTimeUnixNano": "1793020911430496600",
+                "endTimeUnixNano": "1793020911431251900",
                 "attributes": [
                   {
                     "key": "db.redis.database_index",
@@ -617,7 +1438,7 @@
                   {
                     "key": "db.statement",
                     "value": {
-                      "stringValue": "HGET 6f7699c3-58d2-40fb-aaea-37b5b57de4dc"
+                      "stringValue": "HGET ce94be13-87bf-44ce-9dc2-b88d0aec113e"
                     }
                   },
                   {
@@ -647,16 +1468,570 @@
                 ],
                 "events": [
                   {
-                    "timeUnixNano": "1792821705612082700",
+                    "timeUnixNano": "1793020911430503800",
                     "name": "Enqueued"
                   },
                   {
-                    "timeUnixNano": "1792821705612872600",
+                    "timeUnixNano": "1793020911431251200",
                     "name": "ResponseReceived"
                   },
                   {
-                    "timeUnixNano": "1792821705612094700",
+                    "timeUnixNano": "1793020911430514000",
                     "name": "Sent"
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "resource": {
+          "attributes": [
+            {
+              "key": "container.id",
+              "value": {
+                "stringValue": "467337ed0b2db9fd848f15e8ace0e46e73308ddbdc45ddb35eab54f254f881b4"
+              }
+            },
+            {
+              "key": "host.arch",
+              "value": {
+                "stringValue": "amd64"
+              }
+            },
+            {
+              "key": "host.cpu.cache.l2.size",
+              "value": {
+                "intValue": "1024"
+              }
+            },
+            {
+              "key": "host.cpu.family",
+              "value": {
+                "stringValue": "26"
+              }
+            },
+            {
+              "key": "host.cpu.model.id",
+              "value": {
+                "stringValue": "36"
+              }
+            },
+            {
+              "key": "host.cpu.model.name",
+              "value": {
+                "stringValue": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M"
+              }
+            },
+            {
+              "key": "host.cpu.stepping",
+              "value": {
+                "stringValue": "0"
+              }
+            },
+            {
+              "key": "host.cpu.vendor.id",
+              "value": {
+                "stringValue": "AuthenticAMD"
+              }
+            },
+            {
+              "key": "host.name",
+              "value": {
+                "stringValue": "docker-desktop"
+              }
+            },
+            {
+              "key": "os.description",
+              "value": {
+                "stringValue": "Linux 53047bb96823 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64"
+              }
+            },
+            {
+              "key": "os.type",
+              "value": {
+                "stringValue": "linux"
+              }
+            },
+            {
+              "key": "os.version",
+              "value": {
+                "stringValue": "6.18.54.1-microsoft-standard-WSL2"
+              }
+            },
+            {
+              "key": "process.command",
+              "value": {
+                "stringValue": "/app/server.js"
+              }
+            },
+            {
+              "key": "process.command_args",
+              "value": {
+                "arrayValue": {
+                  "values": [
+                    {
+                      "stringValue": "/nodejs/bin/node"
+                    },
+                    {
+                      "stringValue": "--require=./Instrumentation.js"
+                    },
+                    {
+                      "stringValue": "/app/server.js"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "process.executable.name",
+              "value": {
+                "stringValue": "/nodejs/bin/node"
+              }
+            },
+            {
+              "key": "process.executable.path",
+              "value": {
+                "stringValue": "/nodejs/bin/node"
+              }
+            },
+            {
+              "key": "process.owner",
+              "value": {
+                "stringValue": "nonroot"
+              }
+            },
+            {
+              "key": "process.pid",
+              "value": {
+                "intValue": "1"
+              }
+            },
+            {
+              "key": "process.runtime.description",
+              "value": {
+                "stringValue": "Node.js"
+              }
+            },
+            {
+              "key": "process.runtime.name",
+              "value": {
+                "stringValue": "nodejs"
+              }
+            },
+            {
+              "key": "process.runtime.version",
+              "value": {
+                "stringValue": "24.22.0"
+              }
+            },
+            {
+              "key": "service.criticality",
+              "value": {
+                "stringValue": "critical"
+              }
+            },
+            {
+              "key": "service.name",
+              "value": {
+                "stringValue": "frontend"
+              }
+            },
+            {
+              "key": "service.namespace",
+              "value": {
+                "stringValue": "opentelemetry-demo"
+              }
+            },
+            {
+              "key": "service.version",
+              "value": {
+                "stringValue": "3.1.0"
+              }
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "value": {
+                "stringValue": "nodejs"
+              }
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "value": {
+                "stringValue": "opentelemetry"
+              }
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "value": {
+                "stringValue": "2.12.0"
+              }
+            }
+          ]
+        },
+        "scopeSpans": [
+          {
+            "scope": {
+              "name": "@opentelemetry/instrumentation-http",
+              "version": "0.223.0"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "2339b5f84420d54c",
+                "parentSpanId": "168ea615b9ecde7c",
+                "flags": 769,
+                "name": "GET /api/cart",
+                "kind": 2,
+                "startTimeUnixNano": "1793020911424000000",
+                "endTimeUnixNano": "1793020911439303098",
+                "attributes": [
+                  {
+                    "key": "client.address",
+                    "value": {
+                      "stringValue": "172.18.0.23"
+                    }
+                  },
+                  {
+                    "key": "http.request.method",
+                    "value": {
+                      "stringValue": "GET"
+                    }
+                  },
+                  {
+                    "key": "http.response.status_code",
+                    "value": {
+                      "intValue": "200"
+                    }
+                  },
+                  {
+                    "key": "http.route",
+                    "value": {
+                      "stringValue": "/api/cart"
+                    }
+                  },
+                  {
+                    "key": "network.peer.address",
+                    "value": {
+                      "stringValue": "172.18.0.23"
+                    }
+                  },
+                  {
+                    "key": "network.peer.port",
+                    "value": {
+                      "intValue": "40514"
+                    }
+                  },
+                  {
+                    "key": "network.protocol.version",
+                    "value": {
+                      "stringValue": "1.1"
+                    }
+                  },
+                  {
+                    "key": "original_span_name",
+                    "value": {
+                      "stringValue": "GET"
+                    }
+                  },
+                  {
+                    "key": "server.address",
+                    "value": {
+                      "stringValue": "frontend-proxy"
+                    }
+                  },
+                  {
+                    "key": "server.port",
+                    "value": {
+                      "intValue": "8080"
+                    }
+                  },
+                  {
+                    "key": "url.path",
+                    "value": {
+                      "stringValue": "/api/cart"
+                    }
+                  },
+                  {
+                    "key": "url.query",
+                    "value": {
+                      "stringValue": "sessionId=ce94be13-87bf-44ce-9dc2-b88d0aec113e&currencyCode=USD"
+                    }
+                  },
+                  {
+                    "key": "url.scheme",
+                    "value": {
+                      "stringValue": "http"
+                    }
+                  },
+                  {
+                    "key": "user_agent.original",
+                    "value": {
+                      "stringValue": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36"
+                    }
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          },
+          {
+            "scope": {
+              "name": "next.js",
+              "version": "16.4.2"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "99a30a7c5961fe9a",
+                "parentSpanId": "1f8174f1b5a7ffdc",
+                "flags": 257,
+                "name": "prepare route module",
+                "kind": 1,
+                "startTimeUnixNano": "1793020911425000000",
+                "endTimeUnixNano": "1793020911425534187",
+                "attributes": [
+                  {
+                    "key": "next.span_category",
+                    "value": {
+                      "stringValue": "nextjs"
+                    }
+                  },
+                  {
+                    "key": "next.span_name",
+                    "value": {
+                      "stringValue": "prepare route module"
+                    }
+                  },
+                  {
+                    "key": "next.span_type",
+                    "value": {
+                      "stringValue": "RouteModule.prepare"
+                    }
+                  }
+                ],
+                "status": {}
+              },
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "7b21d777a624c908",
+                "parentSpanId": "1f8174f1b5a7ffdc",
+                "flags": 257,
+                "name": "executing api route (pages) /api/cart",
+                "kind": 1,
+                "startTimeUnixNano": "1793020911425000000",
+                "endTimeUnixNano": "1793020911438534753",
+                "attributes": [
+                  {
+                    "key": "http.status_code",
+                    "value": {
+                      "intValue": "200"
+                    }
+                  },
+                  {
+                    "key": "next.span_category",
+                    "value": {
+                      "stringValue": "nextjs"
+                    }
+                  },
+                  {
+                    "key": "next.span_name",
+                    "value": {
+                      "stringValue": "executing api route (pages) /api/cart"
+                    }
+                  },
+                  {
+                    "key": "next.span_type",
+                    "value": {
+                      "stringValue": "Node.runHandler"
+                    }
+                  }
+                ],
+                "status": {}
+              },
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "1f8174f1b5a7ffdc",
+                "parentSpanId": "2339b5f84420d54c",
+                "flags": 257,
+                "name": "GET /api/cart",
+                "kind": 2,
+                "startTimeUnixNano": "1793020911424000000",
+                "endTimeUnixNano": "1793020911438659672",
+                "attributes": [
+                  {
+                    "key": "http.method",
+                    "value": {
+                      "stringValue": "GET"
+                    }
+                  },
+                  {
+                    "key": "http.route",
+                    "value": {
+                      "stringValue": "/api/cart"
+                    }
+                  },
+                  {
+                    "key": "http.status_code",
+                    "value": {
+                      "intValue": "200"
+                    }
+                  },
+                  {
+                    "key": "http.target",
+                    "value": {
+                      "stringValue": "/api/cart?sessionId=ce94be13-87bf-44ce-9dc2-b88d0aec113e&currencyCode=USD"
+                    }
+                  },
+                  {
+                    "key": "next.route",
+                    "value": {
+                      "stringValue": "/api/cart"
+                    }
+                  },
+                  {
+                    "key": "next.rsc",
+                    "value": {
+                      "boolValue": false
+                    }
+                  },
+                  {
+                    "key": "next.span_category",
+                    "value": {
+                      "stringValue": "nextjs"
+                    }
+                  },
+                  {
+                    "key": "next.span_name",
+                    "value": {
+                      "stringValue": "GET /api/cart"
+                    }
+                  },
+                  {
+                    "key": "next.span_type",
+                    "value": {
+                      "stringValue": "BaseServer.handleRequest"
+                    }
+                  }
+                ],
+                "status": {}
+              }
+            ]
+          },
+          {
+            "scope": {
+              "name": "@opentelemetry/instrumentation-grpc",
+              "version": "0.223.0"
+            },
+            "spans": [
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "bee6eec7e408f9f9",
+                "parentSpanId": "7b21d777a624c908",
+                "flags": 257,
+                "name": "oteldemo.CartService/GetCart",
+                "kind": 3,
+                "startTimeUnixNano": "1793020911426000000",
+                "endTimeUnixNano": "1793020911431796235",
+                "attributes": [
+                  {
+                    "key": "original_span_name",
+                    "value": {
+                      "stringValue": "grpc.oteldemo.CartService/GetCart"
+                    }
+                  },
+                  {
+                    "key": "rpc.grpc.status_code",
+                    "value": {
+                      "intValue": "0"
+                    }
+                  },
+                  {
+                    "key": "rpc.method",
+                    "value": {
+                      "stringValue": "GetCart"
+                    }
+                  },
+                  {
+                    "key": "rpc.service",
+                    "value": {
+                      "stringValue": "oteldemo.CartService"
+                    }
+                  },
+                  {
+                    "key": "rpc.system",
+                    "value": {
+                      "stringValue": "grpc"
+                    }
+                  },
+                  {
+                    "key": "server.address",
+                    "value": {
+                      "stringValue": "cart"
+                    }
+                  },
+                  {
+                    "key": "server.port",
+                    "value": {
+                      "intValue": "7070"
+                    }
+                  }
+                ],
+                "status": {}
+              },
+              {
+                "traceId": "aaa6c59e166385d4acf2d5c472eb2ebd",
+                "spanId": "52389cbee42d96f4",
+                "parentSpanId": "7b21d777a624c908",
+                "flags": 257,
+                "name": "oteldemo.ProductCatalogService/GetProduct",
+                "kind": 3,
+                "startTimeUnixNano": "1793020911432000000",
+                "endTimeUnixNano": "1793020911438701033",
+                "attributes": [
+                  {
+                    "key": "original_span_name",
+                    "value": {
+                      "stringValue": "grpc.oteldemo.ProductCatalogService/GetProduct"
+                    }
+                  },
+                  {
+                    "key": "rpc.grpc.status_code",
+                    "value": {
+                      "intValue": "0"
+                    }
+                  },
+                  {
+                    "key": "rpc.method",
+                    "value": {
+                      "stringValue": "GetProduct"
+                    }
+                  },
+                  {
+                    "key": "rpc.service",
+                    "value": {
+                      "stringValue": "oteldemo.ProductCatalogService"
+                    }
+                  },
+                  {
+                    "key": "rpc.system",
+                    "value": {
+                      "stringValue": "grpc"
+                    }
+                  },
+                  {
+                    "key": "server.address",
+                    "value": {
+                      "stringValue": "product-catalog"
+                    }
+                  },
+                  {
+                    "key": "server.port",
+                    "value": {
+                      "intValue": "3550"
+                    }
                   }
                 ],
                 "status": {}

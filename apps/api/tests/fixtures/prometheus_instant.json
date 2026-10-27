@@ -5,56 +5,11 @@
     "result": [
       {
         "metric": {
-          "service_name": "load-generator"
+          "service_name": "payment"
         },
         "value": [
-          1792821709.344,
-          "0.13449667206952443"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "frontend-proxy"
-        },
-        "value": [
-          1792821709.344,
-          "0.16208573300686277"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "flagd"
-        },
-        "value": [
-          1792821709.344,
-          "0.003448632617167293"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "frontend"
-        },
-        "value": [
-          1792821709.344,
-          "0"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "recommendation"
-        },
-        "value": [
-          1792821709.344,
-          "0"
-        ]
-      },
-      {
-        "metric": {
-          "service_name": "product-catalog"
-        },
-        "value": [
-          1792821709.344,
-          "0"
+          1793020919.667,
+          "0.003448692083527323"
         ]
       },
       {
@@ -62,7 +17,16 @@
           "service_name": "ad"
         },
         "value": [
-          1792821709.344,
+          1793020919.667,
+          "0"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "frontend-web"
+        },
+        "value": [
+          1793020919.667,
           "0"
         ]
       },
@@ -71,17 +35,44 @@
           "service_name": "checkout"
         },
         "value": [
-          1792821709.344,
-          "0.006897265234334586"
+          1793020919.667,
+          "0"
         ]
       },
       {
         "metric": {
-          "service_name": "payment"
+          "service_name": "flagd"
         },
         "value": [
-          1792821709.344,
-          "0.0033887528594912122"
+          1793020919.667,
+          "0.003448692083527323"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "frontend"
+        },
+        "value": [
+          1793020919.667,
+          "0"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "frontend-proxy"
+        },
+        "value": [
+          1793020919.667,
+          "0"
+        ]
+      },
+      {
+        "metric": {
+          "service_name": "load-generator"
+        },
+        "value": [
+          1793020919.667,
+          "0.0448329970858552"
         ]
       }
     ]

@@ -1,7 +1,7 @@
 [
   {
-    "Id": "5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091",
-    "Created": "2026-10-24T05:04:44.501113452Z",
+    "Id": "0b04c3bdab535ddd48a4f7357062e7cb22d3ea2ecae4a3ae61a35d92ad2b0b81",
+    "Created": "2026-10-25T16:34:12.641882928Z",
     "Path": "/nodejs/bin/node",
     "Args": [
       "index.js"
@@ -13,42 +13,42 @@
       "Restarting": false,
       "OOMKilled": false,
       "Dead": false,
-      "Pid": 24442,
+      "Pid": 30199,
       "ExitCode": 0,
       "Error": "",
-      "StartedAt": "2026-10-24T05:05:21.941135155Z",
-      "FinishedAt": "0001-01-01T00:00:00Z",
+      "StartedAt": "2026-10-26T12:27:29.657759053Z",
+      "FinishedAt": "2026-10-26T12:27:29.185410399Z",
       "Health": {
         "Status": "healthy",
         "FailingStreak": 0,
         "Log": [
           {
-            "Start": "2026-10-24T06:01:19.993498649Z",
-            "End": "2026-10-24T06:01:21.827297966Z",
+            "Start": "2026-10-26T13:21:28.967706509Z",
+            "End": "2026-10-26T13:21:30.547865646Z",
             "ExitCode": 0,
             "Output": ""
           },
           {
-            "Start": "2026-10-24T06:01:26.829837653Z",
-            "End": "2026-10-24T06:01:28.643303455Z",
+            "Start": "2026-10-26T13:21:35.548913483Z",
+            "End": "2026-10-26T13:21:37.512954423Z",
             "ExitCode": 0,
             "Output": ""
           },
           {
-            "Start": "2026-10-24T06:01:33.644221477Z",
-            "End": "2026-10-24T06:01:35.739261818Z",
+            "Start": "2026-10-26T13:21:42.509032829Z",
+            "End": "2026-10-26T13:21:44.155780139Z",
             "ExitCode": 0,
             "Output": ""
           },
           {
-            "Start": "2026-10-24T06:01:40.741613162Z",
-            "End": "2026-10-24T06:01:42.812008906Z",
+            "Start": "2026-10-26T13:21:49.15672006Z",
+            "End": "2026-10-26T13:21:50.839603744Z",
             "ExitCode": 0,
             "Output": ""
           },
           {
-            "Start": "2026-10-24T06:01:47.809257515Z",
-            "End": "2026-10-24T06:01:49.579389227Z",
+            "Start": "2026-10-26T13:21:55.841560176Z",
+            "End": "2026-10-26T13:21:57.434130584Z",
             "ExitCode": 0,
             "Output": ""
           }
@@ -56,10 +56,10 @@
       }
     },
     "Image": "sha256:9380d1f7aa504902abed9b48aabb95641666c26bc2e23cefd6e6ab630293065f",
-    "ResolvConfPath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/resolv.conf",
-    "HostnamePath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/hostname",
-    "HostsPath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/hosts",
-    "LogPath": "/var/lib/docker/containers/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091/5b8299f696d1ca39ff408af4d4fe2a7cd7800ddb1546a7feeb8936fe71a48091-json.log",
+    "ResolvConfPath": "/var/lib/docker/containers/0b04c3bdab535ddd48a4f7357062e7cb22d3ea2ecae4a3ae61a35d92ad2b0b81/resolv.conf",
+    "HostnamePath": "/var/lib/docker/containers/0b04c3bdab535ddd48a4f7357062e7cb22d3ea2ecae4a3ae61a35d92ad2b0b81/hostname",
+    "HostsPath": "/var/lib/docker/containers/0b04c3bdab535ddd48a4f7357062e7cb22d3ea2ecae4a3ae61a35d92ad2b0b81/hosts",
+    "LogPath": "/var/lib/docker/containers/0b04c3bdab535ddd48a4f7357062e7cb22d3ea2ecae4a3ae61a35d92ad2b0b81/0b04c3bdab535ddd48a4f7357062e7cb22d3ea2ecae4a3ae61a35d92ad2b0b81-json.log",
     "Name": "/payment",
     "RestartCount": 0,
     "Driver": "overlayfs",
@@ -101,9 +101,9 @@
       "CapAdd": null,
       "CapDrop": null,
       "CgroupnsMode": "private",
-      "Dns": null,
-      "DnsOptions": null,
-      "DnsSearch": null,
+      "Dns": [],
+      "DnsOptions": [],
+      "DnsSearch": [],
       "ExtraHosts": [],
       "GroupAdd": null,
       "IpcMode": "private",
@@ -180,7 +180,7 @@
     },
     "Mounts": [],
     "Config": {
-      "Hostname": "5b8299f696d1",
+      "Hostname": "0b04c3bdab53",
       "Domainname": "",
       "User": "65532",
       "AttachStdin": false,
@@ -193,16 +193,16 @@
       "OpenStdin": false,
       "StdinOnce": false,
       "Env": [
-        "OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION=explicit_bucket_histogram",
-        "OTEL_RESOURCE_ATTRIBUTES=service.namespace=opentelemetry-demo,service.version=3.1.0,service.criticality=critical",
-        "FLAGD_HOST=flagd",
         "OTEL_SERVICE_NAME=payment",
-        "OTEL_EXPORTER_OTLP_PROTOCOL=grpc",
-        "FLAGD_PORT=8013",
-        "PAYMENT_PORT=50051",
-        "OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317",
         "IPV6_ENABLED=false",
+        "OTEL_RESOURCE_ATTRIBUTES=service.namespace=opentelemetry-demo,service.version=3.1.0,service.criticality=critical",
+        "OTEL_EXPORTER_OTLP_PROTOCOL=grpc",
+        "OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317",
         "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative",
+        "PAYMENT_PORT=50051",
+        "FLAGD_HOST=flagd",
+        "OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION=explicit_bucket_histogram",
+        "FLAGD_PORT=8013",
         "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt",
         "NODE_OPTIONS=--require /otel-auto-instrumentation-nodejs/autoinstrumentation.js"
@@ -231,7 +231,7 @@
       "Labels": {
         "com.docker.compose.config-hash": "5af82915ae454a9aa09f8fb58f8141f6468203750dfa295d602fc6c275449b3d",
         "com.docker.compose.container-number": "1",
-        "com.docker.compose.depends_on": "otel-collector:service_started:false,flagd:service_started:false",
+        "com.docker.compose.depends_on": "flagd:service_started:false,otel-collector:service_started:false",
         "com.docker.compose.image": "sha256:faec3a2ea10dc4f6234c2b3501f55956a5936c143a0c2cbd36d548482653df3a",
         "com.docker.compose.oneoff": "False",
         "com.docker.compose.project": "docock-demo",
@@ -242,42 +242,42 @@
       }
     },
     "NetworkSettings": {
-      "SandboxID": "1c5ead0b1659300ed90d653a42cb3c9cb939d87ebc1c17a2448e6da4a705ea27",
-      "SandboxKey": "/var/run/docker/netns/1c5ead0b1659",
+      "SandboxID": "f3986efdf2c04d76bf29ad929810f89215cc86f3b01cfd76531c3d2610370804",
+      "SandboxKey": "/var/run/docker/netns/f3986efdf2c0",
       "Ports": {
         "50051/tcp": [
           {
             "HostIp": "0.0.0.0",
-            "HostPort": "6428"
+            "HostPort": "6671"
           },
           {
             "HostIp": "::",
-            "HostPort": "6428"
+            "HostPort": "6671"
           }
         ]
       },
       "Networks": {
         "opentelemetry-demo": {
-          "IPAMConfig": null,
+          "IPAMConfig": {},
           "Links": null,
           "Aliases": [
             "payment",
-            "payment"
+            "0b04c3bdab53"
           ],
-          "DriverOpts": null,
+          "DriverOpts": {},
           "GwPriority": 0,
-          "NetworkID": "107129adf870b83acca553202c45d52f61cf2ad288108d00f5cfeb840ef3af90",
-          "EndpointID": "8464cfcb80c61d46f82b76b98ea7c1a375b71bedc0acd40a3aed08ea6d3dca78",
+          "NetworkID": "4d58df45df833f534d3c7e3784e8a90838960905bc8dba81b1715634fe454852",
+          "EndpointID": "39fb6a572ac1322c9f9c6c9b1adaa5914b842e20f468aa5ea9b530e0793a36c3",
           "Gateway": "172.18.0.1",
-          "IPAddress": "172.18.0.16",
-          "MacAddress": "aa:54:54:2d:18:7c",
+          "IPAddress": "172.18.0.22",
+          "MacAddress": "f2:4c:85:4a:82:8b",
           "IPPrefixLen": 16,
           "IPv6Gateway": "",
           "GlobalIPv6Address": "",
           "GlobalIPv6PrefixLen": 0,
           "DNSNames": [
             "payment",
-            "5b8299f696d1"
+            "0b04c3bdab53"
           ]
         }
       }

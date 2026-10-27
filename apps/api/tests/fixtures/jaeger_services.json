@@ -1,22 +1,22 @@
 {
   "services": [
-    "shipping",
-    "telemetry-docs",
-    "cart",
-    "flagd-ui",
+    "flagd",
     "frontend-web",
-    "quote",
-    "recommendation",
-    "frontend",
-    "load-generator",
-    "checkout",
-    "payment",
-    "ad",
-    "frontend-proxy",
     "currency",
     "email",
+    "checkout",
+    "cart",
+    "flagd-ui",
+    "frontend-proxy",
+    "shipping",
+    "frontend",
+    "load-generator",
     "image-provider",
-    "flagd",
-    "product-catalog"
+    "ad",
+    "recommendation",
+    "quote",
+    "product-catalog",
+    "telemetry-docs",
+    "payment"
   ]
 }
