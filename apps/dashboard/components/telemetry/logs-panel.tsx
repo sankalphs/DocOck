@@ -100,7 +100,7 @@ export function LogsPanel({
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Service
             <select
               value={service}
@@ -115,7 +115,7 @@ export function LogsPanel({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Severity
             <select
               value={effectiveLevel}
@@ -129,7 +129,7 @@ export function LogsPanel({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Contains
             <input
               type="search"
@@ -140,7 +140,7 @@ export function LogsPanel({
               className="h-8 rounded-md border border-input bg-card px-2 text-xs text-foreground placeholder:text-muted-foreground/60"
             />
           </label>
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             Lookback
             <select
               value={lookback}

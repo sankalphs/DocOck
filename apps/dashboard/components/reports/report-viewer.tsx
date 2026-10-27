@@ -224,7 +224,7 @@ function Header({ report }: { report: IncidentReport }) {
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className={`truncate ${mono ? "font-mono" : ""}`}>{value}</dd>
     </div>
   );
@@ -361,7 +361,7 @@ function SampleStrip({
                 ? "bg-muted"
                 : sample.failing?.length
                   ? "bg-destructive/70"
-                  : "bg-emerald-500/80"
+                  : "bg-leaf-strong"
             }`}
           />
         ))}

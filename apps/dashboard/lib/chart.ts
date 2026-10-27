@@ -110,12 +110,12 @@ export function worstService(series: MetricSeries[]): string | null {
 
 /** Chart colour palette, stable per series index. */
 export const SERIES_COLORS = [
-  "#60a5fa",
-  "#f472b6",
-  "#34d399",
-  "#fbbf24",
-  "#a78bfa",
-  "#22d3ee",
-  "#fb7185",
-  "#4ade80",
+  "#4f9a3a",
+  "#d9506c",
+  "#2a8c8c",
+  "#c7891a",
+  "#4f78a8",
+  "#9a6b3f",
+  "#a8445e",
+  "#7c8f2a",
 ];

@@ -29,7 +29,7 @@ export type NavItem = {
  */
 export const NAV_ITEMS: NavItem[] = [
   {
-    href: "/",
+    href: "/dashboard",
     label: "Overview",
     blurb: "Stack health, traffic KPIs, and the live event stream.",
     icon: LayoutDashboard,
@@ -110,9 +110,13 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+/** The landing page lives at "/" outside the console shell. */
+export const LANDING_PATH = "/";
+
+export function isNavItemActive(item: NavItem, pathname: string): boolean {
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
 export function navItemFor(pathname: string): NavItem {
-  if (pathname === "/") return NAV_ITEMS[0];
-  return (
-    NAV_ITEMS.find((item) => item.href !== "/" && pathname.startsWith(item.href)) ?? NAV_ITEMS[0]
-  );
+  return NAV_ITEMS.find((item) => isNavItemActive(item, pathname)) ?? NAV_ITEMS[0];
 }

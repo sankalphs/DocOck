@@ -124,7 +124,7 @@ export function FaultLab() {
                 <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                 <span>
                   {notice}{" "}
-                  <Link href="/" className="underline underline-offset-2">
+                  <Link href="/dashboard" className="underline underline-offset-2">
                     watch the overview charts
                   </Link>
                   .

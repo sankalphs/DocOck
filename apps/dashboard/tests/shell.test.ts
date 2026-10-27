@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { EVENT_TYPES, eventGroup } from "@/lib/events";
-import { NAV_ITEMS, navItemFor } from "@/lib/nav";
+import { NAV_ITEMS, isNavItemActive, navItemFor } from "@/lib/nav";
 
 describe("EVENT_TYPES", () => {
   it("is unique", () => {
@@ -55,9 +55,15 @@ describe("navigation", () => {
   });
 
   it("resolves nested paths to their section", () => {
-    expect(navItemFor("/").label).toBe("Overview");
+    expect(navItemFor("/dashboard").label).toBe("Overview");
     expect(navItemFor("/telemetry").label).toBe("Telemetry");
     expect(navItemFor("/incidents/INC-00042").label).toBe("Incidents");
     expect(navItemFor("/nope").label).toBe("Overview");
+  });
+
+  it("does not match a section by a shared prefix", () => {
+    expect(isNavItemActive(NAV_ITEMS[1], "/faults")).toBe(true);
+    expect(isNavItemActive(NAV_ITEMS[1], "/faultsy")).toBe(false);
+    expect(isNavItemActive(NAV_ITEMS[0], "/")).toBe(false);
   });
 });

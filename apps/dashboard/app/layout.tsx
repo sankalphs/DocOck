@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/shell/app-shell";
 import "./globals.css";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "DocOck — Incident Response Lab", template: "%s · DocOck" },
@@ -12,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={jakarta.variable}>
       <body className="min-h-screen antialiased">
         <AppShell>{children}</AppShell>
       </body>

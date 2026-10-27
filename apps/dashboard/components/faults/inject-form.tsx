@@ -148,7 +148,7 @@ export function InjectForm({
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:col-span-2">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">
             Fault
             <select
               value={faultId}
@@ -197,7 +197,7 @@ export function InjectForm({
           </div>
 
           {definition.target_mode === "choice" ? (
-            <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Target
               <select
                 value={target}
@@ -214,7 +214,7 @@ export function InjectForm({
               </select>
             </label>
           ) : (
-            <div className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <div className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Target
               <div className="flex h-8 items-center gap-2 rounded-md border border-border bg-muted/30 px-2 text-xs normal-case tracking-normal text-foreground">
                 <span className="font-mono">{definition.target}</span>
@@ -226,7 +226,7 @@ export function InjectForm({
           {definition.params.map((param) => (
             <label
               key={param.name}
-              className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground"
+              className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
             >
               {param.label}
               {param.kind === "number" ? (
@@ -272,7 +272,7 @@ export function InjectForm({
             </label>
           ))}
 
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             TTL (seconds)
             <input
               type="number"

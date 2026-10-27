@@ -36,7 +36,7 @@ export function ServicesPanel({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="gap-1 py-4">
           <CardHeader className="pb-0">
-            <CardTitle className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Services
             </CardTitle>
           </CardHeader>
@@ -51,7 +51,7 @@ export function ServicesPanel({
         </Card>
         <Card className="gap-1 py-4">
           <CardHeader className="pb-0">
-            <CardTitle className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Unhealthy
             </CardTitle>
           </CardHeader>
@@ -64,7 +64,7 @@ export function ServicesPanel({
         </Card>
         <Card className="gap-1 py-4">
           <CardHeader className="pb-0">
-            <CardTitle className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Busiest
             </CardTitle>
           </CardHeader>
@@ -79,7 +79,7 @@ export function ServicesPanel({
         </Card>
         <Card className="gap-1 py-4">
           <CardHeader className="pb-0">
-            <CardTitle className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
               Slowest p95
             </CardTitle>
           </CardHeader>

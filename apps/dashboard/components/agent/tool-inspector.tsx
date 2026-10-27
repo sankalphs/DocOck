@@ -63,13 +63,13 @@ export function ToolInspector({
               </div>
             ) : null}
             <div>
-              <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
                 {step.kind === "tool" ? "arguments" : "input"}
               </p>
               <Json value={step.input} />
             </div>
             <div>
-              <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
                 output (trimmed to 4000 chars per field)
               </p>
               <Json value={step.output} />

@@ -16,7 +16,8 @@ scripts\health.ps1                                        # every row OK
 
 - Wait at least 5 minutes after starting the API: the detector learns its
   baselines during a 300 s warm-up and opens no incident before that.
-- Open <http://127.0.0.1:3001>. The Overview should show all services green, no
+- Open <http://127.0.0.1:3001> and press **Open the dashboard** (or go straight to
+  <http://127.0.0.1:3001/dashboard>). The Overview should show all services green, no
   active fault, no open incident. If an old fault is active, press
   **Reset all** in the Fault Lab.
 - The default model provider is the offline `stub`; nothing leaves the machine.

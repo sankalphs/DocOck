@@ -1,18 +1,11 @@
 import type { Metadata } from "next";
 
-import { OverviewDashboard } from "@/components/overview/overview-dashboard";
-import { PageHeader } from "@/components/shell/page-header";
+import { Landing } from "@/components/landing/landing";
 
-export const metadata: Metadata = { title: "Overview" };
+export const metadata: Metadata = {
+  title: { absolute: "DocOck — Break the stack. Ock finds why." },
+};
 
-export default function OverviewPage() {
-  return (
-    <>
-      <PageHeader
-        title="Overview"
-        description="Live KPIs from the OpenTelemetry demo: error rate, latency, and throughput per service, with the container health behind them."
-      />
-      <OverviewDashboard />
-    </>
-  );
+export default function LandingPage() {
+  return <Landing />;
 }

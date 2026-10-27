@@ -35,7 +35,7 @@ function DependencyChip({
     <span
       title={detail}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] transition-colors duration-300",
         tone.surface,
       )}
     >
@@ -58,12 +58,12 @@ export function StatusHeader({ onMenu }: { onMenu: () => void }) {
   const streamState = STREAM_LABEL[stream.status];
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/80 bg-background/85 backdrop-blur-xl">
-      <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 border-b bg-background">
+      <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={onMenu}
-          className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"
+          className="press grid size-9 place-items-center rounded-full border text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"
           aria-label="Open navigation"
         >
           <span className="flex flex-col gap-0.5">
@@ -73,15 +73,15 @@ export function StatusHeader({ onMenu }: { onMenu: () => void }) {
           </span>
         </button>
 
-        <div className="min-w-0 text-[13px]">
+        <div className="min-w-0 text-sm">
           <span className="hidden text-muted-foreground sm:inline">DocOck / </span>
-          <span className="font-medium">{section.label}</span>
+          <span className="font-semibold">{section.label}</span>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
           <div
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide",
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-300",
               overall.surface,
             )}
             title={health.error ?? "Overall stack status from /api/health"}
@@ -96,11 +96,11 @@ export function StatusHeader({ onMenu }: { onMenu: () => void }) {
           </div>
 
           <div
-            className="hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] sm:inline-flex"
+            className="hidden items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs sm:inline-flex"
             title={`SSE ${API_BASE_URL}/api/events`}
           >
             <span className={cn("size-1.5 rounded-full", streamState.dot)} aria-hidden />
-            <span className={cn("font-medium uppercase tracking-wide", streamState.className)}>
+            <span className={cn("font-medium", streamState.className)}>
               {streamState.text}
             </span>
             {stream.lastEventAt ? (
@@ -116,7 +116,7 @@ export function StatusHeader({ onMenu }: { onMenu: () => void }) {
             onClick={health.refresh}
             title={`Re-check dependencies (${API_BASE_URL})`}
             aria-label="Re-check dependencies"
-            className="size-8"
+            className="press size-9 rounded-full"
           >
             <RefreshCw className={cn("size-3.5", health.loading && "animate-spin")} />
           </Button>
@@ -159,10 +159,10 @@ export function StatusHeader({ onMenu }: { onMenu: () => void }) {
           </>
         )}
         <Link
-          href="/"
-          className="ml-auto hidden shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline md:block"
+          href="/dashboard"
+          className="ml-auto hidden shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline md:block"
         >
-          status
+          overview
         </Link>
       </div>
     </header>

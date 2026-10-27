@@ -82,7 +82,7 @@ export function DiagnosisCard({
             <p className="leading-relaxed">{diagnosis.summary}</p>
 
             <div>
-              <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
                 citations ({cited.length})
               </p>
               <div className="flex flex-wrap gap-1">
@@ -118,7 +118,7 @@ export function DiagnosisCard({
 
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
                   affected services
                 </p>
                 <div className="flex flex-wrap gap-1">
@@ -130,7 +130,7 @@ export function DiagnosisCard({
                 </div>
               </div>
               <div>
-                <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
                   recommended action (not executed)
                 </p>
                 <code className="font-mono text-[11px]">
@@ -142,7 +142,7 @@ export function DiagnosisCard({
 
             {diagnosis.alternative_hypotheses.length > 0 ? (
               <div>
-                <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
                   alternatives
                 </p>
                 <ul className="space-y-0.5">

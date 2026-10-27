@@ -337,7 +337,7 @@ export function AgentWorkspace({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border/60 px-2 py-1.5">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="tabular truncate font-mono">{value}</p>
     </div>
   );

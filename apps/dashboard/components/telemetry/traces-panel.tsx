@@ -83,7 +83,7 @@ export function TracesPanel({
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Service
               <select
                 value={service}
@@ -98,7 +98,7 @@ export function TracesPanel({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Lookback
               <select
                 value={lookback}
@@ -112,7 +112,7 @@ export function TracesPanel({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
               Min duration (ms)
               <input
                 type="number"

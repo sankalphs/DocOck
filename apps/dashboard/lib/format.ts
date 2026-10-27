@@ -58,7 +58,7 @@ const TONES: Record<string, Tone> = {
     label: "Down",
     dot: "bg-destructive",
     text: "text-destructive",
-    surface: "bg-destructive/10 border-destructive/30",
+    surface: "bg-blush/60 border-rose/60",
   },
   unconfigured: {
     label: "Not configured",

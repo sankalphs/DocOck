@@ -24,7 +24,7 @@ function StatCard({ label, icon: Icon, value, detail, status, loading }: StatCar
   return (
     <Card className="gap-3 py-4">
       <CardHeader className="pb-0">
-        <CardTitle className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Icon className="size-3.5" aria-hidden />
           {label}
         </CardTitle>

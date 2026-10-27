@@ -81,7 +81,7 @@ export function TraceWaterfall({
                   >
                     <span
                       className="size-1.5 shrink-0 rounded-full"
-                      style={{ background: services.get(span.service) ?? "#60a5fa" }}
+                      style={{ background: services.get(span.service) ?? SERIES_COLORS[0] }}
                     />
                     <span className="shrink-0 text-[10px] text-muted-foreground">
                       {span.service}
