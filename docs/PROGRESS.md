@@ -24,7 +24,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P13 | Agent UI | DONE | b418fa9 |
 | P14 | Remediation + approval | DONE | 473dc80 |
 | P15 | Verification + reports | DONE | ead14e4 |
-| P16 | Hardening + evaluation | DONE | (pending) |
+| P16 | Hardening + evaluation | DONE | 6bcc21d |
 
 ## Milestones
 
