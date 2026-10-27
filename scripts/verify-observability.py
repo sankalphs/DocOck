@@ -115,8 +115,9 @@ def inject() -> int:
             seen["traces"] = elapsed
         if "logs" not in seen and logs > 0:
             seen["logs"] = elapsed
+        rate = None if metrics_value is None else round(metrics_value * 100, 1)
         print(
-            f"  t+{elapsed:5.1f}s  payment error_rate={metrics_value if metrics_value is None else round(metrics_value * 100, 1)}%"
+            f"  t+{elapsed:5.1f}s  payment error_rate={rate}%"
             f"  error_traces={traces}  error_logs={logs}"
         )
         if len(seen) < 3:

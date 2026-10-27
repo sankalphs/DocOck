@@ -1,0 +1,1030 @@
+{
+  "generated_at": "2026-10-26T19:51:35.467683+00:00",
+  "passed": 9,
+  "total": 9,
+  "agent_passed": 9,
+  "invalid_evidence_codes": 0,
+  "remediation_passed": 9,
+  "results": [
+    {
+      "id": "S1",
+      "name": "payment failure",
+      "expected": "payment",
+      "incident": "INC-00212",
+      "primary_service": "payment",
+      "detected_s": 90.20300000000861,
+      "top": "payment",
+      "score": 0.4805,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4805
+        },
+        {
+          "service": "checkout",
+          "score": 0.2092
+        },
+        {
+          "service": "frontend",
+          "score": 0.1551
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1551
+        }
+      ],
+      "evidence": 41,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 65,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.98,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "clear_feature_flag"
+        },
+        "cited": [
+          "E0039",
+          "E0011",
+          "E0003",
+          "E0006",
+          "E0019",
+          "E0002",
+          "E0001"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 2,
+        "latency_ms": 13969,
+        "cost_usd": 0.00152,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "clear_feature_flag on payment",
+        "approval_id": 50,
+        "action": "clear_feature_flag on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.7,
+        "final_status": "RESOLVED",
+        "remediate_s": 120.7,
+        "verdict": "PASSED",
+        "observed_for_s": 116,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 10,
+          "cited_evidence": 7,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 3,
+          "before_after_services": [
+            "checkout",
+            "payment"
+          ],
+          "markdown_bytes": 12414,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 260.2,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S2",
+      "name": "catalog lock contention",
+      "expected": "product-catalog",
+      "incident": "INC-00213",
+      "primary_service": "recommendation",
+      "detected_s": 158.13999999998487,
+      "top": "product-catalog",
+      "score": 0.3141,
+      "ranking": [
+        {
+          "service": "product-catalog",
+          "score": 0.3141
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1466
+        },
+        {
+          "service": "frontend",
+          "score": 0.1192
+        },
+        {
+          "service": "recommendation",
+          "score": 0.1031
+        },
+        {
+          "service": "checkout",
+          "score": 0.0989
+        },
+        {
+          "service": "quote",
+          "score": 0.0981
+        },
+        {
+          "service": "shipping",
+          "score": 0.0741
+        },
+        {
+          "service": "payment",
+          "score": 0.0136
+        }
+      ],
+      "evidence": 54,
+      "error": null,
+      "note": "the only ERROR is the proxy's 15 s timeout; the delay is product-catalog's DB call",
+      "agent": {
+        "run_id": 66,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "product-catalog",
+        "fault_class": "application_error",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "product-catalog",
+          "action_id": "clear_feature_flag"
+        },
+        "cited": [
+          "E0027",
+          "E0029",
+          "E0009",
+          "E0023",
+          "E0052",
+          "E0048",
+          "E0031",
+          "E0032"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 3,
+        "llm_calls": 3,
+        "latency_ms": 12312,
+        "cost_usd": 0.002445,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "clear_feature_flag on product-catalog",
+        "approval_id": 51,
+        "action": "clear_feature_flag on product-catalog",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.3,
+        "final_status": "RESOLVED",
+        "remediate_s": 195.1,
+        "verdict": "PASSED",
+        "observed_for_s": 188,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 14,
+          "cited_evidence": 8,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 3,
+          "before_after_services": [
+            "checkout",
+            "frontend",
+            "frontend-proxy",
+            "product-catalog",
+            "recommendation"
+          ],
+          "markdown_bytes": 14905,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 404.1,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S3",
+      "name": "payment unreachable",
+      "expected": "payment",
+      "incident": "INC-00215",
+      "primary_service": "checkout",
+      "detected_s": 112.25,
+      "top": "payment",
+      "score": 0.3935,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.3935
+        },
+        {
+          "service": "checkout",
+          "score": 0.2689
+        },
+        {
+          "service": "frontend",
+          "score": 0.1534
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.152
+        },
+        {
+          "service": "shipping",
+          "score": 0.0321
+        }
+      ],
+      "evidence": 42,
+      "error": null,
+      "note": "enforced in checkout (badAddress:50051), so the symptom is a silent peer",
+      "agent": {
+        "run_id": 67,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "configuration",
+        "confidence": 0.92,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "clear_feature_flag"
+        },
+        "cited": [
+          "E0014",
+          "E0040",
+          "E0004",
+          "E0009",
+          "E0010",
+          "E0002",
+          "E0003"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 5,
+        "llm_calls": 4,
+        "latency_ms": 12967,
+        "cost_usd": 0.003211,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "clear_feature_flag on payment",
+        "approval_id": 52,
+        "action": "clear_feature_flag on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.8,
+        "final_status": "RESOLVED",
+        "remediate_s": 228.2,
+        "verdict": "PASSED",
+        "observed_for_s": 221,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 12,
+          "cited_evidence": 7,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 3,
+          "before_after_services": [
+            "checkout",
+            "payment"
+          ],
+          "markdown_bytes": 13006,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 399.3,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S4",
+      "name": "slow image loading",
+      "expected": "frontend",
+      "incident": "INC-00216",
+      "primary_service": "frontend-proxy",
+      "detected_s": 146.10899999999674,
+      "top": "frontend",
+      "score": 0.5479,
+      "ranking": [
+        {
+          "service": "frontend",
+          "score": 0.5479
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.2373
+        },
+        {
+          "service": "image-provider",
+          "score": 0.163
+        },
+        {
+          "service": "quote",
+          "score": 0.0193
+        },
+        {
+          "service": "checkout",
+          "score": 0.0177
+        },
+        {
+          "service": "shipping",
+          "score": 0.0147
+        }
+      ],
+      "evidence": 34,
+      "error": null,
+      "note": "the delay is applied by the frontend's ProductCard",
+      "agent": {
+        "run_id": 68,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "frontend",
+        "fault_class": "application_error",
+        "confidence": 0.92,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "frontend",
+          "action_id": "clear_feature_flag"
+        },
+        "cited": [
+          "E0032",
+          "E0035",
+          "E0001",
+          "E0008",
+          "E0010",
+          "E0037",
+          "E0023",
+          "E0024"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 4,
+        "latency_ms": 13608,
+        "cost_usd": 0.002945,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "clear_feature_flag on frontend",
+        "approval_id": 53,
+        "action": "clear_feature_flag on frontend",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.1,
+        "final_status": "RESOLVED",
+        "remediate_s": 119.0,
+        "verdict": "PASSED",
+        "observed_for_s": 114,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 8,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 3,
+          "before_after_services": [
+            "frontend",
+            "frontend-proxy"
+          ],
+          "markdown_bytes": 11937,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 317.5,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S5",
+      "name": "email service down",
+      "expected": "email",
+      "incident": "INC-00217",
+      "primary_service": "email",
+      "detected_s": 39.812999999994645,
+      "top": "email",
+      "score": 0.6767,
+      "ranking": [
+        {
+          "service": "email",
+          "score": 0.6767
+        },
+        {
+          "service": "checkout",
+          "score": 0.3233
+        }
+      ],
+      "evidence": 32,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 69,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "email",
+        "fault_class": "dependency_unavailable",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0020",
+          "E0030",
+          "E0033",
+          "E0034",
+          "E0002",
+          "E0006",
+          "E0014",
+          "E0003",
+          "E0004",
+          "E0001"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 3,
+        "llm_calls": 2,
+        "latency_ms": 10405,
+        "cost_usd": 0.001319,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on email",
+        "approval_id": 54,
+        "action": "reset_fault on email",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 3.0,
+        "final_status": "RESOLVED",
+        "remediate_s": 48.6,
+        "verdict": "PASSED",
+        "observed_for_s": 42,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 10,
+          "cited_evidence": 10,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "email"
+          ],
+          "markdown_bytes": 11536,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 129.8,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S6",
+      "name": "ad CPU pressure",
+      "expected": "ad",
+      "incident": "INC-00219",
+      "primary_service": "ad",
+      "detected_s": 34.07799999997951,
+      "top": "ad",
+      "score": 0.4555,
+      "ranking": [
+        {
+          "service": "ad",
+          "score": 0.4555
+        },
+        {
+          "service": "checkout",
+          "score": 0.3225
+        },
+        {
+          "service": "email",
+          "score": 0.1268
+        },
+        {
+          "service": "payment",
+          "score": 0.0952
+        }
+      ],
+      "evidence": 23,
+      "error": null,
+      "note": "ad uses 1.3 % CPU at this cap; the limit itself is the only symptom",
+      "agent": {
+        "run_id": 70,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "ad",
+        "fault_class": "resource_exhaustion",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "ad",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0022",
+          "E0008",
+          "E0024",
+          "E0025"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 6,
+        "llm_calls": 3,
+        "latency_ms": 12391,
+        "cost_usd": 0.001739,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on ad",
+        "approval_id": 55,
+        "action": "reset_fault on ad",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.1,
+        "final_status": "RESOLVED",
+        "remediate_s": 48.1,
+        "verdict": "PASSED",
+        "observed_for_s": 40,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 4,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "ad"
+          ],
+          "markdown_bytes": 9207,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 129.8,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S7",
+      "name": "payment network partition",
+      "expected": "payment",
+      "incident": "INC-00220",
+      "primary_service": "payment",
+      "detected_s": 34.437999999994645,
+      "top": "payment",
+      "score": 1.0,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 1.0
+        }
+      ],
+      "evidence": 19,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 71,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "network",
+        "confidence": 0.98,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0013",
+          "E0018",
+          "E0020",
+          "E0021"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 2,
+        "latency_ms": 10592,
+        "cost_usd": 0.001086,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on payment",
+        "approval_id": 56,
+        "action": "reset_fault on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.3,
+        "final_status": "RESOLVED",
+        "remediate_s": 48.0,
+        "verdict": "PASSED",
+        "observed_for_s": 42,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 4,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "payment"
+          ],
+          "markdown_bytes": 8610,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 128.2,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S8",
+      "name": "traffic flood",
+      "expected": "frontend",
+      "incident": "INC-00222",
+      "primary_service": "frontend",
+      "detected_s": 98.28100000001723,
+      "top": "frontend",
+      "score": 0.7538,
+      "ranking": [
+        {
+          "service": "frontend",
+          "score": 0.7538
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1433
+        },
+        {
+          "service": "payment",
+          "score": 0.1029
+        }
+      ],
+      "evidence": 35,
+      "error": null,
+      "note": "catalog target is frontend; PLAN \u00a717 expected frontend-proxy",
+      "agent": {
+        "run_id": 72,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "frontend",
+        "fault_class": "traffic",
+        "confidence": 0.96,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "frontend",
+          "action_id": "clear_feature_flag"
+        },
+        "cited": [
+          "E0034",
+          "E0002",
+          "E0004",
+          "E0037",
+          "E0038",
+          "E0003",
+          "E0025"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 5,
+        "llm_calls": 2,
+        "latency_ms": 6655,
+        "cost_usd": 0.001446,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "clear_feature_flag on frontend",
+        "approval_id": 57,
+        "action": "clear_feature_flag on frontend",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.0,
+        "final_status": "RESOLVED",
+        "remediate_s": 107.1,
+        "verdict": "PASSED",
+        "observed_for_s": 101,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 7,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 3,
+          "before_after_services": [
+            "frontend"
+          ],
+          "markdown_bytes": 11811,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 248.0,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "W1",
+      "name": "payment failure, wrong action",
+      "expected": "payment",
+      "incident": "INC-00223",
+      "primary_service": "payment",
+      "detected_s": 98.26600000000326,
+      "top": "payment",
+      "score": 0.4613,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4613
+        },
+        {
+          "service": "checkout",
+          "score": 0.2033
+        },
+        {
+          "service": "frontend",
+          "score": 0.1538
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1535
+        },
+        {
+          "service": "email",
+          "score": 0.0282
+        }
+      ],
+      "evidence": 39,
+      "error": null,
+      "note": "operator replaces reset_fault with restart_service payment",
+      "agent": {
+        "run_id": 73,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0037",
+          "E0010",
+          "E0002",
+          "E0005",
+          "E0017",
+          "E0032"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 2,
+        "llm_calls": 3,
+        "latency_ms": 15937,
+        "cost_usd": 0.002083,
+        "model": "meta/muse-spark-1.3-contributor"
+      },
+      "final_status": "ESCALATED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "FAILED",
+        "proposed": "reset_fault on payment",
+        "approval_id": 59,
+        "action": "restart_service on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 26.2,
+        "final_status": "ESCALATED",
+        "remediate_s": 447.4,
+        "verdict": "FAILED",
+        "observed_for_s": 420,
+        "failing": [],
+        "rollback": "not needed: the container is running",
+        "report": {
+          "timeline": 14,
+          "cited_evidence": 6,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 4,
+          "before_after_services": [
+            "checkout",
+            "payment"
+          ],
+          "markdown_bytes": 12989,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 610.5,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    }
+  ],
+  "stats": {
+    "generated_at": "2026-10-26T19:51:35.402497Z",
+    "since": "2026-10-26T17:51:35.402497Z",
+    "window_h": 2,
+    "agent": {
+      "runs": 11,
+      "by_status": {
+        "DIAGNOSED": 10,
+        "ESCALATED": 1
+      },
+      "latency_ms": {
+        "count": 11,
+        "p50": 12967.0,
+        "p95": 31171.0,
+        "max": 31171.0,
+        "mean": 13916.8
+      },
+      "tokens_in": 177331,
+      "tokens_out": 10558,
+      "cost_usd": 0.017794,
+      "spent_today_usd": 0.017794,
+      "daily_budget_usd": 2.0,
+      "budget_used": 0.0089,
+      "models": [
+        {
+          "provider": "stub",
+          "model": "stub-deterministic-v1",
+          "runs": 2,
+          "tokens_in": 19686,
+          "tokens_out": 411,
+          "cost_usd": 0.0,
+          "latency_ms": {
+            "count": 2,
+            "p50": 13078.0,
+            "p95": 31171.0,
+            "max": 31171.0,
+            "mean": 22124.5
+          }
+        },
+        {
+          "provider": "zenmux",
+          "model": "meta/muse-spark-1.3-contributor",
+          "runs": 9,
+          "tokens_in": 157645,
+          "tokens_out": 10147,
+          "cost_usd": 0.017794,
+          "latency_ms": {
+            "count": 9,
+            "p50": 12391.0,
+            "p95": 15937.0,
+            "max": 15937.0,
+            "mean": 12092.9
+          }
+        }
+      ]
+    },
+    "incidents": {
+      "opened": 17,
+      "by_status": {
+        "ESCALATED": 6,
+        "RESOLVED": 11
+      },
+      "open": 0,
+      "time_to_close_s": {
+        "count": 17,
+        "p50": 91.529058,
+        "p95": 510.766684,
+        "max": 510.766684,
+        "mean": 129.6
+      }
+    },
+    "remediation": {
+      "actions": 11,
+      "by_status": {
+        "EXECUTED": 10,
+        "WITHDRAWN": 1
+      },
+      "approvals": {
+        "APPROVED": 10,
+        "WITHDRAWN": 1
+      },
+      "verdicts": {
+        "FAILED": 1,
+        "PASSED": 9
+      },
+      "verification_s": {
+        "count": 10,
+        "p50": 101.0,
+        "p95": 420.0,
+        "max": 420.0,
+        "mean": 132.9
+      }
+    },
+    "rate_limits": {
+      "enabled": true,
+      "rejected": 0,
+      "rules": [
+        {
+          "name": "fault_inject",
+          "pattern": "^/api/faults$",
+          "limit": 10,
+          "window_s": 60.0
+        },
+        {
+          "name": "faults",
+          "pattern": "^/api/faults/",
+          "limit": 30,
+          "window_s": 60.0
+        },
+        {
+          "name": "investigate",
+          "pattern": "^/api/incidents/[^/]+/(investigate|analyze)$",
+          "limit": 10,
+          "window_s": 60.0
+        },
+        {
+          "name": "approvals",
+          "pattern": "^/api/(approvals/\\d+/|incidents/[^/]+/approvals$)",
+          "limit": 30,
+          "window_s": 60.0
+        },
+        {
+          "name": "settings",
+          "pattern": "^/api/settings",
+          "limit": 20,
+          "window_s": 60.0
+        },
+        {
+          "name": "memory",
+          "pattern": "^/api/memory/",
+          "limit": 20,
+          "window_s": 60.0
+        },
+        {
+          "name": "writes",
+          "pattern": "^/api/",
+          "limit": 120,
+          "window_s": 60.0
+        }
+      ]
+    }
+  }
+}

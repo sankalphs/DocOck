@@ -152,6 +152,10 @@ class Settings(BaseSettings):
 
     # --- Analysis (P9) ------------------------------------------------------
     analysis_pre_s: int = 300
+    # A request in flight when the incident opens reaches Jaeger only when it
+    # ends: up to the proxy's 15 s timeout plus the exporter's batch delay. The
+    # first analysis of a younger incident waits until it is this old.
+    analysis_trace_settle_s: int = 30
     analysis_max_traces: int = 25
     analysis_max_logs_per_service: int = 100
     suspect_weight_error_origin: float = 0.30

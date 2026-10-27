@@ -38,6 +38,9 @@ INJECTED_FLAGS = frozenset({"DI", "FI"})
 EDGE_PROXY = "frontend-proxy"
 EDGE_CLIENT = "frontend-web"
 PRE_OPEN_S = 240
+# A callee span that closes within this of its caller's timeout was cancelled
+# with it (S7: the frontend span ends 4 ms before the proxy's 15 s timeout).
+CANCEL_TOLERANCE_MS = 50.0
 # frontend-proxy routes that reach the lab's own machinery (envoy.tmpl.yaml).
 # The browser's flagd event stream is the main one: a long-lived POST whose
 # duration is the stream's lifetime, so it looked like a 15 s "slow" span that
@@ -151,22 +154,8 @@ def _trace_slice(detail: TraceDetail) -> tuple[list[SpanNode], dict[str, list[Sp
     return spans, children
 
 
-def _downstream_origin(
-    span: SpanNode,
-    children: dict[str, list[SpanNode]],
-    known: list[str],
-    catalog_services: set[str],
-    server_services: set[str],
-) -> str:
-    """Where the time in a timed-out span actually went.
-
-    A proxy or a caller is often the only span marked ERROR: it gave up after a
-    timeout while the callee kept working. Walking down the child that owns most
-    of the parent's duration follows the delay to its source. A chain that ends
-    at a client span with no SERVER span for its peer is the "silent peer" case
-    (only catalog services qualify; a database that never emits a span is
-    infrastructure, not a suspect).
-    """
+def _time_sink(span: SpanNode, children: dict[str, list[SpanNode]]) -> SpanNode:
+    """The span reached by walking down the child that owns most of the time."""
     current = span
     seen = {span.span_id}
     while True:
@@ -178,8 +167,59 @@ def _downstream_origin(
             break
         seen.add(best.span_id)
         current = best
+    return current
+
+
+def _cancelled_with(span: SpanNode, failing: SpanNode, children: dict[str, list[SpanNode]]) -> bool:
+    """`span` closed with `failing`'s timeout; the work it waited for is unexported."""
+    return (
+        span is not failing
+        and span.kind in SERVER_KINDS
+        and not _error(span)
+        and not children.get(span.span_id)
+        and abs((span.start_ms + span.duration_ms) - (failing.start_ms + failing.duration_ms))
+        <= CANCEL_TOLERANCE_MS
+    )
+
+
+def _ancestors(span: SpanNode, by_id: dict[str, SpanNode]) -> list[SpanNode]:
+    chain: list[SpanNode] = []
+    seen = {span.span_id}
+    current = by_id.get(span.parent_span_id or "")
+    while current is not None and current.span_id not in seen:
+        chain.append(current)
+        seen.add(current.span_id)
+        current = by_id.get(current.parent_span_id or "")
+    return chain
+
+
+def _downstream_origin(
+    span: SpanNode,
+    children: dict[str, list[SpanNode]],
+    known: list[str],
+    catalog_services: set[str],
+    server_services: set[str],
+) -> str | None:
+    """Where the time in a timed-out span actually went.
+
+    A proxy or a caller is often the only span marked ERROR: it gave up after a
+    timeout while the callee kept working. Walking down the child that owns most
+    of the parent's duration follows the delay to its source. A chain that ends
+    at a client span with no SERVER span for its peer is the "silent peer" case
+    (only catalog services qualify; a database that never emits a span is
+    infrastructure, not a suspect).
+
+    None when the trace is still in flight: the walk ends at a span without
+    children that closed together with the timeout, so it was cancelled, and
+    the work it waited for has not been exported yet (S7: frontend's outer
+    span ends at the proxy's 15 s timeout; the 120 s checkout chain arrives
+    minutes later).
+    """
+    current = _time_sink(span, children)
     if current is span:
         return span.service
+    if _cancelled_with(current, span, children):
+        return None
     if current.kind == "client":
         peer = peer_service(current, known)
         if peer in catalog_services and peer not in server_services:
@@ -217,21 +257,40 @@ def analyse_trace(
             # Completion order, not start order: a nested callee finishes its
             # failing span before its caller does, so the origin is earliest.
             # A latency incident is not explained by timeouts at its edge, so
-            # only the slow-span branch below may move its onset.
-            if not latency_incident:
+            # only the slow-span branch below may move its onset. A timeout
+            # whose work is still in flight completed before its cause did, so
+            # its completion says nothing about the order (S7).
+            sink = _time_sink(span, children)
+            if not latency_incident and not _cancelled_with(sink, span, children):
                 _note_onset(analysis, span.service, span_end)
             if span.kind in SERVER_KINDS:
                 failing_children = [
                     child for child in children.get(span.span_id, []) if _error(child)
                 ]
                 stats = _stats(analysis, span.service)
+                requested = _requested_by(span, by_id)
                 if failing_children:
                     stats.propagated_errors += 1
+                elif (
+                    requested is None
+                    and sink is not span
+                    and sink.kind in SERVER_KINDS
+                    and _error(sink)
+                ):
+                    # The time went into a span that failed itself, so its own
+                    # branch counts that failure. Envoy's egress span between
+                    # frontend-proxy and the frontend is never marked ERROR, so
+                    # without this the proxy credits a second origin (S3: the
+                    # walk stops at checkout because the failing Charge call to
+                    # the unreachable payment takes 0 ms).
+                    stats.propagated_errors += 1
                 else:
-                    origin = _requested_by(span, by_id) or _downstream_origin(
+                    origin = requested or _downstream_origin(
                         span, children, known, catalog, server_services
                     )
-                    if origin == span.service:
+                    if origin is None:
+                        stats.propagated_errors += 1
+                    elif origin == span.service:
                         stats.local_errors += 1
                         stats.origins += 1
                         local_origins.append((span.depth, span_end, span.service))
@@ -255,11 +314,21 @@ def analyse_trace(
         elif span.kind in SERVER_KINDS:
             baseline = baseline_p95.get(span.service)
             if baseline and span.duration_ms > max(2 * baseline, 500):
+                if any(
+                    _cancelled_with(span, ancestor, children)
+                    for ancestor in _ancestors(span, by_id)
+                    if _error(ancestor)
+                ):
+                    # Slow only because its caller's timeout closed it; its
+                    # children are not exported yet.
+                    continue
                 # The slow span may be a caller waiting on a callee; attribute
                 # the latency to where the time is actually spent.
                 origin = _requested_by(span, by_id) or _downstream_origin(
                     span, children, known, catalog, server_services
                 )
+                if origin is None:
+                    continue
                 # A call into a silent peer (partition, bad address) hangs until
                 # the peer comes back, so it *completes* last; its onset is when
                 # the call went out, as in the error branch above.

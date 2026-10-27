@@ -25,6 +25,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P14 | Remediation + approval | DONE | 473dc80 |
 | P15 | Verification + reports | DONE | ead14e4 |
 | P16 | Hardening + evaluation | DONE | 6bcc21d |
+| Post-P16 | Verification pass: fixes found on the live stack, real-model run | DONE | (pending) |
 
 ## Milestones
 
@@ -589,7 +590,8 @@ Behaviour discovered during the phase (recorded in ARCHITECTURE.md):
 
 Not verified (no key on this host): a real ZenMux completion. The adapter is the
 documented OpenAI wire format; set `LLM_PROVIDER=zenmux` and `LLM_API_KEY` in
-`.env`, restart, and press **Test connection** to verify.
+`.env`, restart, and press **Test connection** to verify. (Verified after P16:
+see "Post-P16 verification".)
 
 Facts found while building:
 
@@ -879,6 +881,7 @@ Facts found while building:
      traffic opened throughput incidents that could not clear. Not changed in
      code: a breaching sample must not feed its baseline (P5). RUNBOOK:
      restart the API before `eval.ps1` after a host sleep or cold restart.
+     (Fixed in code after P16: see "Post-P16 verification".)
   3. `remediation-check.py` crashed on `→` when its output was redirected
      (cp1252); it now writes UTF-8 like `run-scenarios.py`, and
      `--only-restart` runs the service_down flow alone.
@@ -888,3 +891,85 @@ Facts found while building:
   build`).
 - End state: stack up, `reset-all` reverts nothing (0 open faults), 0 open
   incidents, API and dashboard running.
+
+### Post-P16 verification — 2026-10-26/27
+
+A full re-check of the running system after P16 found eight defects. All are
+fixed, with a unit test where the logic allows one.
+
+- **Final runs on the fixed code** (real stack, `scripts\eval.ps1`, exit 0
+  both times, secret audit 0 findings both times):
+  | Run | Window (UTC) | Score | Agent confidence | Detect p50 / max | Recover p50 / max | Agent p50 / max | Cost |
+  |---|---|---|---|---|---|---|---|
+  | stub (offline default) | 19:59–21:41 | **9/9** (top-1, agent, remediation 9/9) | 0.79–0.95 | 103 / 147 s | 295 / 512 s | 4.0 / 6.2 s | $0 |
+  | ZenMux `meta/muse-spark-1.3-contributor` | 18:21–19:51 | **9/9** (top-1, agent, remediation 9/9) | 0.92–0.98 | 98 / 158 s | 260 / 610 s | 12.4 / 15.9 s | $0.0178 |
+
+  Incidents: stub INC-00230…00242, ZenMux INC-00212…00223. Evidence:
+  `docs/evidence/postp16-{scoreboard.md,eval.json,secret-audit.json}` and
+  `postp16-zenmux-*`. The ZenMux run is the first real-model completion on
+  this host (P10 could not verify one): the agent cited only valid evidence
+  codes in 9/9, chose `clear_feature_flag` for flag faults (S1–S4, S8) where
+  the stub chooses `reset_fault`, and every verdict matched. The provider was
+  switched with a runtime override and reset afterwards; `.env` keeps
+  `LLM_PROVIDER=stub`. No file in `docs/` or `runtime/` contains the key.
+- Fixed:
+  1. **Host sleep froze the throughput baseline** (P16 item 2): the detector
+     now resets its live samples, counters and warm-up when two cycles are
+     > 120 s apart, then backfills, and the warm-up learns throughput instead
+     of freezing on the first ramp-up. Live: suspending the API for 150 s
+     logged `detector_gap_reset gap_s=156`. Tests
+     `test_warmup_learns_the_ramp_instead_of_freezing_on_it`,
+     `test_a_long_gap_between_cycles_restarts_the_warmup`.
+  2. **P16 rate limit broke the verifiers**: `verify-faults.py` got 429 on
+     the 11th injection. Scripts share `scripts/_http.py`, which waits for
+     `Retry-After` (max 6 waits). `verify-faults.py` then passed 134/134.
+  3. **S3 near tie** (payment 0.315 vs checkout 0.308): the proxy's time
+     walk credited checkout a second origin. A failing server span whose
+     time went into a span that failed itself now counts as propagated.
+     Test `test_a_failure_below_an_unset_proxy_hop_is_not_credited_twice`.
+  4. **S2 analysed before its traces existed**: the incident opened on
+     frontend-proxy and was analysed 0.2 s later; catalog traces reached
+     Jaeger at +30 s. Analysis waits until the incident is
+     `ANALYSIS_TRACE_SETTLE_S` (30 s) old, and services with metric
+     anomalies join the trace focus. Test
+     `test_a_young_incident_waits_for_traces_in_flight`.
+  5. **S7 regression from item 4**: a 30 s old trace is partial. Frontend's
+     outer span closes at the proxy's 15 s timeout, while the 120 s
+     checkout → payment chain is not exported yet. So the frontend got
+     origin and onset credit (0.62 vs payment 0.18; agent 0.65 → ESCALATED,
+     INC-00201, INC-00207). Now a childless, non-ERROR span that closed
+     within 50 ms of a failing ancestor is "cancelled": no origin, no onset.
+     S7 then scored payment 0.598 → 1.0. Test
+     `test_a_trace_still_in_flight_credits_no_origin`.
+  6. **Scenario runner injected into a building streak**: `/api/detector`
+     status showed only debounced breaches, so S3 started inside a checkout
+     latency streak. Status now has `pending` streaks, and the runner counts
+     ≥ 2 consecutive hits as not quiet. A `/api/incidents` 5xx (Docker
+     Desktop DNS wedge) now fails one scenario instead of crashing the run
+     with `KeyError: 'total'`.
+  7. **Connection test hid a working reasoning model**: the 64-token test
+     returned no text, because the model spent 62 tokens on hidden reasoning.
+     The test now uses `LLM_MAX_TOKENS` and says so when every output token
+     was used.
+  8. **A test read the developer's `.env` key**:
+     `test_provider_swap_is_configuration_only` built `Settings()` without
+     `llm_api_key` and failed once a real key was present. It now passes
+     `llm_api_key=""`.
+- Scripts are now linted and format-checked by `check.ps1` (`ruff check` and
+  `ruff format --check` over `scripts/`).
+- RUNBOOK: host-sleep entry (now fixed in code), rate-limit retry, Docker
+  Desktop DNS wedge (`docker desktop restart`, `reset.ps1 -Hard`, restart
+  the API), CPU-contention incidents during `check.ps1`, and real-model
+  runtime switching. ARCHITECTURE: gap reset, warm-up learning, sink rule,
+  trace settle, cancelled spans.
+- Seen, not changed: right after an eval, W1's escalated payment errors are
+  still in the 2-minute window when the run reverts the fault, and they can
+  open one more checkout error incident (INC-00243, opened 3 s after the
+  final run). It resolved on its own after 103 s (21:42:48), with no action.
+- End state: stack up, 0 active faults, 0 open incidents, provider `stub`
+  with no runtime override.
+- No migration. Gates on the final code: `scripts\check.ps1 -Live` passes
+  (ruff + mypy, **226 API tests** + **11 live**, dashboard eslint + **59
+  vitest** + `next build`); `scripts\db-check.ps1` passes. The dashboard
+  half ran on a working tree that also held separate, uncommitted dashboard
+  work, which is not part of this commit.

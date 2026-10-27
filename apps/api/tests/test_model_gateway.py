@@ -238,7 +238,11 @@ def test_provider_swap_is_configuration_only() -> None:
     assert provider.configured and zen.llm_ready
 
     generic = ModelGateway(
-        Settings(llm_provider="openai_compatible", llm_base_url="http://127.0.0.1:1234/v1")
+        Settings(
+            llm_provider="openai_compatible",
+            llm_base_url="http://127.0.0.1:1234/v1",
+            llm_api_key="",  # not the developer's .env key
+        )
     )
     assert type(generic.llm()) is OpenAICompatibleProvider
     assert not generic.llm_ready  # no key: reported, not faked

@@ -10,6 +10,7 @@ It never calls an LLM and never mutates infrastructure.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -91,8 +92,27 @@ class Analyzer:
         self._lock = self.evidence.lock
 
     async def analyze(self, ref: str) -> AnalysisReport:
+        await self._settle(ref)
         async with self._lock:
             return await self._analyze(ref)
+
+    async def _settle(self, ref: str) -> None:
+        """Wait until the traces in flight at opening can be in Jaeger.
+
+        S2 (catalog lock) opened on the proxy's error rate and was analysed
+        0.2 s later; its first catalog error trace reached Jaeger 30 s after
+        opening, so the ranking had no trace evidence at all. Waiting is done
+        outside the evidence lock and only for an open, young incident.
+        """
+        async with SessionFactory() as session:
+            incident = await self.incidents.get(session, ref)
+            if incident.closed_at is not None:
+                return
+            age_s = (datetime.now(UTC) - _utc(incident.opened_at)).total_seconds()
+        wait_s = settings.analysis_trace_settle_s - age_s
+        if wait_s > 0:
+            log.info("analysis_settle", incident=ref, wait_s=round(wait_s, 1))
+            await asyncio.sleep(wait_s)
 
     async def _analyze(self, ref: str) -> AnalysisReport:
         started = time.perf_counter()
@@ -150,13 +170,23 @@ class Analyzer:
                 | {item.service for item in allowed_containers}
                 | set(services)
             )
+            # The trigger names where the symptom surfaced first, which is often
+            # the edge (S2 opened on frontend-proxy, whose spans carry no error
+            # tag). Services with a metric anomaly are searched too, largest
+            # deviation first, as the log search below already does.
+            anomalous = [
+                item.service
+                for item in sorted(metric_scan.anomalies, key=lambda item: -(item.ratio or 0.0))
+                if item.service in ALLOWED_TARGETS
+            ]
+            focus = list(dict.fromkeys([*services, *anomalous]))
             trace_analysis = await analyse_traces(
                 self.jaeger,
                 opened_at=opened,
                 end=end,
                 known_services=known,
                 baseline_p95=baseline_p95,
-                focus_services=services,
+                focus_services=focus,
                 catalog_services=set(ALLOWED_TARGETS),
                 latency_incident=latency_incident,
                 max_traces=settings.analysis_max_traces,

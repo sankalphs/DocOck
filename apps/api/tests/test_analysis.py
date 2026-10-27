@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+
+import pytest
 
 from app.analysis.metrics import _anomaly
 from app.analysis.signals import ContainerSignal, FaultSignal
@@ -202,6 +205,146 @@ def test_silent_peer_is_blamed_when_no_server_span_exists() -> None:
     assert origin == "payment"
     assert analysis.origin["payment"].silent_peer_errors == 1
     assert analysis.origin["payment"].peers == {"checkout": 1}
+
+
+def test_a_failure_below_an_unset_proxy_hop_is_not_credited_twice() -> None:
+    # S3 (payment unreachable), trace c2d6b877 of INC-00161: the proxy's span
+    # fails, its Envoy egress child is "unset", and the time walk would stop at
+    # checkout because the failing Charge call takes 0 ms. Only payment is the
+    # origin; checkout and the proxy propagated it.
+    spans = [
+        _span(
+            "x",
+            parent=None,
+            name="POST",
+            service="frontend-proxy",
+            kind="server",
+            start_ms=0,
+            duration_ms=15002,
+        ),
+        _span(
+            "e",
+            parent="x",
+            name="router frontend egress",
+            service="frontend-proxy",
+            kind="client",
+            start_ms=1,
+            duration_ms=15000,
+            status="unset",
+        ),
+        _span(
+            "f",
+            parent="e",
+            name="POST /api/checkout",
+            service="frontend",
+            kind="server",
+            start_ms=2,
+            duration_ms=14998,
+        ),
+        _span(
+            "c",
+            parent="f",
+            name="oteldemo.CheckoutService/PlaceOrder",
+            service="checkout",
+            kind="server",
+            start_ms=3,
+            duration_ms=14990,
+        ),
+        _span(
+            "q",
+            parent="c",
+            name="prepareOrderItemsAndShippingQuoteFromCart",
+            service="checkout",
+            kind="internal",
+            start_ms=4,
+            duration_ms=300,
+            status="unset",
+        ),
+        _span(
+            "p",
+            parent="c",
+            name="oteldemo.PaymentService/Charge",
+            service="checkout",
+            kind="client",
+            start_ms=14980,
+            duration_ms=0,
+            attributes={"rpc.service": "oteldemo.PaymentService"},
+        ),
+    ]
+    analysis = TraceAnalysis()
+    origin = analyse_trace(
+        _trace(spans),
+        analysis=analysis,
+        known=["frontend-proxy", "frontend", "checkout", "payment"],
+        baseline_p95={},
+    )
+    assert origin == "payment"
+    assert analysis.origin["payment"].silent_peer_errors == 1
+    assert analysis.origin["checkout"].local_errors == 0
+    assert analysis.origin["checkout"].origins == 0
+    assert analysis.origin["frontend-proxy"].propagated_errors == 1
+
+
+def test_a_trace_still_in_flight_credits_no_origin() -> None:
+    # S7 (payment detached), trace e92e3621 of INC-00201 read 30 s after the
+    # proxy's 15 s timeout: frontend's outer span closed with the timeout, and
+    # the 120 s checkout chain below it was not exported yet.
+    spans = [
+        _span(
+            "x",
+            parent=None,
+            name="POST",
+            service="frontend-proxy",
+            kind="server",
+            start_ms=0,
+            duration_ms=15007,
+        ),
+        _span(
+            "e",
+            parent="x",
+            name="router frontend egress",
+            service="frontend-proxy",
+            kind="client",
+            start_ms=1,
+            duration_ms=15003,
+            status="unset",
+        ),
+        _span(
+            "f",
+            parent="e",
+            name="POST",
+            service="frontend",
+            kind="server",
+            start_ms=4,
+            duration_ms=15003,
+            status="unset",
+        ),
+    ]
+    analysis = TraceAnalysis()
+    origin = analyse_trace(
+        _trace(spans),
+        analysis=analysis,
+        known=["frontend-proxy", "frontend", "checkout", "payment"],
+        baseline_p95={"frontend": 200.0},
+    )
+    assert origin is None
+    assert "frontend" not in analysis.origin
+    assert analysis.origin["frontend-proxy"].origins == 0
+    assert analysis.origin["frontend-proxy"].propagated_errors == 1
+    # Neither the timeout nor the span it closed tells when the cause began.
+    assert analysis.onset == {}
+
+    # A frontend that is itself slow answers after the timeout: still its fault.
+    spans[2] = spans[2].model_copy(update={"duration_ms": 20000})
+    analysis = TraceAnalysis()
+    origin = analyse_trace(
+        _trace(spans),
+        analysis=analysis,
+        known=["frontend-proxy", "frontend", "checkout", "payment"],
+        baseline_p95={"frontend": 200.0},
+    )
+    assert origin == "frontend"
+    assert set(analysis.onset) == {"frontend-proxy", "frontend"}
 
 
 def test_weights_are_normalized_and_sum_to_one() -> None:
@@ -735,3 +878,48 @@ def test_a_detached_container_is_an_observed_cause() -> None:
     assert signal([]).unhealthy
     assert not signal(["docock-demo_default"]).unhealthy
     assert not signal(None).unhealthy
+
+
+class _Session:
+    async def __aenter__(self) -> _Session:
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        return None
+
+
+class _Incidents:
+    def __init__(self, opened_at: datetime, closed_at: datetime | None = None) -> None:
+        self.row = SimpleNamespace(opened_at=opened_at, closed_at=closed_at)
+
+    async def get(self, _session: object, _ref: str) -> SimpleNamespace:
+        return self.row
+
+
+async def test_a_young_incident_waits_for_traces_in_flight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.analysis.engine as engine
+
+    waits: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        waits.append(seconds)
+
+    monkeypatch.setattr(engine, "SessionFactory", _Session)
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(engine.settings, "analysis_trace_settle_s", 30)
+    now = datetime.now(UTC)
+
+    # Opened 1 s ago: wait the rest of the 30 s.
+    analyzer = engine.Analyzer(incidents=_Incidents(now - timedelta(seconds=1)))  # type: ignore[arg-type]
+    await analyzer._settle("INC-1")
+    assert len(waits) == 1 and 28 < waits[0] <= 29.5
+
+    # Old enough, or closed: no wait.
+    for incidents in (
+        _Incidents(now - timedelta(seconds=45)),
+        _Incidents(now - timedelta(seconds=1), closed_at=now),
+    ):
+        await engine.Analyzer(incidents=incidents)._settle("INC-1")  # type: ignore[arg-type]
+    assert len(waits) == 1

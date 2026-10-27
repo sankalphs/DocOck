@@ -91,6 +91,9 @@ class BaselineStore:
         while queue and queue[0].at < cutoff:
             queue.popleft()
 
+    def clear_live(self) -> None:
+        self._samples.clear()
+
     def backfill(self, service: str, metric: str, points: list[tuple[datetime, float]]) -> None:
         values = [value for _, value in points if value is not None]
         value = _baseline_value(values, metric)

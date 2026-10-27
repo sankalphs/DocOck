@@ -148,6 +148,20 @@ The lab runs offline by default: `LLM_PROVIDER=stub`. To use a real model, put
 curl.exe -X POST -H "content-type: application/json" -d '{\"target\":\"all\"}' http://127.0.0.1:8001/api/settings/models/test
 ```
 
+To try a real model without changing `.env`, keep `LLM_API_KEY` there, restart
+the API, then switch at runtime and back (the override is stored in the
+database and survives restarts, so always reset it):
+
+```powershell
+curl.exe -X PATCH -H "content-type: application/json" -d '{\"llm\":{\"provider\":\"zenmux\"}}' http://127.0.0.1:8001/api/settings/models
+curl.exe -X PATCH -H "content-type: application/json" -d '{\"reset\":true}' http://127.0.0.1:8001/api/settings/models
+```
+
+The default ZenMux model is a reasoning model: it spends ~60 hidden tokens
+even on a one-word answer. The connection test uses `LLM_MAX_TOKENS`; a test
+that reports "all N output tokens were used" needs a larger value. Reset the
+override before `check.ps1`.
+
 The first `onnx_local` embedding downloads ~614 MB into `runtime/models/` and
 loads in ~2–6 s; later calls take tens of milliseconds. Set
 `EMBEDDING_ALLOW_DOWNLOAD=false` to forbid network access after the first
@@ -314,7 +328,10 @@ characters.
 **Rate limits** apply to writes only, per client address, per 60 s (table in
 `docs/ARCHITECTURE.md`). A limited call gets 429 `rate_limited` with
 `Retry-After`. Set `RATE_LIMIT_ENABLED=false` in `.env` and restart the API to
-turn them off. A restart also clears the counters.
+turn them off. A restart also clears the counters. The live check scripts
+(`scripts\_http.py`) wait for `Retry-After` and send the request again, so
+`verify-faults.py` still passes with the limits on (it injects 19 faults, more
+than the 10 per minute that `fault_inject` allows).
 
 `docs/DEMO.md` is a 15–20 minute walkthrough of the whole loop for an audience.
 
@@ -514,14 +531,32 @@ Payment still received every charge while `paymentUnreachable` was `on`.
 `scripts\reset.ps1 -Hard` now restarts flagd first, waits for :8013, then
 restarts the other containers. A plain `docker compose restart` still has this race.
 
+**Latency incidents on ad, checkout, payment, quote and shipping, then every check times out.**
+Seen on 2026-10-26 15:50–16:15 UTC. Docker Desktop's VM DNS resolver timed
+out (`log\vm\init.log` full of `failed to query external DNS server` for
+container names), so calls between services slowed, then the engine API
+answered 500 and `docker ps` hung. The API returns 503 and the scenario runner
+records the error. Fix: `docker desktop restart`, then `scripts\reset.ps1 -Hard`
+(flagd first), wait for `scripts\health.ps1` to pass, then restart the API.
+
+**A checkout latency or silence incident opens while `scripts\check.ps1` runs.**
+Seen twice on 2026-10-26 (INC-00158, INC-00184). `next build` loads every host
+core, and the load generator then sent no checkout for 2.5 min while browsing
+went on. The detector reports a real gap, and the incident resolves itself about
+a minute after the gate ends. Do not run the gate during `scripts\eval.ps1`.
+
 **Throughput incidents open again and again on cart, frontend and product-catalog with no fault active.**
 Seen on 2026-10-26 after the host slept. Prometheus has a gap, and the load
 generator ramps up again after wake. The detector learned the low ramp-up
 traffic as its baseline (frontend 7.9/s against a normal ~25/s). It then reads
 normal traffic as a 3x surge. A breaching sample does not update its own
 baseline, so the breach does not clear. The scenario runner waits for quiet that
-never comes. Fix: restart the API (`scripts\api-detached.ps1`) when the traffic
-is steady again. Restart it before `scripts\eval.ps1` after any host sleep.
+never comes. Fixed after P16: when two detector cycles are more than 120 s apart,
+the detector drops its live samples and repeats the 300 s warm-up
+(`detector_gap_reset` in the API log, `last_gap_reset_at` in
+`/api/detection/status`). During warm-up, throughput and silence hits no longer
+block learning, so a ramp cannot freeze the baseline. If the symptom comes back,
+restart the API (`scripts\api-detached.ps1`) when the traffic is steady again.
 
 **Postgres restarts with "there appears to be PostgreSQL data in /var/lib/postgresql/data".**
 Postgres 18 moved its data layout. The volume must mount at

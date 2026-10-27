@@ -187,6 +187,109 @@ def test_silence_needs_a_baseline_that_expects_traffic() -> None:
     assert not silence_breach(0.0, None, window)
 
 
+class _Session:
+    async def __aenter__(self) -> _Session:
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        return None
+
+    async def commit(self) -> None:
+        return None
+
+
+class _NoIncidents:
+    async def latest_open(self, _session: object) -> None:
+        return None
+
+
+class _NoContainers:
+    async def containers(self, **_: object) -> list[object]:
+        return []
+
+
+def _offline_detector(monkeypatch: pytest.MonkeyPatch, rps: list[float]) -> Detector:
+    """A detector whose cycle reads `rps` (one value per cycle) for cart."""
+    import app.detection.detector as module
+
+    async def no_cores() -> int:
+        return 0
+
+    monkeypatch.setattr(module, "SessionFactory", _Session)
+    monkeypatch.setattr(module, "host_cores", no_cores)
+    detector = Detector(
+        docker=_NoContainers(),  # type: ignore[arg-type]
+        store=BaselineStore(window_s=900),
+        incidents=_NoIncidents(),  # type: ignore[arg-type]
+        rules=_rules(),
+    )
+    readings = iter(rps)
+    current: dict[str, float] = {}
+
+    async def instant(metric: str) -> dict[str, float]:
+        if metric == "error_rate":
+            current["rps"] = next(readings)
+            return {"cart": 0.0}
+        if metric == "error_count":
+            return {"cart": 0.0}
+        if metric == "p95_latency":
+            return {"cart": 200.0}
+        return {"cart": current["rps"]}
+
+    monkeypatch.setattr(detector, "_instant", instant)
+    return detector
+
+
+async def test_warmup_learns_the_ramp_instead_of_freezing_on_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # After a host sleep the 2-minute rate window spans the gap: cart reads
+    # 5 req/s for a minute, then its steady 24 req/s.
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "detector_warmup_s", 150)
+    detector = _offline_detector(monkeypatch, [5.0] * 6 + [24.0] * 9 + [24.0] * 4)
+    for _ in range(15):
+        await detector.run_once()
+    assert detector.store.baseline("cart", "throughput") == 24.0
+    for _ in range(4):
+        report = await detector.run_once()
+        assert report.breaches == []
+
+
+async def test_a_long_gap_between_cycles_restarts_the_warmup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    detector = _offline_detector(monkeypatch, [24.0] * 9)
+    backfills: list[bool] = []
+
+    async def backfill() -> int:
+        backfills.append(True)
+        return 0
+
+    monkeypatch.setattr(detector, "backfill", backfill)
+    for _ in range(7):
+        await detector.run_once()
+    assert len(detector.store._samples["cart"]) == 7
+    assert detector._cycles == 7
+
+    # A slow but normal cadence does not reset anything.
+    detector._last_tick = datetime.now(UTC) - timedelta(seconds=15)
+    await detector.run_once()
+    assert backfills == []
+    assert detector._cycles == 8
+
+    # One hour asleep: live samples and the warm-up start over.
+    detector._last_tick = datetime.now(UTC) - timedelta(hours=1)
+    await detector.run_once()
+    assert backfills == [True]
+    assert detector._cycles == 1
+    assert detector.last_gap_reset is not None
+    latest = detector.store.latest("cart")
+    assert latest is not None and latest.at >= detector.last_gap_reset - timedelta(seconds=1)
+    assert len(detector.store._samples["cart"]) == 1
+
+
 def test_a_running_container_with_no_network_is_a_breach() -> None:
     assert container_breach(state="running", paused=False, health="healthy", networks=[])
     assert not container_breach(
@@ -194,3 +297,16 @@ def test_a_running_container_with_no_network_is_a_breach() -> None:
     )
     # Not inspected is not the same as detached.
     assert not container_breach(state="running", paused=False, health="healthy", networks=None)
+
+
+def test_status_reports_streaks_below_their_debounce() -> None:
+    detector = Detector()
+    for _ in range(4):
+        detector._count("checkout", "p95_latency", True, NOW)
+    pending = detector.status()["pending"]
+    assert pending == [
+        {"service": "checkout", "signal": "p95_latency", "consecutive": 4, "since": NOW}
+    ]
+    assert detector.status()["breaches"] == []
+    detector._count("checkout", "p95_latency", False, NOW)
+    assert detector.status()["pending"] == []

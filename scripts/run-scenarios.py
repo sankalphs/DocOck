@@ -36,6 +36,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+import _http
 import httpx
 
 API = "http://127.0.0.1:8001"
@@ -277,7 +278,12 @@ def settle(client: httpx.Client, seconds: float) -> None:
                 client,
                 f"/api/incidents/{incident['public_id']}/close?actor=scenarios&note=scenario_settle",
             )
-        breaches = status.get("breaches") or []
+        # A streak still below its debounce counts too: S3 was once injected
+        # into a checkout latency streak that opened as an incident 12 s later.
+        # One noisy sample (consecutive 1) does not reset the quiet timer.
+        breaches = (status.get("breaches") or []) + [
+            item for item in status.get("pending") or [] if item["consecutive"] >= 2
+        ]
         noisy.update(f"{item['service']}:{item['signal']}" for item in breaches)
         if breaches or open_now:
             quiet_since = time.monotonic()
@@ -502,8 +508,12 @@ def run_one(
     )
     reset(client)
     settle(client, SETTLE_S)
-    baseline = _get(client, "/api/incidents?limit=200").json()
-    baseline_total = baseline["total"]
+    baseline = _get(client, "/api/incidents?limit=200")
+    if baseline.status_code != 200:
+        # The API answers 503 when Docker is wedged; record it, do not crash the suite.
+        result.error = f"incidents {baseline.status_code}: {baseline.text[:200]}"
+        return result
+    baseline_total = baseline.json()["total"]
 
     payload = dict(scenario.fault)
     payload.update({"ttl_s": 480, "actor": "scenarios"})
@@ -749,7 +759,7 @@ def main() -> int:
         if (not wanted or item.id in wanted) and (args.remediate or not item.remediate_only)
     ]
 
-    client = httpx.Client(timeout=TIMEOUT, transport=httpx.HTTPTransport(retries=2))
+    client = _http.client(TIMEOUT, retries=2)
     results: list[Result] = []
     try:
         health = _get(client, "/api/health").json()

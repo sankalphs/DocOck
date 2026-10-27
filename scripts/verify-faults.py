@@ -22,6 +22,7 @@ import sys
 import time
 from typing import Any
 
+import _http
 import httpx
 
 API = "http://127.0.0.1:8001"
@@ -149,7 +150,7 @@ def verify_reverted(client: httpx.Client, fault: dict[str, Any]) -> None:
 
 
 def main() -> int:
-    client = httpx.Client(timeout=TIMEOUT)
+    client = _http.client(TIMEOUT)
     try:
         health = client.get(f"{API}/api/health")
         expect("api health", health.status_code in (200, 503), str(health.status_code))
@@ -168,8 +169,7 @@ def main() -> int:
         )
         expect(
             "non-lab target rejected with 403",
-            rejected.status_code == 403
-            and rejected.json()["error"]["code"] == "unsafe_target",
+            rejected.status_code == 403 and rejected.json()["error"]["code"] == "unsafe_target",
             f"{rejected.status_code} {rejected.json().get('error', {}).get('code')}",
         )
         after_rows = client.get(f"{API}/api/faults").json()["total"]
@@ -227,9 +227,7 @@ def main() -> int:
                     fault["status"] == "ACTIVE",
                     fault["status"],
                 )
-            removed = client.delete(
-                f"{API}/api/faults/{fault['id']}?actor=p6-verify"
-            )
+            removed = client.delete(f"{API}/api/faults/{fault['id']}?actor=p6-verify")
             if removed.status_code != 200:
                 fail(f"{definition['id']}: revert", f"{removed.status_code} {removed.text[:200]}")
                 continue
@@ -313,9 +311,7 @@ def main() -> int:
         expect("reset-all succeeds", report.status_code == 200, str(report.status_code))
         opening = client.get(f"{API}/api/faults?status=open").json()
         expect("no open faults remain", opening["open"] == 0, str(opening["open"]))
-        drift = [
-            flag["flag"] for flag in _catalog_flags() if ofrep(client, flag["flag"]) != "off"
-        ]
+        drift = [flag["flag"] for flag in _catalog_flags() if ofrep(client, flag["flag"]) != "off"]
         expect("every catalog flag is off", not drift, ",".join(drift))
         audit = client.get(f"{API}/api/faults/audit?limit=500").json()
         expect("audit trail recorded every inject/revert", len(audit) >= 40, str(len(audit)))
@@ -337,11 +333,7 @@ def main() -> int:
 def _catalog_flags() -> list[dict[str, str]]:
     response = httpx.get(f"{API}/api/faults/catalog", timeout=TIMEOUT)
     response.raise_for_status()
-    return [
-        {"flag": item["flag"]}
-        for item in response.json()["faults"]
-        if item.get("flag")
-    ]
+    return [{"flag": item["flag"]} for item in response.json()["faults"] if item.get("flag")]
 
 
 if __name__ == "__main__":

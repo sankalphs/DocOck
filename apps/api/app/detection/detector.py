@@ -74,6 +74,10 @@ SIGNAL_PRIORITY = {
     "p95_latency": 0,
 }
 
+# Two cycles further apart than this mean the process did not run in between:
+# the host slept or the API was suspended. See Detector._resume_after_gap.
+GAP_RESET_S = 120
+
 
 @dataclass(slots=True)
 class Breach:
@@ -142,6 +146,8 @@ class Detector:
         self._limits: dict[str, tuple[float | None, int | None]] = {}
         self._healthy_cycles = 0
         self._cycles = 0
+        self._last_tick: datetime | None = None
+        self.last_gap_reset: datetime | None = None
         self.last_report: DetectionReport | None = None
         self.last_error: str | None = None
 
@@ -173,9 +179,34 @@ class Detector:
         log.info("baselines_backfilled", series=seeded)
         return seeded
 
+    async def _resume_after_gap(self, gap_s: float) -> None:
+        """Start over as if the API had restarted.
+
+        After a host sleep Prometheus has a hole, and for one rate window
+        throughput reads low (frontend 5 -> 17 -> 24 req/s over two minutes).
+        Live samples from before the gap describe a stack that no longer
+        exists, and the first samples after it are that artefact. Drop the
+        live samples and counters and repeat the warm-up.
+        """
+        log.warning("detector_gap_reset", gap_s=round(gap_s))
+        self.store.clear_live()
+        self._counters.clear()
+        self._healthy_cycles = 0
+        self._cycles = 0
+        self.last_gap_reset = datetime.now(UTC)
+        try:
+            await self.backfill()
+        except Exception as exc:  # the next cycle still learns from live samples
+            log.warning("detector_gap_backfill_failed", error=str(exc)[:300])
+
     async def run_once(self, *, persist: bool = False) -> DetectionReport:
         now = datetime.now(UTC)
         report = DetectionReport(at=now)
+        if self._last_tick is not None:
+            gap_s = (now - self._last_tick).total_seconds()
+            if gap_s > GAP_RESET_S:
+                await self._resume_after_gap(gap_s)
+        self._last_tick = now
         # PLAN §8 calls the first minutes after bring-up "warm-up". Breach
         # counters are cleared each cycle so that the moment the gate lifts the
         # detector needs a fresh consecutive run instead of opening an incident
@@ -256,18 +287,18 @@ class Detector:
                 latency is None or latency <= MAX_SEED_P95_MS
             )
             bootstrap = baseline_error is None and baseline_latency is None
+            # Throughput is learned from live samples only, so during warm-up
+            # its baseline is the ramp itself. Rejecting the samples that exceed
+            # a ramp baseline would freeze it there: steady traffic would read
+            # as a surge forever. No incident opens during warm-up anyway.
+            traffic_hit = (throughput_hit or silent_hit) and not warm
             if (
                 service not in suppressed
                 and plausible
                 and (
                     bootstrap
                     or not (
-                        error_hit
-                        or latency_hit
-                        or container_hit
-                        or resource_hit
-                        or throughput_hit
-                        or silent_hit
+                        error_hit or latency_hit or container_hit or resource_hit or traffic_hit
                     )
                 )
             ):
@@ -657,6 +688,7 @@ class Detector:
             "cycles": self._cycles,
             "last_error": self.last_error,
             "last_cycle_at": self.last_report.at if self.last_report else None,
+            "last_gap_reset_at": self.last_gap_reset,
             "last_opened": self.last_report.opened if self.last_report else None,
             "last_closed": self.last_report.closed if self.last_report else None,
             "breaches": [
@@ -669,6 +701,13 @@ class Detector:
                     "severity": item.severity,
                 }
                 for item in (self.last_report.breaches if self.last_report else [])
+            ],
+            # Streaks that have not reached their debounce yet. A latency breach
+            # needs nine samples, so a streak can build for 80 s while
+            # `breaches` is empty; the scenario runner must not call that quiet.
+            "pending": [
+                {"service": service, "signal": signal, "consecutive": count, "since": first}
+                for (service, signal), (count, first) in sorted(self._counters.items())
             ],
             "baselines": self.store.snapshot(),
             "cooldown_s": self.rules.cooldown_s,

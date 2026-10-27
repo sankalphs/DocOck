@@ -25,12 +25,12 @@ $failed = @()
 
 Push-Location $api
 try {
-    Write-Step "api: ruff check"
-    uv run ruff check .
+    Write-Step "api: ruff check (api + scripts)"
+    uv run ruff check . ..\..\scripts
     if ($LASTEXITCODE -ne 0) { $failed += "ruff check" }
 
     Write-Step "api: ruff format --check"
-    uv run ruff format --check .
+    uv run ruff format --check . ..\..\scripts
     if ($LASTEXITCODE -ne 0) { $failed += "ruff format" }
 
     Write-Step "api: mypy"

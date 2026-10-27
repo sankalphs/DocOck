@@ -399,7 +399,9 @@ class ModelGateway:
                     ChatMessage(role="system", content="You are a connectivity check."),
                     ChatMessage(role="user", content="Reply with the single word: ok"),
                 ],
-                max_tokens=64,
+                # The agent's own budget: a reasoning model spends ~60 hidden
+                # tokens even on "ok", so a small cap returns no text at all.
+                max_tokens=cfg.max_tokens,
                 temperature=0,
                 timeout_s=min(30.0, float(cfg.timeout_s)),
             )
@@ -414,6 +416,15 @@ class ModelGateway:
                 error_kind=exc.kind,
             )
         text = (response.content or "").strip()
+        if text:
+            detail = f"replied {text[:60]!r}"
+        elif response.finish_reason == "length":
+            detail = (
+                f"replied with no text: all {response.usage.tokens_out} output tokens were "
+                "used (reasoning?); raise LLM_MAX_TOKENS"
+            )
+        else:
+            detail = "replied with no text"
         return ModelTestResult(
             target="llm",
             ok=True,
@@ -424,7 +435,7 @@ class ModelGateway:
             tokens_in=response.usage.tokens_in,
             tokens_out=response.usage.tokens_out,
             cost_usd=response.cost_usd,
-            detail=f"replied {text[:60]!r}" if text else "replied with no text",
+            detail=detail,
         )
 
     async def test_embedding(self) -> ModelTestResult:

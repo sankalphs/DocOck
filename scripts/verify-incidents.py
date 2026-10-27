@@ -19,6 +19,7 @@ import sys
 import time
 from typing import Any
 
+import _http
 import httpx
 
 API = "http://127.0.0.1:8001"
@@ -279,9 +280,7 @@ def cleanup(client: httpx.Client) -> None:
 
 
 def main() -> int:
-    client = httpx.Client(
-        timeout=TIMEOUT, transport=httpx.HTTPTransport(retries=3)
-    )
+    client = _http.client(TIMEOUT, retries=3)
     try:
         run_checks(client)
     except Exception as exc:

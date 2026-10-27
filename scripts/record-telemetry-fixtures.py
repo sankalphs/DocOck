@@ -37,9 +37,7 @@ def rfc3339(moment: datetime) -> str:
 
 
 def docker(*args: str) -> str:
-    return subprocess.run(
-        ["docker", *args], check=True, capture_output=True, text=True
-    ).stdout
+    return subprocess.run(["docker", *args], check=True, capture_output=True, text=True).stdout
 
 
 def main() -> int:
@@ -48,13 +46,17 @@ def main() -> int:
     start = now - timedelta(minutes=10)
 
     print("prometheus")
-    write("prometheus_label_values.json", client.get(f"{PROMETHEUS}/api/v1/label/__name__/values").json())
+    write(
+        "prometheus_label_values.json",
+        client.get(f"{PROMETHEUS}/api/v1/label/__name__/values").json(),
+    )
     write(
         "prometheus_instant.json",
         client.get(
             f"{PROMETHEUS}/api/v1/query",
             params={
-                "query": 'sum by (service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m]))'
+                "query": "sum by (service_name) (rate(traces_span_metrics_calls_total"
+                '{status_code="STATUS_CODE_ERROR"}[5m]))'
             },
         ).json(),
     )
@@ -75,7 +77,8 @@ def main() -> int:
         client.get(
             f"{PROMETHEUS}/api/v1/query",
             params={
-                "query": "histogram_quantile(0.95, sum by (le, service_name) (rate(traces_span_metrics_duration_milliseconds_bucket[5m])))"
+                "query": "histogram_quantile(0.95, sum by (le, service_name) "
+                "(rate(traces_span_metrics_duration_milliseconds_bucket[5m])))"
             },
         ).json(),
     )
@@ -119,7 +122,12 @@ def main() -> int:
 
     print("docker")
     ps = docker(
-        "ps", "-a", "--filter", f"label=com.docker.compose.project={PROJECT}", "--format", "{{json .}}"
+        "ps",
+        "-a",
+        "--filter",
+        f"label=com.docker.compose.project={PROJECT}",
+        "--format",
+        "{{json .}}",
     )
     write("docker_ps.json", [json.loads(line) for line in ps.splitlines() if line.strip()])
     inspect = docker("inspect", "payment")

@@ -259,7 +259,13 @@ Throughput is the only metric that is not backfilled from Prometheus: after a
 restart the generator ramps from ~1 req/s to 25 req/s, and a pre-restart baseline
 would call that ramp a flood (it did). It is learned from live samples only, and
 throughput breaches are suppressed for the first `DETECTOR_WARMUP_S` (300 s) after
-the detector starts, because the ramp itself is a 10x step.
+the detector starts, because the ramp itself is a 10x step. During warm-up a
+throughput or silence hit does not keep a sample out of the baseline: the
+baseline *is* the ramp then, and rejecting samples above it froze it there (after
+a host sleep, frontend 7.9/s against a steady ~25/s, with incidents that could
+not clear). Two cycles more than 120 s apart mean the process did not run (host
+sleep, suspended API): the detector drops its live samples and repeats the
+warm-up, as a restart would.
 
 ### Thresholds
 
@@ -341,12 +347,31 @@ usual winners are consequences rather than causes:
   a latency incident is therefore the first *slow* span after that descent, not
   the first timeout.
 
+When that descent ends on a SERVER span that failed itself, the failing span
+counts its own failure and the span that started the walk is only *propagated*.
+Envoy's egress span between frontend-proxy and the frontend is never marked
+ERROR, so without this rule the proxy's span credited a second origin: in S3 the
+walk stops at checkout's `PlaceOrder`, because the failing `Charge` call to the
+unreachable payment takes 0 ms, and checkout tied with payment.
+
 Jaeger's global "latest N" search returns mostly frontend-proxy traces and misses
 a low-traffic payment error entirely, so the trace analysis searches the
-incident's focus services explicitly and merges the results. Jaeger filters on
-trace *start*, so the search reaches 240 s before the incident opened: a call
-into a partitioned payment starts minutes before it ends, and the detector itself
-needs up to 90 s of debounce on a 2-minute window.
+incident's focus services explicitly and merges the results: the trigger
+services, then catalog services with a metric anomaly, largest ratio first (six
+at most). The trigger is often the edge: S2 can open on frontend-proxy's error
+rate, whose spans carry no error tag, while the errors are in product-catalog's
+spans. Jaeger filters on trace *start*, so the search reaches 240 s before the
+incident opened: a call into a partitioned payment starts minutes before it
+ends, and the detector itself needs up to 90 s of debounce on a 2-minute window.
+A trace reaches Jaeger only when it ends, so the first analysis of an incident
+younger than `ANALYSIS_TRACE_SETTLE_S` (30 s) waits until it is that old: a
+request in flight at opening can take the proxy's 15 s timeout plus the batch
+export delay. Such a trace can still be partial: when the time walk ends at a
+childless, non-ERROR span that closed within 50 ms of the failing span (it was
+cancelled with the timeout), the work below it is not exported yet, so the
+failure counts as propagated and credits no origin (S7: frontend's outer span
+closes at the 15 s timeout while the 120 s checkout → payment chain is still
+running).
 
 Rules found while validating the scenarios against the live stack:
 
