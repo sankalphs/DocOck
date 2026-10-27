@@ -413,7 +413,25 @@ if [[ "$SKIP_STACK" -eq 0 ]]; then
   fi
 
   step "starting demo + observability (docock-demo)"
-  docker compose "${demo_compose[@]}" up -d --remove-orphans
+  # A cold Docker start can leave OpenSearch "unhealthy" for a minute or two.
+  # Compose treats that as a hard dependency failure, so retry instead of
+  # reporting the whole lab as broken.
+  demo_up=0
+  for attempt in 1 2 3; do
+    if docker compose "${demo_compose[@]}" up -d --remove-orphans; then
+      demo_up=1
+      break
+    fi
+    if [[ "$attempt" -lt 3 ]]; then
+      warn "Compose reported an unhealthy dependency; retrying in 20 s (attempt ${attempt}/3)"
+      sleep 20
+    fi
+  done
+  if [[ "$demo_up" -eq 0 ]]; then
+    fail "demo stack did not become healthy"
+    dim "OpenSearch is the slowest dependency on a cold start; see docs/RUNBOOK.md."
+    exit 1
+  fi
 
   step "starting lab services (docock-lab)"
   docker compose "${lab_compose[@]}" up -d
