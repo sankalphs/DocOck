@@ -33,8 +33,19 @@ $demoCompose = @(
 )
 
 if ($Hard) {
-    Write-Step "restarting demo containers"
-    docker compose @demoCompose restart
+    # flagd first. A service that starts while flagd is down keeps answering
+    # with flag defaults: on 2026-10-26 a parallel restart left checkout blind
+    # to paymentUnreachable and cart waiting 1.6 s per flag lookup.
+    Write-Step "restarting flagd"
+    docker compose @demoCompose restart flagd
+    $deadline = (Get-Date).AddSeconds(60)
+    while (-not (Test-TcpPort "127.0.0.1" 8013)) {
+        if ((Get-Date) -gt $deadline) { throw "flagd did not listen on :8013 within 60 s" }
+        Start-Sleep -Seconds 1
+    }
+    Write-Step "restarting the other demo containers"
+    $others = docker compose @demoCompose config --services | Where-Object { $_ -ne "flagd" }
+    docker compose @demoCompose restart @others
 } else {
     Write-Step "reloading flagd"
     docker compose @demoCompose restart flagd

@@ -24,7 +24,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | P13 | Agent UI | DONE | b418fa9 |
 | P14 | Remediation + approval | DONE | 473dc80 |
 | P15 | Verification + reports | DONE | ead14e4 |
-| P16 | Hardening + evaluation | TODO | — |
+| P16 | Hardening + evaluation | DONE | (pending) |
 
 ## Milestones
 
@@ -33,7 +33,7 @@ Legend: `TODO` · `WIP` · `DONE` · `BLOCKED`
 | M1 Fault → observe → recover | P0–P7 | yes (P7 `29bc7a2`) |
 | M2 Deterministic suspects | P8–P9 | yes (7/8 top-1, P9) |
 | M3 Agent diagnosis | P10–P13 | yes (8/8 agent, 3/3 memory top-3, P13) |
-| M4 Approval → verify → report | P14–P16 | no |
+| M4 Approval → verify → report | P14–P16 | yes (9/9 eval, 8 verified recoveries, reject + wrong action escalate, P16) |
 
 ## Verification log
 
@@ -810,3 +810,81 @@ Facts found while building:
 - Gates: `scripts\check.ps1` passes (API 212 tests, dashboard 54 tests, ruff,
   mypy, eslint, `next build`); `scripts\check.ps1 -Live` passes (11 live
   telemetry contract tests).
+
+### P16 — 2026-10-26
+
+- **One command, full suite, 9/9 PASS**: `scripts\eval.ps1` (S1–S8 + W1 with
+  remediation, then the secret audit) on the real stack, stub provider,
+  11:14–12:34 UTC, exit 0. Scoreboard `docs/evidence/p16-scoreboard.md`, raw
+  result `docs/evidence/p16-eval.json`.
+  | Scenario | Incident | Detect | Top-1 | Action | Verdict | Recover | Final |
+  |---|---|---|---|---|---|---|---|
+  | S1 payment failure | INC-00137 | 107 s | payment | `reset_fault` | PASSED | 256 s | RESOLVED |
+  | S2 catalog lock contention | INC-00138 | 159 s | product-catalog | `reset_fault` | PASSED | 350 s | RESOLVED |
+  | S3 payment unreachable | INC-00139 | 50 s | payment | `reset_fault` | PASSED | 221 s | RESOLVED |
+  | S4 slow image loading | INC-00140 | 150 s | frontend | `reset_fault` | PASSED | 286 s | RESOLVED |
+  | S5 email down | INC-00141 | 27 s | email | `reset_fault` | PASSED | 86 s | RESOLVED |
+  | S6 ad CPU pressure | INC-00143 | 34 s | ad | `reset_fault` | PASSED | 92 s | RESOLVED |
+  | S7 payment partition | INC-00144 | 34 s | payment | `reset_fault` | PASSED | 92 s | RESOLVED |
+  | S8 traffic flood | INC-00146 | 94 s | frontend | `reset_fault` | PASSED | 233 s | RESOLVED |
+  | W1 wrong action | INC-00147 | 70 s | payment | `restart_service` (override) | FAILED after 420 s | 512 s | ESCALATED |
+
+  Top-1 9/9, agent 9/9, remediation 9/9, reports complete 9/9. Detection p50
+  70 s / max 159 s; recovery (inject → closed) p50 233 s / max 512 s; agent p50
+  3.9 s / max 15.6 s; cost $0.00 (stub ×9); 0 open incidents after the run.
+- **M4 gate**: verified recovery on 8 scenarios (each verifier criterion held
+  for 4 clean cycles); W1's wrong action failed `symptoms_clear` and
+  `error_rate` and escalated; every report has timeline, cited evidence and
+  before → after. Rejection, expiry, unsafe refusal and token replay re-run on
+  the P16 code (`scripts/remediation-check.py`, `docs/evidence/p16-remediation.json`):
+  payment flow 36/36 — INC-00150 unsafe proposals refused (422/409), replaced
+  approval WITHDRAWN, 20 s TTL EXPIRED → 409 → ESCALATED; INC-00151 reject →
+  `AWAITING_APPROVAL → REJECTED → ESCALATED`, nothing executed, approve after
+  reject → 409; INC-00152 approve → token used → fault reverted → VERIFYING,
+  replayed token refused (`token_rejected`). The email flow that followed failed
+  3 checks: the agent escalated INC-00154 at confidence 0.69 (< 0.7) because
+  checkout (0.429) still carried the payment flow's residue next to email
+  (0.488). That is the low-confidence guardrail working. Run alone with the new
+  `--only-restart`: 8/8, INC-00156 `restart_service email` → executor `docker
+  start` → email running (`p16-remediation-restart.json`).
+- **Rate limits** (`app/ratelimit.py`, a dependency on every `/api` route,
+  writes only, per client, sliding 60 s): 10 fault injections → 201, the 11th
+  → 429 `rate_limited` with `Retry-After: 52`; the rejected counter and
+  `/api/stats` show it (`docs/evidence/p16-ratelimit.json`). Toggle:
+  `RATE_LIMIT_ENABLED`.
+- **Cost / latency tracking**: `GET /api/stats?window_h=` (agent runs, tokens,
+  cost per model, daily cap, investigation / open → closed / verification
+  p50 and p95, verdicts, actions, approvals, rate-limit rules and rejections),
+  shown on Settings (`docs/evidence/p16-settings.png`, all nav sections now
+  built).
+- **Secret masking audit** (`scripts/secret-audit.py`): 0 findings over 32 API
+  GET endpoints, 10 dashboard pages, 34 runtime logs and 284 tracked files
+  (`docs/evidence/p16-secret-audit.json`). Two values are allowed by value, not
+  by file: the lab DSN password published in `.env.example` and the
+  `sk-test…` fixture. Real-looking keys and DSNs elsewhere stay findings.
+  Synthetic run with a throwaway `LLM_API_KEY`: Settings shows `••••52Lr`, the
+  audit found the literal nowhere (`p16-secret-audit-synthetic.json`); `.env`
+  restored.
+- **Docs**: ARCHITECTURE "Hardening and evaluation", RUNBOOK "Hardening and
+  evaluation" and "Reproduce M1–M4 from scratch", `docs/DEMO.md` (demo script).
+- Found during evaluation and fixed:
+  1. `reset.ps1 -Hard` restarted every container in parallel. Services that
+     started before flagd kept flag defaults or waited 1.6 s per lookup: cart
+     p95 5 s, checkout p95 15 s, and checkout ignored `paymentUnreachable`
+     (S3 "no incident within 240 s" twice; payment still received every
+     charge). `-Hard` now restarts flagd first, waits for :8013, then the rest.
+     S3 then passed in 50 s.
+  2. After a host sleep the detector learned the load generator's ramp-up as
+     its throughput baseline (frontend 7.9/s vs a normal ~25/s), and normal
+     traffic opened throughput incidents that could not clear. Not changed in
+     code: a breaching sample must not feed its baseline (P5). RUNBOOK:
+     restart the API before `eval.ps1` after a host sleep or cold restart.
+  3. `remediation-check.py` crashed on `→` when its output was redirected
+     (cp1252); it now writes UTF-8 like `run-scenarios.py`, and
+     `--only-restart` runs the service_down flow alone.
+- No migration.
+- Gates: `scripts\check.ps1 -Live` passes (API ruff, mypy, **220 tests** + **11
+  live** telemetry contract tests; dashboard eslint, **58 vitest tests**, `next
+  build`).
+- End state: stack up, `reset-all` reverts nothing (0 open faults), 0 open
+  incidents, API and dashboard running.

@@ -1,0 +1,671 @@
+{
+  "started_at": "2026-10-26T12:43:04.558099+00:00",
+  "incidents": {
+    "INC-00150": {
+      "flow": "expire+unsafe",
+      "agent": {
+        "run_id": 38,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0009",
+          "E0004",
+          "E0002",
+          "E0034",
+          "E0029",
+          "E0018",
+          "E0010",
+          "E0011",
+          "E0037",
+          "E0038",
+          "E0039"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 10780,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "approvals": [
+        27,
+        28
+      ]
+    },
+    "INC-00151": {
+      "flow": "reject",
+      "agent": {
+        "run_id": 39,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.82,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0010",
+          "E0005",
+          "E0002",
+          "E0037",
+          "E0032",
+          "E0011",
+          "E0012",
+          "E0013",
+          "E0040",
+          "E0041",
+          "E0042"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 10047,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "approvals": [
+        29
+      ]
+    },
+    "INC-00152": {
+      "flow": "approve",
+      "agent": {
+        "run_id": 40,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0010",
+          "E0005",
+          "E0001",
+          "E0003",
+          "E0038",
+          "E0033",
+          "E0011",
+          "E0012",
+          "E0041",
+          "E0042",
+          "E0043"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 9187,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "execute_s": 1.7,
+      "approvals": [
+        30
+      ],
+      "action": {
+        "id": 30,
+        "incident_ref": "INC-00152",
+        "action_id": "reset_fault",
+        "target": "payment",
+        "status": "EXECUTED",
+        "risk": "low",
+        "approval_mode": "auto",
+        "description": "Revert the injected fault on the target service.",
+        "verification": "error rate and p95 return to baseline within 90 s",
+        "requested_by": "agent",
+        "diagnosis_id": 40,
+        "args": {
+          "note": null,
+          "override": false,
+          "diagnosis": {
+            "id": 40,
+            "summary": "payment is the most likely root cause: a recorded payment failure change targets it: a feature flag makes its charges fail. It also ranks first among the deterministic suspects. Symptoms in checkout are consequences of it.",
+            "confidence": 0.85,
+            "root_cause": "payment",
+            "fault_class": "application_error"
+          },
+          "recommended": {
+            "target": "payment",
+            "action_id": "reset_fault"
+          },
+          "planned_check": {
+            "ok": true,
+            "risk": "low",
+            "steps": [
+              "revert fault #218 payment_failure on payment with its recorded pre-image"
+            ],
+            "faults": [
+              {
+                "id": 218,
+                "params": {
+                  "variant": "100%"
+                },
+                "status": "ACTIVE",
+                "target": "payment",
+                "fault_id": "payment_failure",
+                "mechanism": "flagd"
+              }
+            ],
+            "target": "payment",
+            "rollback": {
+              "note": "restoring the pre-action state would re-inject the fault",
+              "policy": "none"
+            },
+            "action_id": "reset_fault",
+            "description": "Revert the injected fault on the target service.",
+            "verification": "error rate and p95 return to baseline within 90 s",
+            "approval_mode": "auto",
+            "preconditions": [
+              {
+                "ok": true,
+                "name": "incident_state",
+                "detail": "incident is DIAGNOSED, needs DIAGNOSED"
+              },
+              {
+                "ok": true,
+                "name": "catalog_target",
+                "detail": "reset_fault allows payment"
+              },
+              {
+                "ok": true,
+                "name": "fault_present",
+                "detail": "open fault(s) #218 payment_failure on payment"
+              }
+            ]
+          },
+          "evidence_codes": [
+            "E0010",
+            "E0005",
+            "E0001",
+            "E0003",
+            "E0038",
+            "E0033",
+            "E0011",
+            "E0012",
+            "E0041",
+            "E0042",
+            "E0043"
+          ],
+          "executed_check": {
+            "ok": true,
+            "risk": "low",
+            "steps": [
+              "revert fault #218 payment_failure on payment with its recorded pre-image"
+            ],
+            "faults": [
+              {
+                "id": 218,
+                "params": {
+                  "variant": "100%"
+                },
+                "status": "ACTIVE",
+                "target": "payment",
+                "fault_id": "payment_failure",
+                "mechanism": "flagd"
+              }
+            ],
+            "target": "payment",
+            "rollback": {
+              "note": "restoring the pre-action state would re-inject the fault",
+              "policy": "none"
+            },
+            "action_id": "reset_fault",
+            "description": "Revert the injected fault on the target service.",
+            "verification": "error rate and p95 return to baseline within 90 s",
+            "approval_mode": "auto",
+            "preconditions": [
+              {
+                "ok": true,
+                "name": "incident_state",
+                "detail": "incident is REMEDIATING, needs REMEDIATING"
+              },
+              {
+                "ok": true,
+                "name": "catalog_target",
+                "detail": "reset_fault allows payment"
+              },
+              {
+                "ok": true,
+                "name": "fault_present",
+                "detail": "open fault(s) #218 payment_failure on payment"
+              }
+            ]
+          }
+        },
+        "pre_snapshot": {
+          "at": "2026-10-26T12:49:20.315506+00:00",
+          "flags": {
+            "paymentFailure": "100%"
+          },
+          "target": "payment",
+          "container": {
+            "health": "healthy",
+            "paused": false,
+            "status": "running",
+            "running": true,
+            "networks": [
+              "opentelemetry-demo"
+            ],
+            "cpu_limit_cores": null,
+            "memory_limit_mb": 140
+          }
+        },
+        "post_snapshot": {
+          "at": "2026-10-26T12:49:21.686305+00:00",
+          "flags": {
+            "paymentFailure": "off"
+          },
+          "target": "payment",
+          "container": {
+            "health": "healthy",
+            "paused": false,
+            "status": "running",
+            "running": true,
+            "networks": [
+              "opentelemetry-demo"
+            ],
+            "cpu_limit_cores": null,
+            "memory_limit_mb": 140
+          }
+        },
+        "result": {
+          "steps": [
+            {
+              "revert": {
+                "at": "2026-10-26T12:49:21.651011+00:00",
+                "flag": "paymentFailure",
+                "actor": "remediation:A30",
+                "reason": "remediation",
+                "restored": "off",
+                "verified": true,
+                "mechanism": "flagd",
+                "read_back": {
+                  "key": "paymentFailure",
+                  "value": 0,
+                  "reason": "STATIC",
+                  "variant": "off",
+                  "metadata": {}
+                }
+              },
+              "status": "REVERTED",
+              "fault_id": "payment_failure",
+              "fault_row_id": 218
+            }
+          ]
+        },
+        "rollback": null,
+        "error": null,
+        "created_at": "2026-10-26T12:49:20.025187Z",
+        "started_at": "2026-10-26T12:49:20.290970Z",
+        "finished_at": "2026-10-26T12:49:21.845780Z"
+      },
+      "audit": [
+        {
+          "at": "2026-10-26T12:49:20.070807Z",
+          "actor": "agent",
+          "event": "plan",
+          "outcome": "PENDING",
+          "detail": "revert fault #218 payment_failure on payment with its recorded pre-image"
+        },
+        {
+          "at": "2026-10-26T12:49:20.289970Z",
+          "actor": "p14-check",
+          "event": "approve",
+          "outcome": "APPROVED",
+          "detail": "approved by the P14 check"
+        },
+        {
+          "at": "2026-10-26T12:49:20.485001Z",
+          "actor": "executor",
+          "event": "execute_started",
+          "outcome": "started",
+          "detail": "revert fault #218 payment_failure on payment with its recorded pre-image"
+        },
+        {
+          "at": "2026-10-26T12:49:21.887677Z",
+          "actor": "executor",
+          "event": "executed",
+          "outcome": "EXECUTED",
+          "detail": "ok"
+        },
+        {
+          "at": "2026-10-26T12:49:24.861573Z",
+          "actor": "executor",
+          "event": "token_refused",
+          "outcome": "refused",
+          "detail": "token already used"
+        }
+      ]
+    },
+    "INC-00154": {
+      "flow": "restart_service",
+      "agent": {
+        "run_id": 41,
+        "status": "ESCALATED",
+        "error": "confidence below 0.7",
+        "root_cause": "email",
+        "fault_class": "dependency_unavailable",
+        "confidence": 0.69,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0023",
+          "E0013",
+          "E0024",
+          "E0008",
+          "E0025",
+          "E0027",
+          "E0028"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 5,
+        "llm_calls": 3,
+        "latency_ms": 13469,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      }
+    }
+  },
+  "flag_fault": 218,
+  "finished_at": "2026-10-26T12:55:46.715409+00:00",
+  "checks": [
+    {
+      "check": "inject payment_failure 100%",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "check": "INC-00150: agent DIAGNOSED with valid codes",
+      "ok": true,
+      "detail": {
+        "status": "DIAGNOSED",
+        "root_cause": "payment",
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        }
+      }
+    },
+    {
+      "check": "INC-00150: auto-plan \u2192 AWAITING_APPROVAL with a PENDING approval",
+      "ok": true,
+      "detail": {
+        "status": "AWAITING_APPROVAL",
+        "approval": 27
+      }
+    },
+    {
+      "check": "INC-00150: approval response carries no token or hash",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "INC-00150: proposal is the diagnosis' action",
+      "ok": true,
+      "detail": "reset_fault \u2192 payment"
+    },
+    {
+      "check": "INC-00150: dry-run would execute, changes nothing",
+      "ok": true,
+      "detail": [
+        "revert fault #218 payment_failure on payment with its recorded pre-image"
+      ]
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'drop_database', 'target': 'payment'}",
+      "ok": true,
+      "detail": "422 unknown_action"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'restart_service', 'target': 'postgres'}",
+      "ok": true,
+      "detail": "422 target_not_allowed"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'restart_service', 'target': 'flagd'}",
+      "ok": true,
+      "detail": "422 target_not_allowed"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'stop_load_generator', 'target': 'payment'}",
+      "ok": true,
+      "detail": "422 target_not_allowed"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'reset_fault', 'target': 'cart', 'replace': True}",
+      "ok": true,
+      "detail": "409 precondition_failed"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'restore_network', 'target': 'payment', 'replace': True}",
+      "ok": true,
+      "detail": "409 precondition_failed"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'reset_fault', 'target': 'payment'}",
+      "ok": true,
+      "detail": "409 approval_pending"
+    },
+    {
+      "check": "INC-00150: refuse {'action_id': 'reset_fault', 'target': 'payment', 'token': 'x'}",
+      "ok": true,
+      "detail": "422 validation_error"
+    },
+    {
+      "check": "INC-00150: still exactly one PENDING after refusals",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "INC-00150: replace with a 20 s TTL",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "check": "INC-00150: replaced approval WITHDRAWN",
+      "ok": true,
+      "detail": "WITHDRAWN"
+    },
+    {
+      "check": "INC-00150: approve a withdrawn approval \u2192 409",
+      "ok": true,
+      "detail": "approval_not_pending"
+    },
+    {
+      "check": "INC-00150: approval EXPIRED after its TTL, approve \u2192 409",
+      "ok": true,
+      "detail": {
+        "status": "EXPIRED",
+        "approve": 409,
+        "code": "approval_not_pending"
+      }
+    },
+    {
+      "check": "INC-00150: expiry escalates the incident, fault untouched",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "INC-00151: agent DIAGNOSED with valid codes",
+      "ok": true,
+      "detail": {
+        "status": "DIAGNOSED",
+        "root_cause": "payment",
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        }
+      }
+    },
+    {
+      "check": "INC-00151: auto-plan \u2192 AWAITING_APPROVAL with a PENDING approval",
+      "ok": true,
+      "detail": {
+        "status": "AWAITING_APPROVAL",
+        "approval": 29
+      }
+    },
+    {
+      "check": "INC-00151: reject \u2192 REJECTED",
+      "ok": true,
+      "detail": "REJECTED"
+    },
+    {
+      "check": "INC-00151: incident AWAITING_APPROVAL \u2192 REJECTED \u2192 ESCALATED",
+      "ok": true,
+      "detail": [
+        "AWAITING_APPROVAL",
+        "REJECTED",
+        "ESCALATED"
+      ]
+    },
+    {
+      "check": "INC-00151: nothing executed after reject",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "INC-00151: approve after reject \u2192 409",
+      "ok": true,
+      "detail": "approval_not_pending"
+    },
+    {
+      "check": "INC-00152: agent DIAGNOSED with valid codes",
+      "ok": true,
+      "detail": {
+        "status": "DIAGNOSED",
+        "root_cause": "payment",
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        }
+      }
+    },
+    {
+      "check": "INC-00152: auto-plan \u2192 AWAITING_APPROVAL with a PENDING approval",
+      "ok": true,
+      "detail": {
+        "status": "AWAITING_APPROVAL",
+        "approval": 30
+      }
+    },
+    {
+      "check": "INC-00152: approve \u2192 APPROVED, token issued and used, never returned",
+      "ok": true,
+      "detail": {
+        "status": "APPROVED",
+        "token_issued": true,
+        "token_used": true
+      }
+    },
+    {
+      "check": "INC-00152: action EXECUTED with pre/post snapshots",
+      "ok": true,
+      "detail": {
+        "status": "EXECUTED",
+        "error": null
+      }
+    },
+    {
+      "check": "INC-00152: fault reverted by the executor through the controller",
+      "ok": true,
+      "detail": {
+        "status": "REVERTED",
+        "actor": "remediation:A30",
+        "reason": "remediation"
+      }
+    },
+    {
+      "check": "INC-00152: paymentFailure reads back off",
+      "ok": true,
+      "detail": {
+        "paymentFailure": "off"
+      }
+    },
+    {
+      "check": "INC-00152: incident REMEDIATING \u2192 VERIFYING",
+      "ok": true,
+      "detail": "VERIFYING"
+    },
+    {
+      "check": "INC-00152: second approve \u2192 409",
+      "ok": true,
+      "detail": "approval_not_pending"
+    },
+    {
+      "check": "INC-00152: executor refuses a replayed/forged token",
+      "ok": true,
+      "detail": {
+        "refused": true,
+        "code": "token_rejected",
+        "message": "approval token refused: token already used"
+      }
+    },
+    {
+      "check": "INC-00152: audit trail has ['approve', 'execute_started', 'executed', 'plan', 'token_refused']",
+      "ok": true,
+      "detail": [
+        "approve",
+        "execute_started",
+        "executed",
+        "plan",
+        "token_refused"
+      ]
+    },
+    {
+      "check": "inject service_down email",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "check": "INC-00154: agent DIAGNOSED with valid codes",
+      "ok": false,
+      "detail": {
+        "status": "ESCALATED",
+        "root_cause": "email",
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        }
+      }
+    },
+    {
+      "check": "INC-00154: auto-plan \u2192 AWAITING_APPROVAL with a PENDING approval",
+      "ok": false,
+      "detail": {
+        "status": "ESCALATED",
+        "approval": null
+      }
+    },
+    {
+      "check": "script completed",
+      "ok": false,
+      "detail": "RuntimeError: INC-00154: no pending approval"
+    }
+  ],
+  "summary": {
+    "checks": 40,
+    "failed": 3
+  }
+}

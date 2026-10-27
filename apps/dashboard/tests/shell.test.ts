@@ -50,6 +50,10 @@ describe("navigation", () => {
     ]);
   });
 
+  it("has every section built after P16", () => {
+    expect(NAV_ITEMS.filter((item) => !item.ready).map((item) => item.label)).toEqual([]);
+  });
+
   it("resolves nested paths to their section", () => {
     expect(navItemFor("/").label).toBe("Overview");
     expect(navItemFor("/telemetry").label).toBe("Telemetry");

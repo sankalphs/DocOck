@@ -45,6 +45,7 @@ TAGS = [
     {"name": "agent", "description": "Investigation runs and diagnoses."},
     {"name": "approvals", "description": "Human approval of remediation actions."},
     {"name": "reports", "description": "Verification verdicts and incident reports."},
+    {"name": "stats", "description": "Cost, latency, outcome and rate-limit statistics."},
     {"name": "memory", "description": "Resolved-incident retrieval."},
     {"name": "settings", "description": "Runtime model and detector settings."},
 ]

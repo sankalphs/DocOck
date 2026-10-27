@@ -1,0 +1,342 @@
+{
+  "started_at": "2026-10-26T12:57:41.671391+00:00",
+  "incidents": {
+    "INC-00156": {
+      "flow": "restart_service",
+      "agent": {
+        "run_id": 42,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "email",
+        "fault_class": "dependency_unavailable",
+        "confidence": 0.8,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0006",
+          "E0004",
+          "E0025",
+          "E0015",
+          "E0007",
+          "E0026",
+          "E0027",
+          "E0010",
+          "E0028",
+          "E0029",
+          "E0030"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 11500,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "action": {
+        "id": 32,
+        "incident_ref": "INC-00156",
+        "action_id": "restart_service",
+        "target": "email",
+        "status": "EXECUTED",
+        "risk": "medium",
+        "approval_mode": "required",
+        "description": "Restart the target container.",
+        "verification": "container healthy, error rate < max(2%, 1.5x baseline) for 90 s",
+        "requested_by": "p14-check",
+        "diagnosis_id": 42,
+        "args": {
+          "note": "operator prefers a restart",
+          "override": true,
+          "diagnosis": {
+            "id": 42,
+            "summary": "email is the most likely root cause: a recorded service down change targets it: its container is stopped. It also ranks first among the deterministic suspects. Docker reports its container as exited. Symptoms in checkout are consequences of it.",
+            "confidence": 0.8,
+            "root_cause": "email",
+            "fault_class": "dependency_unavailable"
+          },
+          "recommended": {
+            "target": "email",
+            "action_id": "reset_fault"
+          },
+          "planned_check": {
+            "ok": true,
+            "risk": "medium",
+            "steps": [
+              "docker start email, then wait until it is running",
+              "revert fault #220 service_down on email with its recorded pre-image"
+            ],
+            "faults": [
+              {
+                "id": 220,
+                "params": {},
+                "status": "ACTIVE",
+                "target": "email",
+                "fault_id": "service_down",
+                "mechanism": "container_stop"
+              }
+            ],
+            "target": "email",
+            "rollback": {
+              "note": "start the container again if it was running before and is not now",
+              "policy": "ensure_running"
+            },
+            "action_id": "restart_service",
+            "description": "Restart the target container.",
+            "verification": "container healthy, error rate < max(2%, 1.5x baseline) for 90 s",
+            "approval_mode": "required",
+            "preconditions": [
+              {
+                "ok": true,
+                "name": "incident_state",
+                "detail": "incident is AWAITING_APPROVAL, needs AWAITING_APPROVAL"
+              },
+              {
+                "ok": true,
+                "name": "catalog_target",
+                "detail": "restart_service allows email"
+              },
+              {
+                "ok": true,
+                "name": "container_exists",
+                "detail": "email is exited"
+              }
+            ]
+          },
+          "evidence_codes": [
+            "E0006",
+            "E0004",
+            "E0025",
+            "E0015",
+            "E0007",
+            "E0026",
+            "E0027",
+            "E0010",
+            "E0028",
+            "E0029",
+            "E0030"
+          ],
+          "executed_check": {
+            "ok": true,
+            "risk": "medium",
+            "steps": [
+              "docker start email, then wait until it is running",
+              "revert fault #220 service_down on email with its recorded pre-image"
+            ],
+            "faults": [
+              {
+                "id": 220,
+                "params": {},
+                "status": "ACTIVE",
+                "target": "email",
+                "fault_id": "service_down",
+                "mechanism": "container_stop"
+              }
+            ],
+            "target": "email",
+            "rollback": {
+              "note": "start the container again if it was running before and is not now",
+              "policy": "ensure_running"
+            },
+            "action_id": "restart_service",
+            "description": "Restart the target container.",
+            "verification": "container healthy, error rate < max(2%, 1.5x baseline) for 90 s",
+            "approval_mode": "required",
+            "preconditions": [
+              {
+                "ok": true,
+                "name": "incident_state",
+                "detail": "incident is REMEDIATING, needs REMEDIATING"
+              },
+              {
+                "ok": true,
+                "name": "catalog_target",
+                "detail": "restart_service allows email"
+              },
+              {
+                "ok": true,
+                "name": "container_exists",
+                "detail": "email is exited"
+              }
+            ]
+          }
+        },
+        "pre_snapshot": {
+          "at": "2026-10-26T13:06:56.324420+00:00",
+          "target": "email",
+          "container": {
+            "health": "unhealthy",
+            "paused": false,
+            "status": "exited",
+            "running": false,
+            "networks": [
+              "opentelemetry-demo"
+            ],
+            "cpu_limit_cores": null,
+            "memory_limit_mb": 100
+          }
+        },
+        "post_snapshot": {
+          "at": "2026-10-26T13:07:00.205792+00:00",
+          "target": "email",
+          "container": {
+            "health": "starting",
+            "paused": false,
+            "status": "running",
+            "running": true,
+            "networks": [
+              "opentelemetry-demo"
+            ],
+            "cpu_limit_cores": null,
+            "memory_limit_mb": 100
+          }
+        },
+        "result": {
+          "steps": [
+            {
+              "state": {
+                "health": "starting",
+                "paused": false,
+                "status": "running",
+                "running": true,
+                "networks": [
+                  "opentelemetry-demo"
+                ],
+                "cpu_limit_cores": null,
+                "memory_limit_mb": 100
+              },
+              "docker": "start",
+              "container": "email"
+            },
+            {
+              "revert": {
+                "at": "2026-10-26T13:07:00.131922+00:00",
+                "actor": "remediation:A32",
+                "reason": "remediation",
+                "already": true,
+                "verified": true,
+                "mechanism": "container_stop"
+              },
+              "status": "REVERTED",
+              "fault_id": "service_down",
+              "fault_row_id": 220
+            }
+          ]
+        },
+        "rollback": null,
+        "error": null,
+        "created_at": "2026-10-26T13:06:52.620134Z",
+        "started_at": "2026-10-26T13:06:55.231449Z",
+        "finished_at": "2026-10-26T13:07:00.482677Z"
+      },
+      "audit": [
+        {
+          "at": "2026-10-26T13:06:52.297747Z",
+          "actor": "agent",
+          "event": "plan",
+          "outcome": "PENDING",
+          "detail": "revert fault #220 service_down on email with its recorded pre-image"
+        },
+        {
+          "at": "2026-10-26T13:06:53.948370Z",
+          "actor": "p14-check",
+          "event": "plan",
+          "outcome": "PENDING",
+          "detail": "docker start email, then wait until it is running; revert fault #220 service_down on email with its recorded pre-image (override)"
+        },
+        {
+          "at": "2026-10-26T13:06:55.230222Z",
+          "actor": "p14-check",
+          "event": "approve",
+          "outcome": "APPROVED",
+          "detail": "token issued"
+        },
+        {
+          "at": "2026-10-26T13:06:56.542461Z",
+          "actor": "executor",
+          "event": "execute_started",
+          "outcome": "started",
+          "detail": "docker start email, then wait until it is running; revert fault #220 service_down on email with its recorded pre-image"
+        },
+        {
+          "at": "2026-10-26T13:07:00.555746Z",
+          "actor": "executor",
+          "event": "executed",
+          "outcome": "EXECUTED",
+          "detail": "ok"
+        }
+      ]
+    }
+  },
+  "finished_at": "2026-10-26T13:07:00.908019+00:00",
+  "checks": [
+    {
+      "check": "inject service_down email",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "check": "INC-00156: agent DIAGNOSED with valid codes",
+      "ok": true,
+      "detail": {
+        "status": "DIAGNOSED",
+        "root_cause": "email",
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        }
+      }
+    },
+    {
+      "check": "INC-00156: auto-plan \u2192 AWAITING_APPROVAL with a PENDING approval",
+      "ok": true,
+      "detail": {
+        "status": "AWAITING_APPROVAL",
+        "approval": 31
+      }
+    },
+    {
+      "check": "INC-00156: replace with restart_service email (medium risk, approval required)",
+      "ok": true,
+      "detail": 201
+    },
+    {
+      "check": "INC-00156: executor ran docker start and the fault row closed",
+      "ok": true,
+      "detail": {
+        "status": "EXECUTED",
+        "steps": [
+          "start",
+          "service_down"
+        ]
+      }
+    },
+    {
+      "check": "INC-00156: email running after restart",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "INC-00156: rollback recorded only when needed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "INC-00156: audit trail has ['approve', 'execute_started', 'executed', 'plan']",
+      "ok": true,
+      "detail": [
+        "approve",
+        "execute_started",
+        "executed",
+        "plan"
+      ]
+    }
+  ],
+  "summary": {
+    "checks": 8,
+    "failed": 0
+  }
+}

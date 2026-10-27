@@ -98,7 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Provider, model, embeddings, and thresholds.",
     icon: Cpu,
     phase: "P10",
-    ready: false,
+    ready: true,
   },
   {
     href: "/settings",
@@ -106,7 +106,7 @@ export const NAV_ITEMS: NavItem[] = [
     blurb: "Runtime configuration, detector thresholds, and cost guardrails.",
     icon: Settings,
     phase: "P10",
-    ready: false,
+    ready: true,
   },
 ];
 

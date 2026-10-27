@@ -124,6 +124,10 @@ class Settings(BaseSettings):
     verification_clean_cycles: int = 4
     verification_timeout_s: int = 420
 
+    # --- Hardening (P16) ---
+    # Per-client sliding-window limits on write endpoints (app/ratelimit.py).
+    rate_limit_enabled: bool = True
+
     detector_enabled: bool = True
     # The collector's span-metric flush is 10 s (P4), so 10 s is the finest
     # cadence that observes a new sample; three consecutive breaches still

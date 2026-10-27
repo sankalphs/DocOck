@@ -281,6 +281,108 @@ uv run --project apps\api python -u scripts\run-scenarios.py --only S1,S5,S7,W1 
 After changing the verdict wording, rebuild the memory summaries:
 `uv run --project apps\api python scripts\reembed.py --resummarize`.
 
+## Hardening and evaluation (P16)
+
+**One command for the whole evaluation** (stack and API up, no open incident):
+
+```powershell
+scripts\eval.ps1                    # S1-S8 + W1, full loop with remediation, ~2 h
+scripts\eval.ps1 -Only S1,S5,W1     # a subset
+scripts\eval.ps1 -AnalysisOnly      # detection + analysis + agent, no remediation
+```
+
+It prints the scoreboard (one row per scenario, then detection/recovery/agent
+latency, cost, spend against the daily cap, verdicts, rate-limit rejections and
+open incidents afterwards) and writes `runtime\eval.json`,
+`runtime\scoreboard.md` and `runtime\secret-audit.json`. Exit code 0 only when
+the scenario gate and the secret audit both pass. Run it in the background and
+do not build or run other CPU-heavy work meanwhile (see M2 above).
+
+**Secret masking audit** on its own (needs the API and the dashboard; an
+unreachable page counts as a failure):
+
+```powershell
+uv run --project apps\api python scripts\secret-audit.py --out runtime\secret-audit.json
+```
+
+It never prints a secret: a finding shows only its length and first two
+characters.
+
+**Cost, latency, outcomes**: the **Settings** page, or
+`curl.exe "http://127.0.0.1:8001/api/stats?window_h=24"`.
+
+**Rate limits** apply to writes only, per client address, per 60 s (table in
+`docs/ARCHITECTURE.md`). A limited call gets 429 `rate_limited` with
+`Retry-After`. Set `RATE_LIMIT_ENABLED=false` in `.env` and restart the API to
+turn them off. A restart also clears the counters.
+
+`docs/DEMO.md` is a 15–20 minute walkthrough of the whole loop for an audience.
+
+## Reproduce M1–M4 from scratch
+
+On a clean machine with the prerequisites above. Each step names its gate.
+
+1. **Bring up the lab** (first run pulls several GB):
+
+   ```powershell
+   git clone <this repo>; cd DocOck
+   scripts\bootstrap-demo.ps1          # pinned upstream demo checkout
+   scripts\up.ps1                      # creates .env, starts demo + observability + Postgres
+   cd apps\api; uv sync; uv run alembic upgrade head; cd ..\..
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\api-detached.ps1
+   cd apps\dashboard; pnpm install; pnpm dev   # separate terminal, :3001
+   scripts\health.ps1                  # every row OK
+   scripts\check.ps1                   # quality gate; add -Live for the telemetry contracts
+   ```
+
+   Wait 5 minutes after the API starts: the detector learns baselines during a
+   300 s warm-up. The model provider is the offline `stub`; no key is needed.
+
+2. **M1 — fault → observe → recover** (P0–P7):
+
+   ```powershell
+   uv run --project apps\api python scripts\verify-faults.py      # every v1 fault injects and reverts
+   scripts\fault-kill-test.ps1                                    # TTL survives an API kill
+   ```
+
+   Then in the browser: **Fault Lab → payment_failure 100% → Dry run → Inject**,
+   watch the Overview break, **Revert**, watch it recover.
+
+3. **M2 — deterministic suspects** (P8–P9), gate ≥ 7/8 top-1:
+
+   ```powershell
+   uv run --project apps\api python scripts\verify-incidents.py
+   uv run --project apps\api python -u scripts\run-scenarios.py --out runtime\scenarios.json
+   ```
+
+4. **M3 — agent diagnosis** (P10–P13), gate: every diagnosis correct with only
+   valid evidence codes, memory finds the earlier incident in the top 3:
+
+   ```powershell
+   uv run --project apps\api python -u scripts\run-scenarios.py --agent --resolve --out runtime\scenarios-p11.json
+   uv run --project apps\api python -u scripts\run-scenarios.py --agent --resolve --history runtime\scenarios-p11.json --out runtime\scenarios-p12.json
+   ```
+
+5. **M4 — approval → verify → report** (P14–P16), gate: verified recovery on 3
+   scenarios, the rejection path, a wrong action that fails verification and
+   escalates, a report with timeline + evidence + before/after:
+
+   ```powershell
+   $env:PYTHONIOENCODING = "utf-8"
+   uv run --project apps\api python -u scripts\remediation-check.py --out runtime\p14-remediation.json   # rejection, expiry, unsafe proposals, token replay
+   scripts\eval.ps1 -Only S1,S5,S7,W1                                                                     # verified recovery x3 + wrong action, scoreboard, secret audit
+   ```
+
+   Open **Reports** for the incidents in the scoreboard.
+
+   If the check's email flow fails with "confidence below 0.7", the payment
+   flow's residue still ranks checkout close to email. Rerun that flow alone:
+   `scripts\remediation-check.py --only-restart --out runtime\p14-restart.json`.
+
+6. **Leave it clean**: **Fault Lab → Reset all** (or
+   `curl.exe -X POST http://127.0.0.1:8001/api/faults/reset-all`), and check that
+   **Incidents** has no open incident.
+
 ## Endpoints
 
 | What | URL |
@@ -388,6 +490,38 @@ future image fixes the probe.
 **The storefront returns 500 after restarting a backend.**
 The frontend's gRPC channel caches the failed address; restart `frontend` (or
 wait for reconnection) after recreating `product-catalog`, `cart`, etc.
+
+**`up.ps1` fails with "container opensearch is unhealthy" after Docker Desktop starts.**
+On a cold Docker start OpenSearch needs longer than its compose health budget
+(about 60 s). Wait until `docker inspect opensearch --format '{{.State.Health.Status}}'`
+says `healthy`, then run `scripts\up.ps1 -SkipPull` again.
+
+**Incidents open with no fault active; checkout or cart p95 is seconds, not milliseconds.**
+Seen on 2026-10-26 after a cold Docker restart: cart's flag lookups waited 1.6 s
+or more on a starved `flagd`, `quote` went from 2 ms to 300 ms, and the scenario
+runner caught these incidents instead of the injected fault. Compare
+per-service p95 with Prometheus or the **Telemetry** page (healthy: cart
+~6 ms, quote ~2 ms, shipping ~6 ms, checkout ~150 ms). Fix: `scripts\reset.ps1
+-Hard`, wait for health, then restart the API (`scripts\api-detached.ps1`). The
+detector learned its baselines on the slow stack and must learn them again.
+Do this before `scripts\eval.ps1` whenever the stack was restarted cold.
+
+**A flag fault is ACTIVE but its service shows no symptom (S3: no incident within 240 s).**
+The service started while flagd was down, so its flag client answers with the
+defaults. Seen on 2026-10-26: checkout and flagd restarted in the same second.
+Payment still received every charge while `paymentUnreachable` was `on`.
+`docker restart checkout` fixed it, and checkout errors started 40 s later.
+`scripts\reset.ps1 -Hard` now restarts flagd first, waits for :8013, then
+restarts the other containers. A plain `docker compose restart` still has this race.
+
+**Throughput incidents open again and again on cart, frontend and product-catalog with no fault active.**
+Seen on 2026-10-26 after the host slept. Prometheus has a gap, and the load
+generator ramps up again after wake. The detector learned the low ramp-up
+traffic as its baseline (frontend 7.9/s against a normal ~25/s). It then reads
+normal traffic as a 3x surge. A breaching sample does not update its own
+baseline, so the breach does not clear. The scenario runner waits for quiet that
+never comes. Fix: restart the API (`scripts\api-detached.ps1`) when the traffic
+is steady again. Restart it before `scripts\eval.ps1` after any host sleep.
 
 **Postgres restarts with "there appears to be PostgreSQL data in /var/lib/postgresql/data".**
 Postgres 18 moved its data layout. The volume must mount at

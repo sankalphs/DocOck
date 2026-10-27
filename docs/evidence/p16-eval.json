@@ -1,0 +1,1013 @@
+{
+  "generated_at": "2026-10-26T12:34:32.957870+00:00",
+  "passed": 9,
+  "total": 9,
+  "agent_passed": 9,
+  "invalid_evidence_codes": 0,
+  "remediation_passed": 9,
+  "results": [
+    {
+      "id": "S1",
+      "name": "payment failure",
+      "expected": "payment",
+      "incident": "INC-00137",
+      "primary_service": "payment",
+      "detected_s": 106.56200000000536,
+      "top": "payment",
+      "score": 0.4776,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4776
+        },
+        {
+          "service": "checkout",
+          "score": 0.1592
+        },
+        {
+          "service": "frontend",
+          "score": 0.1592
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1592
+        },
+        {
+          "service": "email",
+          "score": 0.0447
+        }
+      ],
+      "evidence": 40,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 28,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0009",
+          "E0004",
+          "E0002",
+          "E0038",
+          "E0033",
+          "E0018",
+          "E0010",
+          "E0011",
+          "E0041",
+          "E0042",
+          "E0043"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 15562,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on payment",
+        "approval_id": 16,
+        "action": "reset_fault on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.1,
+        "final_status": "RESOLVED",
+        "remediate_s": 124.5,
+        "verdict": "PASSED",
+        "observed_for_s": 118,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 10,
+          "cited_evidence": 11,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "checkout",
+            "payment"
+          ],
+          "markdown_bytes": 13645,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 255.5,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S2",
+      "name": "catalog lock contention",
+      "expected": "product-catalog",
+      "incident": "INC-00138",
+      "primary_service": "recommendation",
+      "detected_s": 158.625,
+      "top": "product-catalog",
+      "score": 0.4281,
+      "ranking": [
+        {
+          "service": "product-catalog",
+          "score": 0.4281
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.2142
+        },
+        {
+          "service": "frontend",
+          "score": 0.1761
+        },
+        {
+          "service": "recommendation",
+          "score": 0.1427
+        },
+        {
+          "service": "image-provider",
+          "score": 0.0181
+        },
+        {
+          "service": "cart",
+          "score": 0.0172
+        },
+        {
+          "service": "quote",
+          "score": 0.0037
+        }
+      ],
+      "evidence": 48,
+      "error": null,
+      "note": "the only ERROR is the proxy's 15 s timeout; the delay is product-catalog's DB call",
+      "agent": {
+        "run_id": 29,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "product-catalog",
+        "fault_class": "application_error",
+        "confidence": 0.8,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "product-catalog",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0018",
+          "E0017",
+          "E0005",
+          "E0046",
+          "E0042",
+          "E0019",
+          "E0023",
+          "E0024",
+          "E0049",
+          "E0050",
+          "E0051"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3796,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on product-catalog",
+        "approval_id": 17,
+        "action": "reset_fault on product-catalog",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.0,
+        "final_status": "RESOLVED",
+        "remediate_s": 179.8,
+        "verdict": "PASSED",
+        "observed_for_s": 176,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 12,
+          "cited_evidence": 11,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "product-catalog",
+            "recommendation"
+          ],
+          "markdown_bytes": 14959,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 350.5,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S3",
+      "name": "payment unreachable",
+      "expected": "payment",
+      "incident": "INC-00139",
+      "primary_service": "checkout",
+      "detected_s": 49.51500000001397,
+      "top": "payment",
+      "score": 0.4118,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.4118
+        },
+        {
+          "service": "checkout",
+          "score": 0.2353
+        },
+        {
+          "service": "frontend",
+          "score": 0.1569
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1569
+        },
+        {
+          "service": "email",
+          "score": 0.0392
+        }
+      ],
+      "evidence": 39,
+      "error": null,
+      "note": "enforced in checkout (badAddress:50051), so the symptom is a silent peer",
+      "agent": {
+        "run_id": 30,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "configuration",
+        "confidence": 0.78,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0010",
+          "E0005",
+          "E0004",
+          "E0037",
+          "E0032",
+          "E0011",
+          "E0012",
+          "E0013",
+          "E0040",
+          "E0041",
+          "E0042"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3750,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on payment",
+        "approval_id": 18,
+        "action": "reset_fault on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.4,
+        "final_status": "RESOLVED",
+        "remediate_s": 160.7,
+        "verdict": "PASSED",
+        "observed_for_s": 153,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 10,
+          "cited_evidence": 11,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "checkout",
+            "payment"
+          ],
+          "markdown_bytes": 13281,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 220.9,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S4",
+      "name": "slow image loading",
+      "expected": "frontend",
+      "incident": "INC-00140",
+      "primary_service": "frontend-proxy",
+      "detected_s": 150.21900000001187,
+      "top": "frontend",
+      "score": 0.6172,
+      "ranking": [
+        {
+          "service": "frontend",
+          "score": 0.6172
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.2116
+        },
+        {
+          "service": "image-provider",
+          "score": 0.1369
+        },
+        {
+          "service": "checkout",
+          "score": 0.0271
+        },
+        {
+          "service": "email",
+          "score": 0.0072
+        }
+      ],
+      "evidence": 34,
+      "error": null,
+      "note": "the delay is applied by the frontend's ProductCard",
+      "agent": {
+        "run_id": 31,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "frontend",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "frontend",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0007",
+          "E0002",
+          "E0032",
+          "E0023",
+          "E0034",
+          "E0035",
+          "E0036",
+          "E0037"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3891,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on frontend",
+        "approval_id": 19,
+        "action": "reset_fault on frontend",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.3,
+        "final_status": "RESOLVED",
+        "remediate_s": 124.4,
+        "verdict": "PASSED",
+        "observed_for_s": 118,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 8,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "frontend",
+            "frontend-proxy"
+          ],
+          "markdown_bytes": 11676,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 285.9,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S5",
+      "name": "email service down",
+      "expected": "email",
+      "incident": "INC-00141",
+      "primary_service": "email",
+      "detected_s": 26.687000000005355,
+      "top": "email",
+      "score": 0.8857,
+      "ranking": [
+        {
+          "service": "email",
+          "score": 0.8857
+        },
+        {
+          "service": "payment",
+          "score": 0.1143
+        }
+      ],
+      "evidence": 22,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 32,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "email",
+        "fault_class": "dependency_unavailable",
+        "confidence": 0.91,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "email",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0021",
+          "E0011",
+          "E0022",
+          "E0006",
+          "E0023",
+          "E0024",
+          "E0025"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3858,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on email",
+        "approval_id": 20,
+        "action": "reset_fault on email",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.5,
+        "final_status": "RESOLVED",
+        "remediate_s": 49.3,
+        "verdict": "PASSED",
+        "observed_for_s": 42,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 7,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "email"
+          ],
+          "markdown_bytes": 9401,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 86.4,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S6",
+      "name": "ad CPU pressure",
+      "expected": "ad",
+      "incident": "INC-00143",
+      "primary_service": "ad",
+      "detected_s": 34.046000000002095,
+      "top": "ad",
+      "score": 1.0,
+      "ranking": [
+        {
+          "service": "ad",
+          "score": 1.0
+        }
+      ],
+      "evidence": 23,
+      "error": null,
+      "note": "ad uses 1.3 % CPU at this cap; the limit itself is the only symptom",
+      "agent": {
+        "run_id": 33,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "ad",
+        "fault_class": "resource_exhaustion",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "ad",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0022",
+          "E0008",
+          "E0023",
+          "E0007",
+          "E0024",
+          "E0025",
+          "E0026"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3796,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on ad",
+        "approval_id": 21,
+        "action": "reset_fault on ad",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 1.9,
+        "final_status": "RESOLVED",
+        "remediate_s": 47.5,
+        "verdict": "PASSED",
+        "observed_for_s": 41,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 7,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "ad"
+          ],
+          "markdown_bytes": 9320,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 91.5,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S7",
+      "name": "payment network partition",
+      "expected": "payment",
+      "incident": "INC-00144",
+      "primary_service": "payment",
+      "detected_s": 34.25,
+      "top": "payment",
+      "score": 1.0,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 1.0
+        }
+      ],
+      "evidence": 18,
+      "error": null,
+      "note": "",
+      "agent": {
+        "run_id": 34,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "network",
+        "confidence": 0.95,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0017",
+          "E0012",
+          "E0018",
+          "E0002",
+          "E0019",
+          "E0020",
+          "E0021"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3968,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on payment",
+        "approval_id": 22,
+        "action": "reset_fault on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.0,
+        "final_status": "RESOLVED",
+        "remediate_s": 47.8,
+        "verdict": "PASSED",
+        "observed_for_s": 43,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 7,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "payment"
+          ],
+          "markdown_bytes": 8985,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 91.7,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "S8",
+      "name": "traffic flood",
+      "expected": "frontend",
+      "incident": "INC-00146",
+      "primary_service": "frontend",
+      "detected_s": 94.43700000000536,
+      "top": "frontend",
+      "score": 0.833,
+      "ranking": [
+        {
+          "service": "frontend",
+          "score": 0.833
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.167
+        }
+      ],
+      "evidence": 26,
+      "error": null,
+      "note": "catalog target is frontend; PLAN \u00a717 expected frontend-proxy",
+      "agent": {
+        "run_id": 35,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "frontend",
+        "fault_class": "traffic",
+        "confidence": 0.89,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "frontend",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0001",
+          "E0025",
+          "E0016",
+          "E0005",
+          "E0006",
+          "E0007",
+          "E0008",
+          "E0009",
+          "E0027",
+          "E0028",
+          "E0029"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 3765,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "RESOLVED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "PASSED",
+        "proposed": "reset_fault on frontend",
+        "approval_id": 23,
+        "action": "reset_fault on frontend",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 2.2,
+        "final_status": "RESOLVED",
+        "remediate_s": 129.0,
+        "verdict": "PASSED",
+        "observed_for_s": 121,
+        "failing": [],
+        "rollback": null,
+        "report": {
+          "timeline": 9,
+          "cited_evidence": 11,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 2,
+          "before_after_services": [
+            "frontend"
+          ],
+          "markdown_bytes": 11131,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 233.2,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    },
+    {
+      "id": "W1",
+      "name": "payment failure, wrong action",
+      "expected": "payment",
+      "incident": "INC-00147",
+      "primary_service": "checkout",
+      "detected_s": 70.23399999999674,
+      "top": "payment",
+      "score": 0.5,
+      "ranking": [
+        {
+          "service": "payment",
+          "score": 0.5
+        },
+        {
+          "service": "checkout",
+          "score": 0.1667
+        },
+        {
+          "service": "frontend",
+          "score": 0.1667
+        },
+        {
+          "service": "frontend-proxy",
+          "score": 0.1667
+        }
+      ],
+      "evidence": 35,
+      "error": null,
+      "note": "operator replaces reset_fault with restart_service payment",
+      "agent": {
+        "run_id": 36,
+        "status": "DIAGNOSED",
+        "error": null,
+        "root_cause": "payment",
+        "fault_class": "application_error",
+        "confidence": 0.85,
+        "valid": true,
+        "validation_errors": [],
+        "action": {
+          "target": "payment",
+          "action_id": "reset_fault"
+        },
+        "cited": [
+          "E0008",
+          "E0003",
+          "E0002",
+          "E0033",
+          "E0028",
+          "E0017",
+          "E0009",
+          "E0010",
+          "E0036",
+          "E0037",
+          "E0038"
+        ],
+        "invalid_codes": [],
+        "tool_calls": 4,
+        "llm_calls": 3,
+        "latency_ms": 4141,
+        "cost_usd": 0.0,
+        "model": "stub-deterministic-v1"
+      },
+      "final_status": "ESCALATED",
+      "memory": null,
+      "remediation": {
+        "ok": true,
+        "expect_verdict": "FAILED",
+        "proposed": "reset_fault on payment",
+        "approval_id": 25,
+        "action": "restart_service on payment",
+        "action_status": "EXECUTED",
+        "token_used": true,
+        "executed_s": 8.9,
+        "final_status": "ESCALATED",
+        "remediate_s": 431.0,
+        "verdict": "FAILED",
+        "observed_for_s": 420,
+        "failing": [
+          "symptoms_clear",
+          "error_rate"
+        ],
+        "rollback": "not needed: the container is running",
+        "report": {
+          "timeline": 11,
+          "cited_evidence": 11,
+          "cited_with_data": true,
+          "missing_citations": [],
+          "criteria": 4,
+          "before_after_services": [
+            "checkout",
+            "payment"
+          ],
+          "markdown_bytes": 13878,
+          "markdown_attachment": true,
+          "markdown_sections": true,
+          "ok": true
+        }
+      },
+      "recovered_s": 511.7,
+      "passed": true,
+      "agent_passed": true,
+      "remediation_passed": true
+    }
+  ],
+  "stats": {
+    "generated_at": "2026-10-26T12:34:32.902635Z",
+    "since": "2026-10-26T10:34:32.902635Z",
+    "window_h": 2,
+    "agent": {
+      "runs": 9,
+      "by_status": {
+        "DIAGNOSED": 9
+      },
+      "latency_ms": {
+        "count": 9,
+        "p50": 3858.0,
+        "p95": 15562.0,
+        "max": 15562.0,
+        "mean": 5169.7
+      },
+      "tokens_in": 91601,
+      "tokens_out": 1760,
+      "cost_usd": 0.0,
+      "spent_today_usd": 0.0,
+      "daily_budget_usd": 2.0,
+      "budget_used": 0.0,
+      "models": [
+        {
+          "provider": "stub",
+          "model": "stub-deterministic-v1",
+          "runs": 9,
+          "tokens_in": 91601,
+          "tokens_out": 1760,
+          "cost_usd": 0.0,
+          "latency_ms": {
+            "count": 9,
+            "p50": 3858.0,
+            "p95": 15562.0,
+            "max": 15562.0,
+            "mean": 5169.7
+          }
+        }
+      ]
+    },
+    "incidents": {
+      "opened": 19,
+      "by_status": {
+        "ESCALATED": 10,
+        "RESOLVED": 9
+      },
+      "open": 0,
+      "time_to_close_s": {
+        "count": 19,
+        "p50": 57.341697,
+        "p95": 444.628342,
+        "max": 444.628342,
+        "mean": 86.7
+      }
+    },
+    "remediation": {
+      "actions": 10,
+      "by_status": {
+        "EXECUTED": 9,
+        "WITHDRAWN": 1
+      },
+      "approvals": {
+        "APPROVED": 9,
+        "WITHDRAWN": 1
+      },
+      "verdicts": {
+        "FAILED": 1,
+        "PASSED": 8
+      },
+      "verification_s": {
+        "count": 9,
+        "p50": 118.0,
+        "p95": 420.0,
+        "max": 420.0,
+        "mean": 136.9
+      }
+    },
+    "rate_limits": {
+      "enabled": true,
+      "rejected": 0,
+      "rules": [
+        {
+          "name": "fault_inject",
+          "pattern": "^/api/faults$",
+          "limit": 10,
+          "window_s": 60.0
+        },
+        {
+          "name": "faults",
+          "pattern": "^/api/faults/",
+          "limit": 30,
+          "window_s": 60.0
+        },
+        {
+          "name": "investigate",
+          "pattern": "^/api/incidents/[^/]+/(investigate|analyze)$",
+          "limit": 10,
+          "window_s": 60.0
+        },
+        {
+          "name": "approvals",
+          "pattern": "^/api/(approvals/\\d+/|incidents/[^/]+/approvals$)",
+          "limit": 30,
+          "window_s": 60.0
+        },
+        {
+          "name": "settings",
+          "pattern": "^/api/settings",
+          "limit": 20,
+          "window_s": 60.0
+        },
+        {
+          "name": "memory",
+          "pattern": "^/api/memory/",
+          "limit": 20,
+          "window_s": 60.0
+        },
+        {
+          "name": "writes",
+          "pattern": "^/api/",
+          "limit": 120,
+          "window_s": 60.0
+        }
+      ]
+    }
+  }
+}

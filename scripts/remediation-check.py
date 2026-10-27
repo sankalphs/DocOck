@@ -289,13 +289,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default="runtime/p14-remediation.json")
     parser.add_argument("--skip-restart", action="store_true")
+    parser.add_argument(
+        "--only-restart",
+        action="store_true",
+        help="run only the service_down flow, away from the payment flow's residue",
+    )
     args = parser.parse_args()
+    # The console is often redirected to a log; keep the arrows printable.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     with httpx.Client(timeout=rs.TIMEOUT) as client:
         try:
             rs.wait_for_warmup(client)
             rs.reset(client)
             rs.settle(client, rs.SETTLE_S)
-            flow_flag(client)
+            if not args.only_restart:
+                flow_flag(client)
             if not args.skip_restart:
                 flow_restart(client)
         except Exception as exc:

@@ -177,6 +177,8 @@ class Result:
     final_status: str | None = None
     memory: dict[str, Any] | None = None
     remediation: dict[str, Any] | None = None
+    # --remediate: injection → incident closed by the verifier.
+    recovered_s: float | None = None
 
     @property
     def passed(self) -> bool:
@@ -554,6 +556,8 @@ def run_one(
         # only cleanup (idempotent) for a wrong or failed action.
         result.remediation = remediate(client, incident["public_id"], scenario)
         result.final_status = result.remediation.get("final_status")
+        if result.final_status in ("RESOLVED", "ESCALATED"):
+            result.recovered_s = round(time.monotonic() - started, 1)
 
     _delete(client, f"/api/faults/{fault_id}?actor=scenarios")
     if resolve and not remediate_flow:
@@ -578,6 +582,134 @@ def _iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, UTC).isoformat()
 
 
+def overall(item: Result) -> bool:
+    """Top-1 plus, when they ran, the agent and remediation checks."""
+    return (
+        item.passed
+        and (item.agent is None or item.agent_passed)
+        and (item.remediation is None or item.remediation_passed)
+    )
+
+
+def _fmt(value: Any, spec: str = "") -> str:
+    if value is None or value == "":
+        return "—"
+    return format(value, spec) if spec else str(value)
+
+
+def scoreboard(results: list[Result], stats: dict[str, Any] | None, started_at: str) -> str:
+    """The P16 matrix: one row per scenario, then cost/latency totals."""
+    lines = [
+        "# DocOck scenario scoreboard",
+        "",
+        f"Run started {started_at}; generated {datetime.now(UTC).isoformat(timespec='seconds')}.",
+        "",
+        "| Scenario | Expected | Detect s | Top-1 | Agent root (conf) | Tools | Agent ms "
+        "| Cost $ | Action | Verdict | Verify s | Recover s | Final | Report | Pass |",
+        "|---|---|---:|---|---|---:|---:|---:|---|---|---:|---:|---|---|---|",
+    ]
+    for item in results:
+        agent = item.agent or {}
+        rem = item.remediation or {}
+        root = agent.get("root_cause")
+        conf = agent.get("confidence")
+        report = rem.get("report")
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    f"{item.id} {item.name}",
+                    item.expected,
+                    _fmt(item.detected_s, ".0f"),
+                    f"{item.top or '—'} ({'hit' if item.passed else 'miss'})",
+                    f"{root} ({conf})" if root else "—",
+                    _fmt(agent.get("tool_calls")),
+                    _fmt(agent.get("latency_ms")),
+                    _fmt(agent.get("cost_usd")),
+                    _fmt(rem.get("action")),
+                    f"{_fmt(rem.get('verdict'))} (want {rem.get('expect_verdict')})"
+                    if rem
+                    else "—",
+                    _fmt(rem.get("observed_for_s")),
+                    _fmt(item.recovered_s, ".0f"),
+                    _fmt(item.final_status),
+                    ("ok" if report.get("ok") else "incomplete") if report else "—",
+                    "PASS" if overall(item) else "FAIL",
+                ]
+            )
+            + " |"
+        )
+    passed = sum(1 for item in results if overall(item))
+    agent_runs = [item for item in results if item.agent is not None]
+    latencies = sorted(
+        int(item.agent["latency_ms"])
+        for item in agent_runs
+        if item.agent and item.agent.get("latency_ms")
+    )
+    cost = sum(float((item.agent or {}).get("cost_usd") or 0) for item in agent_runs)
+    detect = sorted(item.detected_s for item in results if item.detected_s is not None)
+    recover = sorted(item.recovered_s for item in results if item.recovered_s is not None)
+    lines += [
+        "",
+        f"**Score: {passed}/{len(results)} scenarios pass every check** "
+        f"(top-1 {sum(1 for item in results if item.passed)}/{len(results)}"
+        + (
+            f", agent {sum(1 for item in agent_runs if item.agent_passed)}/{len(agent_runs)}"
+            if agent_runs
+            else ""
+        )
+        + (
+            f", remediation {sum(1 for item in results if item.remediation_passed)}"
+            f"/{sum(1 for item in results if item.remediation is not None)}"
+            if any(item.remediation is not None for item in results)
+            else ""
+        )
+        + ").",
+        "",
+        "| Metric | Value |",
+        "|---|---|",
+        f"| Detection time p50 / max | {_span(detect, 's')} |",
+        f"| Recovery time (inject → closed) p50 / max | {_span(recover, 's')} |",
+        f"| Agent latency p50 / max | {_span(latencies, 'ms')} |",
+        f"| Agent cost (this run) | ${cost:.4f} over {len(agent_runs)} run(s) |",
+    ]
+    if stats:
+        agent_stats = stats.get("agent") or {}
+        limits = stats.get("rate_limits") or {}
+        lines += [
+            f"| LLM spend today / daily cap | ${agent_stats.get('spent_today_usd', 0):.4f} / "
+            f"${agent_stats.get('daily_budget_usd', 0):.2f} |",
+            "| Models | "
+            + ", ".join(
+                f"{m['provider']}/{m['model']} ×{m['runs']}" for m in agent_stats.get("models", [])
+            )
+            + " |",
+            "| Verification verdicts (window) | "
+            + (
+                ", ".join(
+                    f"{verdict} {count}"
+                    for verdict, count in (
+                        (stats.get("remediation") or {}).get("verdicts") or {}
+                    ).items()
+                )
+                or "none"
+            )
+            + " |",
+            f"| Rate limits | {'on' if limits.get('enabled') else 'off'}, "
+            f"{limits.get('rejected', 0)} rejected |",
+            f"| Open incidents after the run | {(stats.get('incidents') or {}).get('open')} |",
+        ]
+    return "\n".join(lines) + "\n"
+
+
+def _span(values: list[float] | list[int], unit: str) -> str:
+    """Median (lower) and maximum, e.g. `45 s / 126 s`."""
+    if not values:
+        return "—"
+    ordered = sorted(values)
+    return f"{ordered[(len(ordered) - 1) // 2]:.0f} {unit} / {ordered[-1]:.0f} {unit}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", default="", help="comma-separated scenario ids, e.g. S1,S6")
@@ -594,7 +726,16 @@ def main() -> int:
         action="store_true",
         help="approve the proposal, let the verifier decide, check the report (implies --agent)",
     )
+    parser.add_argument(
+        "--scoreboard",
+        default="runtime/scoreboard.md",
+        help="where to write the Markdown scoreboard matrix (P16)",
+    )
     args = parser.parse_args()
+    run_started = datetime.now(UTC)
+    # The console is often redirected to a log; keep the scoreboard's symbols printable.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     history: dict[str, list[str]] = {}
     if args.history:
         with open(args.history, encoding="utf-8") as handle:
@@ -671,8 +812,12 @@ def main() -> int:
                     + ", ".join(f"{item['service']}={item['score']}" for item in result.ranking[:4])
                 )
     finally:
+        stats: dict[str, Any] | None = None
         try:
             reset(client)
+            hours = int((datetime.now(UTC) - run_started).total_seconds() // 3600) + 1
+            response = _get(client, f"/api/stats?window_h={hours}")
+            stats = response.json() if response.status_code == 200 else None
         finally:
             client.close()
 
@@ -721,9 +866,14 @@ def main() -> int:
             for item in results
         ],
     }
+    payload["stats"] = stats
     with open(args.out, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
-    print(f"\nwrote {args.out}")
+    board = scoreboard(results, stats, run_started.isoformat(timespec="seconds"))
+    with open(args.scoreboard, "w", encoding="utf-8") as handle:
+        handle.write(board)
+    print("\n" + board)
+    print(f"wrote {args.out} and {args.scoreboard}")
     if agent_runs and (invalid or agent_passed < len(agent_runs)):
         return 1
     if remediation_runs and remediation_passed < len(remediation_runs):

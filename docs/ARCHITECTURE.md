@@ -574,3 +574,70 @@ or on first read; an open incident's report is built live.
 before → after per focus service, a strip of detector cycles, cited evidence
 linked to the agent page, timeline and audit trail, with Markdown download,
 JSON and copy actions.
+
+## Hardening and evaluation (P16)
+
+### Rate limits
+
+`app/ratelimit.py` is a router dependency on every `/api` route. It keeps an
+in-memory sliding-window counter per (rule, client address): the API is one
+local process, so there is no shared store to coordinate. Only writes
+(`POST/PUT/PATCH/DELETE`) are counted; reads, the SSE stream and health probes
+are free. The first matching rule applies:
+
+| Rule | Paths | Limit / 60 s |
+|---|---|---|
+| `fault_inject` | `POST /api/faults` | 10 |
+| `faults` | `/api/faults/…` (revert, reset-all) | 30 |
+| `investigate` | `/api/incidents/{ref}/investigate`, `/analyze` | 10 |
+| `approvals` | `/api/approvals/{id}/…`, `/api/incidents/{ref}/approvals` | 30 |
+| `settings` | `/api/settings…` | 20 |
+| `memory` | `/api/memory/…` | 20 |
+| `writes` | any other write | 120 |
+
+A limited request gets the normal error envelope, HTTP 429, code
+`rate_limited`, details `{rule, limit}` and a `Retry-After` header.
+`RATE_LIMIT_ENABLED=false` turns it off. The limits sit on top of the existing
+cost guards (agent tool-call cap, wall clock, daily LLM budget → 429
+`llm_budget_exhausted`), the approval-token gate and the fault TTL watchdog;
+they do not replace any of them.
+
+### Cost and latency
+
+`GET /api/stats?window_h=168` (`app/stats.py`) rolls up, over a window: agent
+runs by status, latency p50/p95/max, tokens and cost per provider/model, spend
+today against `LLM_DAILY_BUDGET_USD`; incidents by status, open now and
+open → closed time; actions, approvals, verification verdicts and verification
+time; rate-limit rules and rejected count. Percentiles are nearest-rank in
+Python (hundreds of rows). The Settings page shows it with the guardrails, and
+the scenario runner adds it to its scoreboard.
+
+### Secret masking audit
+
+`scripts/secret-audit.py` proves that no secret leaves the process. It reads the
+secret-like values in `.env` (`*_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD`, a
+DSN's password) and searches for them literally, plus generic shapes (provider
+keys, bearer tokens, a DSN with a password, an approval token or its hash in
+JSON), in: every GET endpoint of the OpenAPI document with real path
+parameters, the Markdown report, the HTML of every dashboard page, runtime logs
+and the audit file, and every git-tracked file. Findings print only a
+fingerprint (length and first two characters). Values shorter than 12
+characters are not searched literally (the lab's Postgres default password
+equals its user and database names) and are listed as such. Two kinds of match
+are reported under `allowed` with the reason instead of failing the audit, and
+both are judged by value, not by file: a DSN password equal to the default that
+`.env.example` publishes, and a key whose body starts with `test`, `fake`,
+`dummy` or `example` (test fixtures). Any other match is a finding and the
+audit exits 1.
+
+### Evaluation
+
+`scripts/eval.ps1` is the one command: it runs `run-scenarios.py --remediate`
+over S1–S8 and W1 (inject → detect → analyse → investigate → approve → execute
+→ verify → report → clean up), then the secret audit, and writes
+`runtime/eval.json`, `runtime/scoreboard.md` and `runtime/secret-audit.json`.
+The scoreboard has one row per scenario (detection time, top-1 suspect, agent
+root cause and confidence, tool calls, latency, cost, action, verdict,
+verification and recovery time, final state, report completeness) and the
+totals (detection and recovery p50/max, agent latency, run cost, spend against
+the cap, verdict counts, rate-limit rejections, open incidents afterwards).

@@ -814,6 +814,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cost, latency, outcomes and guardrails */
+        get: operations["stats_api_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1025,6 +1042,30 @@ export interface components {
              */
             llm_calls: number;
             diagnosis?: components["schemas"]["DiagnosisView"] | null;
+        };
+        /** AgentStats */
+        AgentStats: {
+            /** Runs */
+            runs: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            latency_ms: components["schemas"]["Distribution"];
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Spent Today Usd */
+            spent_today_usd: number;
+            /** Daily Budget Usd */
+            daily_budget_usd: number;
+            /** Budget Used */
+            budget_used: number | null;
+            /** Models */
+            models: components["schemas"]["ModelUsage"][];
         };
         /** AgentStepView */
         AgentStepView: {
@@ -1372,6 +1413,19 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** Distribution */
+        Distribution: {
+            /** Count */
+            count: number;
+            /** P50 */
+            p50: number | null;
+            /** P95 */
+            p95: number | null;
+            /** Max */
+            max: number | null;
+            /** Mean */
+            mean: number | null;
         };
         /** DryRunResult */
         DryRunResult: {
@@ -1736,6 +1790,18 @@ export interface components {
              * Format: date-time
              */
             generated_at: string;
+        };
+        /** IncidentStats */
+        IncidentStats: {
+            /** Opened */
+            opened: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Open */
+            open: number;
+            time_to_close_s: components["schemas"]["Distribution"];
         };
         /**
          * IncidentStatus
@@ -2144,6 +2210,22 @@ export interface components {
             /** Error Kind */
             error_kind?: string | null;
         };
+        /** ModelUsage */
+        ModelUsage: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Runs */
+            runs: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Cost Usd */
+            cost_usd: number;
+            latency_ms: components["schemas"]["Distribution"];
+        };
         /**
          * ParamKind
          * @enum {string}
@@ -2258,12 +2340,50 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /** RateLimitRule */
+        RateLimitRule: {
+            /** Name */
+            name: string;
+            /** Pattern */
+            pattern: string;
+            /** Limit */
+            limit: number;
+            /** Window S */
+            window_s: number;
+        };
+        /** RateLimitStats */
+        RateLimitStats: {
+            /** Enabled */
+            enabled: boolean;
+            /** Rejected */
+            rejected: number;
+            /** Rules */
+            rules: components["schemas"]["RateLimitRule"][];
+        };
         /** RecommendedAction */
         RecommendedAction: {
             /** Action Id */
             action_id: string;
             /** Target */
             target: string;
+        };
+        /** RemediationStats */
+        RemediationStats: {
+            /** Actions */
+            actions: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Approvals */
+            approvals: {
+                [key: string]: number;
+            };
+            /** Verdicts */
+            verdicts: {
+                [key: string]: number;
+            };
+            verification_s: components["schemas"]["Distribution"];
         };
         /** ReportList */
         ReportList: {
@@ -2446,6 +2566,25 @@ export interface components {
             attributes?: {
                 [key: string]: string;
             };
+        };
+        /** Stats */
+        Stats: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /** Window H */
+            window_h: number;
+            agent: components["schemas"]["AgentStats"];
+            incidents: components["schemas"]["IncidentStats"];
+            remediation: components["schemas"]["RemediationStats"];
+            rate_limits: components["schemas"]["RateLimitStats"];
         };
         /** SuspectScore */
         SuspectScore: {
@@ -4208,6 +4347,37 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stats_api_stats_get: {
+        parameters: {
+            query?: {
+                window_h?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stats"];
                 };
             };
             /** @description Validation Error */

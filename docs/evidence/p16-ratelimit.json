@@ -1,0 +1,92 @@
+{
+  "at": "2026-10-26T07:43:09+00:00",
+  "requests": [
+    {
+      "n": 1,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 2,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 3,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 4,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 5,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 6,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 7,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 8,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 9,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 10,
+      "status": 201,
+      "retry_after": null
+    },
+    {
+      "n": 11,
+      "status": 429,
+      "retry_after": "52",
+      "body": {
+        "error": {
+          "code": "rate_limited",
+          "message": "too many requests for fault_inject; retry in 52 s",
+          "details": {
+            "rule": "fault_inject",
+            "limit": 10
+          },
+          "request_id": "6dc1a06e8bcf"
+        }
+      }
+    },
+    {
+      "n": 12,
+      "status": 429,
+      "retry_after": "52",
+      "body": {
+        "error": {
+          "code": "rate_limited",
+          "message": "too many requests for fault_inject; retry in 52 s",
+          "details": {
+            "rule": "fault_inject",
+            "limit": 10
+          },
+          "request_id": "45d3855322bc"
+        }
+      }
+    }
+  ],
+  "rate_limits": {
+    "enabled": true,
+    "rejected": 4
+  },
+  "active_faults_after": 0
+}
