@@ -156,8 +156,10 @@ tcp_open() {
 
 http_ok() { curl -fsS --max-time 6 -o /dev/null "$1" >/dev/null 2>&1; }
 
+# No -f here: /api/health answers 503 with a useful body when a dependency is
+# down, and the caller may still want to match that body.
 http_match() {
-  curl -fsS --max-time 8 "$1" 2>/dev/null | grep -Eq "$2"
+  curl -sS --max-time 8 "$1" 2>/dev/null | grep -Eq "$2"
 }
 
 wait_http() {
@@ -175,6 +177,16 @@ wait_http() {
   return 1
 }
 
+# pnpm and uv both spawn a child (Next.js / uvicorn). Kill the tree so a re-run
+# never leaves a half-dead server holding 8001 or 3001.
+kill_tree() {
+  local pid="$1" child
+  for child in $(pgrep -P "$pid" 2>/dev/null || true); do
+    kill_tree "$child"
+  done
+  kill -TERM "$pid" 2>/dev/null || true
+}
+
 stop_pidfile() {
   local file="$1" label="$2" pid
   [[ -f "$file" ]] || return 0
@@ -183,8 +195,7 @@ stop_pidfile() {
   [[ -n "$pid" ]] || return 0
   kill -0 "$pid" 2>/dev/null || return 0
   step "stopping previous $label (pid $pid)"
-  pkill -TERM -P "$pid" 2>/dev/null || true
-  kill -TERM "$pid" 2>/dev/null || true
+  kill_tree "$pid"
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     kill -0 "$pid" 2>/dev/null || return 0
     sleep 0.3
@@ -222,8 +233,15 @@ need git "install Git"
 need docker "install Docker Desktop or Docker Engine"
 need curl "install curl"
 docker compose version >/dev/null 2>&1 || die "docker compose v2 is required (docker compose version)"
-docker info >/dev/null 2>&1 || die "Docker is not running — start Docker Desktop and try again"
-if [[ "$CHECK" -eq 0 ]]; then
+if [[ "$STOP" -eq 1 ]]; then
+  if ! docker info >/dev/null 2>&1; then
+    warn "Docker is not running; nothing to stop"
+    exit 0
+  fi
+else
+  docker info >/dev/null 2>&1 || die "Docker is not running — start Docker Desktop and try again"
+fi
+if [[ "$CHECK" -eq 0 && "$STOP" -eq 0 ]]; then
   need uv "install it from https://docs.astral.sh/uv/ (curl -LsSf https://astral.sh/uv/install.sh | sh)"
   need pnpm "install it from https://pnpm.io/installation (corepack enable pnpm)"
   need node "install Node.js 22 or newer"
@@ -476,8 +494,8 @@ STARTED=0
 
 stop_apps() {
   [[ -n "$TAIL_PID" ]] && kill -TERM "$TAIL_PID" 2>/dev/null || true
-  [[ -n "$API_PID" ]] && { pkill -TERM -P "$API_PID" 2>/dev/null || true; kill -TERM "$API_PID" 2>/dev/null || true; }
-  [[ -n "$DASH_PID" ]] && { pkill -TERM -P "$DASH_PID" 2>/dev/null || true; kill -TERM "$DASH_PID" 2>/dev/null || true; }
+  [[ -n "$API_PID" ]] && kill_tree "$API_PID"
+  [[ -n "$DASH_PID" ]] && kill_tree "$DASH_PID"
   [[ -n "$API_PID" ]] && wait "$API_PID" 2>/dev/null || true
   [[ -n "$DASH_PID" ]] && wait "$DASH_PID" 2>/dev/null || true
   rm -f runtime/run/api.pid runtime/run/dashboard.pid

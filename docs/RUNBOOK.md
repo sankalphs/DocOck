@@ -1,6 +1,18 @@
 # Runbook — local stack
 
-Everything here is Windows PowerShell, but the Compose commands are portable.
+Everything here is Windows PowerShell, but the Compose commands are portable. On macOS,
+Linux, WSL or Git Bash the shortest path is the one-command runner:
+
+```bash
+./run.sh                    # setup + stack + migrations + API + dashboard
+./run.sh --skip-pull        # later runs
+./run.sh --stop             # stop apps and containers
+./run.sh --purge            # also remove data and project images
+./run.sh --check            # quality gate, no Docker required
+```
+
+On Windows, `.\run.ps1` forwards the same flags to Git Bash. The rest of this runbook
+uses the individual PowerShell scripts, which remain the reference implementation.
 
 ## Prerequisites
 
