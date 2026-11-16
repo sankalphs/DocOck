@@ -351,3 +351,11 @@ def test_baselines_freeze_during_an_incident_and_resume_after() -> None:
     store.thaw(later)
     assert not store.frozen
     assert store.baseline("cart", "throughput", now=later) == 6.0
+
+
+def test_pending_lists_streaks_below_their_debounce() -> None:
+    detector = Detector(rules=_rules(), store=BaselineStore(window_s=900))
+    assert detector.pending() == {}
+    detector._count("frontend-proxy", "p95_latency", True, NOW)
+    detector._count("cart", "error_rate", False, NOW)
+    assert detector.pending() == {"frontend-proxy": ["p95_latency"]}

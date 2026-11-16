@@ -621,6 +621,13 @@ incident.opened ─(AUTOPILOT_INVESTIGATE_DELAY_S)─► agent run
   of after the 420 s window. A recovery that is clean on its last cycle gets a
   short grace to finish its clean cycles, and with no rung left but no drift
   either the autopilot re-verifies the last action once before escalating.
+- **Settle before PASS**: four clean cycles are not enough on their own. The
+  detector's 2-minute rate window must have rolled past the action and no focus
+  service may have a breach streak still building (a latency streak needs nine
+  samples). Without this, reconnecting cart passed in 40 s and the p95 of calls
+  that hung during the partition opened a second incident, whose fallback
+  restart then caused a third (recommendation errors while product-catalog
+  restarted).
 - **API restarts**: detector reports carry `warm`; a resumed verification skips
   warm-up cycles (whose breach list is empty by construction) and extends its
   window by the same amount.

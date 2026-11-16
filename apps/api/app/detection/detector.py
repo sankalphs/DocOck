@@ -697,6 +697,14 @@ class Detector:
             values[service] = max(values.get(service, point.v), point.v)
         return values
 
+    def pending(self) -> dict[str, list[str]]:
+        """Services with a breach streak still below its debounce, by signal."""
+        out: dict[str, list[str]] = {}
+        for (service, signal), (count, _first) in self._counters.items():
+            if count > 0:
+                out.setdefault(service, []).append(signal)
+        return out
+
     def _count(self, service: str, signal: str, breached: bool, at: datetime) -> int:
         key = (service, signal)
         if not breached:

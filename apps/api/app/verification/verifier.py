@@ -28,6 +28,7 @@ from app.config import settings
 from app.db.models import Action, Diagnosis, Fault, Incident, Verification
 from app.db.session import SessionFactory
 from app.detection.runtime import runtime as detection
+from app.detection.thresholds import window_seconds
 from app.domain.state import IncidentStatus
 from app.events.bus import bus
 from app.faults.catalog import ALLOWED_TARGETS, DEFINITIONS
@@ -220,6 +221,7 @@ class Verifier:
         required = settings.verification_clean_cycles
         deadline = asyncio.get_running_loop().time() + settings.verification_timeout_s
         t0 = datetime.now(UTC)
+        window_s = window_seconds(settings.detector_window)
         samples: list[dict[str, Any]] = []
         clean = 0
         residual_cycles = 0
@@ -276,8 +278,23 @@ class Verifier:
                 },
             )
             if clean >= required:
-                verdict = Verdict.PASSED
-                break
+                # The detector's rate window still holds pre-fix spans until it
+                # has rolled past the action, and a latency streak needs nine
+                # samples before it is a breach. Passing on four clean cycles
+                # 40 s after reconnecting cart let p95 from the calls that hung
+                # during the partition open a second incident right after.
+                settled = (datetime.now(UTC) - t0).total_seconds() >= window_s
+                pending = {
+                    service: signals
+                    for service, signals in detection.detector.pending().items()
+                    if service in focus
+                }
+                if settled and not pending:
+                    verdict = Verdict.PASSED
+                    break
+                samples[-1]["waiting"] = (
+                    "rate window" if not settled else f"pending streaks: {pending}"
+                )
             if residual_cycles >= RESIDUAL_CYCLES:
                 criteria.append(
                     Criterion(
