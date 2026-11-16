@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Action, Approval, Evidence, Fault, Incident, IncidentEvent, Suspect
@@ -93,6 +93,11 @@ class IncidentDetail(IncidentSummary):
     faults: list[FaultContext] = Field(default_factory=list)
 
 
+class NoteRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    author: str = Field(default="operator", min_length=1, max_length=64)
+
+
 class IncidentList(BaseModel):
     items: list[IncidentSummary]
     total: int
@@ -106,6 +111,11 @@ def _utc(value: datetime) -> datetime:
 
 # Primary keys are BIGINT; anything larger cannot exist and must not reach asyncpg.
 _MAX_ID = 2**63 - 1
+
+
+def escape_like(text: str) -> str:
+    """Make `%`, `_` and the escape char literal inside an ILIKE pattern."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def normalize_ref(ref: str) -> str:
@@ -212,6 +222,28 @@ class IncidentService:
                 },
             )
         return event
+
+    async def add_note(
+        self, session: AsyncSession, incident: Incident, *, author: str, text: str
+    ) -> IncidentEventView:
+        """An operator annotation on the timeline. Allowed in every status:
+        postmortem notes on a closed incident are the common case."""
+        event = await self.append_event(
+            session, incident, "note", {"author": author, "text": text}, publish=False
+        )
+        bus.publish(
+            "incident.note",
+            {
+                "incident_id": incident.public_id,
+                "id": incident.id,
+                "seq": event.seq,
+                "author": author,
+                "text": text,
+            },
+        )
+        await session.refresh(event)  # `at` is a server default
+        log.info("incident_note", incident=incident.public_id, author=author)
+        return _event_view(event)
 
     async def attach_signal(
         self,
@@ -424,10 +456,21 @@ class IncidentService:
         *,
         status: str = "all",
         service: str | None = None,
+        q: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> IncidentList:
         query = select(Incident).order_by(Incident.id.desc())
+        if q and q.strip():
+            pattern = f"%{escape_like(q.strip())}%"
+            query = query.where(
+                or_(
+                    Incident.public_id.ilike(pattern, escape="\\"),
+                    Incident.title.ilike(pattern, escape="\\"),
+                    Incident.primary_service.ilike(pattern, escape="\\"),
+                    Incident.signature.ilike(pattern, escape="\\"),
+                )
+            )
         if status == "open":
             query = query.where(Incident.status.in_([item.value for item in ACTIVE_STATUSES]))
         elif status == "closed":
@@ -640,6 +683,7 @@ __all__ = [
     "IncidentList",
     "IncidentService",
     "IncidentSummary",
+    "NoteRequest",
     "SuspectView",
     "service",
 ]

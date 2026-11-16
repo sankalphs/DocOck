@@ -47,6 +47,8 @@ def event_detail(kind: str, payload: dict[str, Any]) -> str:
         return text
     if kind == "signal":
         return f"{payload.get('service')} {payload.get('signal')}: {payload.get('detail', '')}"
+    if kind == "note":
+        return f"{payload.get('author') or 'operator'}: {payload.get('text', '')}"
     if kind == "opened":
         # The trigger carries every breached signal; the first one opened it.
         signals = payload.get("signals") or [{}]
