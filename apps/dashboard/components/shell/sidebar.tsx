@@ -16,7 +16,8 @@ type SidebarProps = {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { health } = useLive();
+  const { health, approvals } = useLive();
+  const pending = approvals.pending ?? 0;
   const mood = moodFor(health.data?.status ?? (health.error ? "down" : null));
 
   return (
@@ -91,6 +92,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       aria-hidden
                     />
                     <span className="truncate">{item.label}</span>
+                    {item.href === "/approvals" && pending > 0 ? (
+                      <span
+                        title={`${pending} approval${pending === 1 ? "" : "s"} awaiting a decision`}
+                        aria-label={`${pending} pending`}
+                        className="ml-auto min-w-5 rounded-full bg-warning px-1.5 text-center text-[11px] font-semibold leading-5 text-background tabular"
+                      >
+                        {pending > 99 ? "99+" : pending}
+                      </span>
+                    ) : null}
                     {!item.ready ? (
                       <span
                         title={`Available in phase ${item.phase}`}

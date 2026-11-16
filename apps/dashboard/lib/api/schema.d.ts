@@ -287,6 +287,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/incidents/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Incidents as CSV (same filters as the list) */
+        get: operations["export_incidents_api_incidents_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/incidents/{ref}": {
         parameters: {
             query?: never;
@@ -349,6 +366,26 @@ export interface paths {
         get: operations["incident_evidence_api_incidents__ref__evidence_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an operator note to the timeline
+         * @description Notes are allowed in every status, including after the incident closed (postmortem annotations). They appear in the timeline and the report.
+         */
+        post: operations["add_note_api_incidents__ref__notes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2226,6 +2263,16 @@ export interface components {
             cost_usd: number;
             latency_ms: components["schemas"]["Distribution"];
         };
+        /** NoteRequest */
+        NoteRequest: {
+            /** Text */
+            text: string;
+            /**
+             * Author
+             * @default operator
+             */
+            author: string;
+        };
         /**
          * ParamKind
          * @enum {string}
@@ -3262,6 +3309,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Numeric row id */
                 fault_id: number;
             };
             cookie?: never;
@@ -3295,6 +3343,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Numeric row id */
                 fault_id: number;
             };
             cookie?: never;
@@ -3326,6 +3375,8 @@ export interface operations {
             query?: {
                 status?: "all" | "open" | "closed";
                 service?: string | null;
+                /** @description Substring of id, title, service or signature */
+                q?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -3342,6 +3393,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_incidents_api_incidents_export_csv_get: {
+        parameters: {
+            query?: {
+                status?: "all" | "open" | "closed";
+                service?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
                 };
             };
             /** @description Validation Error */
@@ -3468,6 +3553,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_note_api_incidents__ref__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentEventView"];
                 };
             };
             /** @description Validation Error */
@@ -3784,6 +3904,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Numeric row id */
                 run_id: number;
             };
             cookie?: never;
@@ -3815,6 +3936,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Numeric row id */
                 run_id: number;
             };
             cookie?: never;
@@ -3910,6 +4032,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Numeric row id */
                 approval_id: number;
             };
             cookie?: never;
@@ -4012,6 +4135,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Numeric row id */
                 approval_id: number;
             };
             cookie?: never;
@@ -4047,6 +4171,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Numeric row id */
                 approval_id: number;
             };
             cookie?: never;
@@ -4084,6 +4209,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Numeric row id */
                 approval_id: number;
             };
             cookie?: never;

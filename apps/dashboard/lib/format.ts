@@ -17,6 +17,18 @@ export function formatRelative(epochMs: number | null | undefined, now = Date.no
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+/** 45s · 3m 05s · 2h 04m · 1d 3h — compact enough for a list row. */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return "—";
+  const total = Math.max(0, Math.floor(seconds));
+  if (total < 60) return `${total}s`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes}m ${String(total % 60).padStart(2, "0")}s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
 export function formatClock(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);

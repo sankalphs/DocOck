@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, FlaskConical, History, ShieldCheck, XCircle } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  CheckCircle2,
+  FlaskConical,
+  History,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
 
 import { useLive } from "@/components/live-provider";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +36,7 @@ import {
 } from "@/lib/api/approvals";
 import { formatClock } from "@/lib/format";
 import { usePolling } from "@/lib/hooks/use-polling";
+import type { PendingApprovals } from "@/lib/hooks/use-pending-approvals";
 
 function useNow(intervalMs = 1000): number {
   const [now, setNow] = useState(() => Date.now());
@@ -38,8 +47,31 @@ function useNow(intervalMs = 1000): number {
   return now;
 }
 
+function AlertToggle({ alerts }: { alerts: PendingApprovals["alerts"] }) {
+  if (alerts.permission === "unsupported") return null;
+  const blocked = alerts.permission === "denied";
+  const Icon = alerts.enabled ? Bell : BellOff;
+  return (
+    <Button
+      variant={alerts.enabled ? "secondary" : "outline"}
+      size="sm"
+      disabled={blocked}
+      onClick={() => void alerts.toggle()}
+      aria-pressed={alerts.enabled}
+      title={
+        blocked
+          ? "Notifications are blocked for this site in the browser settings"
+          : "Show a desktop notification when a new approval is waiting"
+      }
+    >
+      <Icon className="size-3.5" />
+      {blocked ? "Alerts blocked" : alerts.enabled ? "Desktop alerts on" : "Desktop alerts"}
+    </Button>
+  );
+}
+
 export function ApprovalBoard() {
-  const { stream } = useLive();
+  const { stream, approvals } = useLive();
   const latest = stream.events.find(
     (event) =>
       event.type.startsWith("approval.") ||
@@ -73,6 +105,7 @@ export function ApprovalBoard() {
               mint a single-use token and hand it to the executor; no token ever reaches this page.
             </CardDescription>
           </div>
+          <AlertToggle alerts={approvals.alerts} />
         </CardHeader>
         <CardContent className="space-y-3">
           {list.error ? <p className="text-[11px] text-destructive">{list.error}</p> : null}

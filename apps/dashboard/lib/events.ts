@@ -20,6 +20,7 @@ export const EVENT_TYPES = [
   "incident.signal",
   "incident.analysis",
   "incident.closed",
+  "incident.note",
   "agent.run.started",
   "agent.step",
   "agent.run.finished",

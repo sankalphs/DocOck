@@ -1,4 +1,4 @@
-import { request } from "./client";
+import { API_BASE_URL, request } from "./client";
 import type { components } from "./schema";
 
 export type IncidentStatus =
@@ -171,14 +171,30 @@ function mapSummary(raw: components["schemas"]["IncidentSummary"]): IncidentSumm
   };
 }
 
-export async function fetchIncidents(
-  options: { status?: string; limit?: number } = {},
-  signal?: AbortSignal,
-): Promise<IncidentList> {
+export type IncidentQuery = { status?: string; limit?: number; q?: string; service?: string };
+
+/** Query string shared by the list and the CSV export, so both see the same rows. */
+export function incidentQueryParams(options: IncidentQuery = {}): URLSearchParams {
   const params = new URLSearchParams({
     status: options.status ?? "all",
     limit: String(options.limit ?? 50),
   });
+  const q = options.q?.trim();
+  if (q) params.set("q", q.slice(0, 100));
+  if (options.service) params.set("service", options.service);
+  return params;
+}
+
+/** Download URL for the current filter (the API sets Content-Disposition). */
+export function incidentsCsvUrl(options: Omit<IncidentQuery, "limit"> = {}): string {
+  return `${API_BASE_URL}/api/incidents/export.csv?${incidentQueryParams({ ...options, limit: 1000 })}`;
+}
+
+export async function fetchIncidents(
+  options: IncidentQuery = {},
+  signal?: AbortSignal,
+): Promise<IncidentList> {
+  const params = incidentQueryParams(options);
   const raw = await request<components["schemas"]["IncidentList"]>(
     `/api/incidents?${params}`,
     { signal },
@@ -290,4 +306,23 @@ export async function closeIncident(
     suspects: [],
     faults: [],
   };
+}
+
+export const NOTE_MAX_LENGTH = 2000;
+
+/** Append an operator note to the incident timeline (allowed in every status). */
+export async function addIncidentNote(
+  ref: string,
+  text: string,
+  author = "dashboard",
+): Promise<IncidentEvent> {
+  const raw = await request<components["schemas"]["IncidentEventView"]>(
+    `/api/incidents/${encodeURIComponent(ref)}/notes`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.trim(), author }),
+    },
+  );
+  return { seq: raw.seq, kind: raw.kind, payload: raw.payload ?? {}, at: raw.at };
 }

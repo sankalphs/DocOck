@@ -2,14 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Activity, ArrowRight, Bot, Check, Clock, RefreshCw, X } from "lucide-react";
+import { Activity, ArrowRight, Bot, Check, Clock, MessageSquarePlus, RefreshCw, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { suspectSignals, type IncidentDetail } from "@/lib/api/incidents";
+import {
+  addIncidentNote,
+  NOTE_MAX_LENGTH,
+  suspectSignals,
+  type IncidentDetail,
+} from "@/lib/api/incidents";
 import { eventBadge, severityBadge, statusBadge } from "@/components/incidents/badges";
-import { formatClock } from "@/lib/format";
+import { formatClock, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function metric(value: number | null, signal: string): string {
@@ -25,6 +30,67 @@ function payloadSummary(payload: Record<string, unknown>): string {
   if (typeof payload.service === "string") return payload.service;
   if (typeof payload.reason === "string") return String(payload.reason);
   return "";
+}
+
+function NoteComposer({ incidentRef, onAdded }: { incidentRef: string; onAdded: () => void }) {
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const trimmed = text.trim();
+
+  const submit = async () => {
+    if (!trimmed || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await addIncidentNote(incidentRef, trimmed);
+      setText("");
+      onAdded();
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "Could not save the note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form
+      className="mt-3 border-t border-border/60 pt-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <label htmlFor={`note-${incidentRef}`} className="text-[11px] font-medium">
+        Add a note
+      </label>
+      <textarea
+        id={`note-${incidentRef}`}
+        value={text}
+        maxLength={NOTE_MAX_LENGTH}
+        rows={2}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+        placeholder="What did you see or do? Notes land in the timeline and the report."
+        className="mt-1 w-full resize-y rounded-md border border-input bg-card px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      <div className="mt-1 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {text.length}/{NOTE_MAX_LENGTH} · Ctrl/⌘+Enter
+        </span>
+        {error ? <span className="text-[10px] text-destructive">{error}</span> : null}
+        <Button type="submit" size="sm" className="ml-auto" disabled={!trimmed || saving}>
+          <MessageSquarePlus className="size-3.5" />
+          {saving ? "Saving…" : "Add note"}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 export function IncidentDetailPanel({
@@ -77,7 +143,7 @@ export function IncidentDetailPanel({
               ) : null}{" "}
               · opened {formatClock(incident.opened_at)}
               {incident.closed_at ? ` · closed ${formatClock(incident.closed_at)}` : ""} · duration{" "}
-              {incident.duration_s ?? 0}s
+              {formatDuration(incident.duration_s)}
             </CardDescription>
             {incident.services.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1">
@@ -218,13 +284,23 @@ export function IncidentDetailPanel({
                         {String(event.payload.to)}
                       </p>
                     ) : null}
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                      {payloadSummary(event.payload)}
-                    </p>
+                    {event.kind === "note" ? (
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[11px]">
+                        <span className="font-medium">
+                          {String(event.payload.author ?? "operator")}:
+                        </span>{" "}
+                        {String(event.payload.text ?? "")}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                        {payloadSummary(event.payload)}
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}
             </ol>
+            <NoteComposer incidentRef={incident.public_id} onAdded={onRefresh} />
           </CardContent>
         </Card>
       </div>

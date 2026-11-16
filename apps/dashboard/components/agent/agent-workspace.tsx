@@ -200,9 +200,9 @@ export function AgentWorkspace({
               {incident ? (
                 <>
                   <Link
-                    href="/incidents"
+                    href={`/incidents?incident=${encodeURIComponent(incident.public_id)}`}
                     className="font-mono underline-offset-2 hover:underline"
-                    title="Open the Incidents screen"
+                    title="Open this incident on the Incidents screen"
                   >
                     {incident.public_id}
                   </Link>{" "}
