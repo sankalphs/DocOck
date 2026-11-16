@@ -240,10 +240,12 @@ class Executor:
         result: dict[str, Any] = {"steps": []}
         if action_id == "restart_service":
             container = await resolve_target(target, require_network=False)
-            if container.state != "running":
-                verb = "start"
-            elif container.paused:
+            # Docker reports a paused container's state as "paused", and
+            # `docker start` refuses it ("try unpause instead"): check it first.
+            if container.paused or container.state == "paused":
                 verb = "unpause"
+            elif container.state != "running":
+                verb = "start"
             else:
                 verb = "restart"
             await run_docker(verb, container.container, timeout_s=60.0)

@@ -418,6 +418,8 @@ def test_stub_blames_a_drifted_dependency_over_its_caller() -> None:
     }
     assert "E0042" in diagnosis["evidence_codes"]
     assert diagnosis["affected_services"][:2] == ["valkey-cart", "cart"]
+    # Observed drift with a known fix clears the 0.70 gate even on a suspect tie.
+    assert diagnosis["confidence"] >= 0.8
     shown = {"E0001", "E0002", "E0042"}
     report = validate(
         diagnosis,
@@ -473,3 +475,28 @@ def test_targeted_flag_effective_variant_follows_the_match_branch() -> None:
     assert effective_variant(flag) == "on"
     assert targeted_rule({"defaultVariant": "on"}) is None
     assert effective_variant({"defaultVariant": "on"}) == "on"
+
+
+async def test_verifier_residual_drift_lists_other_components_only(_isolated_drift: Any) -> None:
+    from app.remediation.drift import DriftFix, DriftItem
+    from app.verification.verifier import Verifier
+
+    def item(service: str, kind: str, fix: bool = True) -> DriftItem:
+        return DriftItem(
+            kind=kind,  # type: ignore[arg-type]
+            service=service,
+            component=service,
+            detail=f"{service} {kind}",
+            fix=DriftFix(action_id="restart_service", target=service) if fix else None,
+        )
+
+    _isolated_drift["items"] = [
+        item("astronomy-db", "container_stopped"),  # the action's own target
+        item("valkey-cart", "container_stopped"),  # still broken: not this action's
+        item("quote", "container_restarting", fix=False),  # no known fix
+        item("email", "container_stopped"),  # outside the focus
+    ]
+    verifier = Verifier()
+    residual = await verifier._residual("astronomy-db", ["astronomy-db", "cart", "valkey-cart"])
+    assert residual == ["valkey-cart container_stopped"]
+    assert await verifier._residual("cart", ["cart"]) == []

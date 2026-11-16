@@ -218,3 +218,35 @@ async def test_restart_rollback_skips_a_container_that_was_not_running(
     )
     assert outcome["performed"] is False
     assert "was not running before" in outcome["detail"]
+
+
+async def test_restart_service_unpauses_a_paused_container(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Docker reports a paused container as state "paused"; `docker start` refuses it.
+    async def fake_resolve(*_args: Any, **_kwargs: Any) -> Any:
+        return safety.ContainerTarget(
+            service="currency",
+            container="currency",
+            project="docock-demo",
+            image="x",
+            state="paused",
+            paused=True,
+            health="unhealthy",
+        )
+
+    calls: list[tuple[str, ...]] = []
+
+    async def fake_docker(*args: str, **_kwargs: Any) -> str:
+        calls.append(args)
+        return ""
+
+    async def fake_wait(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        return {"running": True, "paused": False}
+
+    monkeypatch.setattr("app.remediation.executor.resolve_target", fake_resolve)
+    monkeypatch.setattr("app.remediation.executor.run_docker", fake_docker)
+    monkeypatch.setattr("app.remediation.executor.wait_for_container", fake_wait)
+    result = await Executor()._perform("restart_service", "currency", [], actor="test")
+    assert calls[0] == ("unpause", "currency")
+    assert result["steps"][0]["docker"] == "unpause"

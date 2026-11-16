@@ -160,6 +160,9 @@ class Settings(BaseSettings):
     detector_latency_breaches: int = 9
     detector_recovery_samples: int = 4
     detector_min_errors: int = 2
+    # Slow-burn error check for low-traffic services (see detection/thresholds).
+    detector_slow_window: str = "10m"
+    detector_slow_min_errors: int = 3
     detector_warmup_s: int = 300
     detector_error_rate_floor: float = 0.02
     detector_error_rate_multiplier: float = 3.0

@@ -42,7 +42,13 @@ from app.remediation.reconcile import relevant
 from app.remediation.schemas import ActionStatus
 from app.telemetry.docker import DockerError, docker_inspect
 from app.telemetry.prometheus import PrometheusAdapter
-from app.verification.criteria import Observation, all_ok, evaluate, focus_services
+from app.verification.criteria import (
+    Criterion,
+    Observation,
+    all_ok,
+    evaluate,
+    focus_services,
+)
 
 log = get_logger(__name__)
 
@@ -58,6 +64,12 @@ class Verdict:
 
 
 METRICS = ("error_rate", "p95_latency", "throughput")
+# Several things broke at once: the action fixed its own target, but another
+# focus service is still drifted and keeps the symptoms alive. Waiting out the
+# whole timeout for symptoms this action cannot clear only delays the next rung,
+# so with the autopilot attached the verifier hands over after 30 s of that.
+RESIDUAL_CYCLES = 3
+RESIDUAL_OK = frozenset({"symptoms_clear", "error_rate"})
 
 
 class Verifier:
@@ -210,24 +222,49 @@ class Verifier:
         t0 = datetime.now(UTC)
         samples: list[dict[str, Any]] = []
         clean = 0
+        residual_cycles = 0
         last_seen: datetime | None = None
         criteria: list[Any] = []
         verdict = Verdict.FAILED
         reports = 0
-        while asyncio.get_running_loop().time() < deadline:
-            report = await self._next_report(last_seen, deadline)
+        # A recovery that is already clean when the window closes (traffic
+        # settling after a dependency came back) gets the cycles it still needs
+        # instead of being failed on its last clean sample.
+        grace = deadline + (required + 1) * settings.detector_interval_s
+        while True:
+            clock = asyncio.get_running_loop().time()
+            if clock >= deadline and not (clean > 0 and clock < grace):
+                break
+            report = await self._next_report(last_seen, grace if clock >= deadline else deadline)
             if report is None:
                 samples.append({"at": datetime.now(UTC).isoformat(), "clean": 0, "stale": True})
                 clean = 0
                 continue
             last_seen = report.at
+            if getattr(report, "warm", False):
+                # The detector restarted and is warming up: its breach list is
+                # empty by construction. Wait it out without spending the window.
+                samples.append({"at": report.at.isoformat(), "clean": clean, "warm": True})
+                deadline += settings.detector_interval_s
+                grace += settings.detector_interval_s
+                continue
             reports += 1
             obs = await self._observe(report, target, fault_ids, flags, initial_start)
             obs.drift = await self._drift(action_id, target)
             criteria = evaluate(action_id, obs, focus)
             clean = clean + 1 if all_ok(criteria) else 0
             failing = [c.id for c in criteria if not c.ok]
-            samples.append({"at": obs.at, "clean": clean, "failing": failing})
+            residual: list[str] = []
+            # The target's own state criteria hold; only symptoms fail, and
+            # its error rate may be downstream of the other drift (checkout
+            # fails every order while currency is paused).
+            if self.on_failed is not None and failing and set(failing) <= RESIDUAL_OK:
+                residual = await self._residual(target, focus)
+            residual_cycles = residual_cycles + 1 if residual else 0
+            samples.append(
+                {"at": obs.at, "clean": clean, "failing": failing}
+                | ({"residual": residual[:4]} if residual else {})
+            )
             bus.publish(
                 "verification.progress",
                 {
@@ -240,6 +277,16 @@ class Verifier:
             )
             if clean >= required:
                 verdict = Verdict.PASSED
+                break
+            if residual_cycles >= RESIDUAL_CYCLES:
+                criteria.append(
+                    Criterion(
+                        "residual_drift",
+                        "Remaining symptoms are not this action's",
+                        False,
+                        "; ".join(residual[:4]),
+                    )
+                )
                 break
         if verdict != Verdict.PASSED and reports == 0:
             verdict = Verdict.INCONCLUSIVE
@@ -457,6 +504,18 @@ class Verifier:
             error_rate=error_rate,
             baseline_error=(report.baselines.get(target) or {}).get("error_rate"),
         )
+
+    async def _residual(self, target: str, focus: list[str]) -> list[str]:
+        """Drift on the *other* focus services (what this action did not touch)."""
+        others = [service for service in focus if service != target]
+        if not others:
+            return []
+        try:
+            report = await scanner.scan(services=others)
+        except Exception as exc:
+            log.warning("verification_residual_failed", error=str(exc))
+            return []
+        return [item.detail for item in report.items if item.service != target and item.fix]
 
     async def _drift(self, action_id: str, target: str) -> list[str] | None:
         try:

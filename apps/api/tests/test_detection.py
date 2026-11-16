@@ -16,6 +16,7 @@ from app.detection.thresholds import (
     severity_for_error,
     severity_for_latency,
     silence_breach,
+    slow_window_for,
     throughput_breach,
     throughput_threshold,
     window_seconds,
@@ -226,7 +227,9 @@ def _offline_detector(monkeypatch: pytest.MonkeyPatch, rps: list[float]) -> Dete
     readings = iter(rps)
     current: dict[str, float] = {}
 
-    async def instant(metric: str) -> dict[str, float]:
+    async def instant(metric: str, *, window: str | None = None) -> dict[str, float]:
+        if window is not None:  # slow-burn error queries
+            return {"cart": 0.0}
         if metric == "error_rate":
             current["rps"] = next(readings)
             return {"cart": 0.0}
@@ -310,3 +313,41 @@ def test_status_reports_streaks_below_their_debounce() -> None:
     assert detector.status()["breaches"] == []
     detector._count("checkout", "p95_latency", False, NOW)
     assert detector.status()["pending"] == []
+
+
+def test_slow_burn_window_only_spans_time_since_the_last_reset() -> None:
+    rules = _rules()
+    assert slow_window_for(None, rules) == "10m"  # fresh process: full window
+    assert slow_window_for(200, rules) is None  # < 5 min since a close: fast path only
+    assert slow_window_for(400, rules) == "5m"
+    assert slow_window_for(5000, rules) == "10m"  # capped at slow_window
+
+
+def test_slow_burn_catches_a_low_traffic_service_the_fast_window_misses() -> None:
+    rules = _rules()
+    slow = _rules(min_errors=rules.slow_min_errors)
+    # payment at ~4 calls / 2 min failing 25 %: one error per fast window.
+    assert not error_breach(0.25, 0.0, 1.0, rules)
+    # Over 10 minutes the same failure is 5 errors out of 20 calls.
+    assert error_breach(0.25, 0.0, 5.0, slow)
+    # Two stray errors in ten minutes are still not an incident.
+    assert not error_breach(0.1, 0.0, 2.0, slow)
+
+
+def test_baselines_freeze_during_an_incident_and_resume_after() -> None:
+    from datetime import timedelta
+
+    store = BaselineStore(window_s=900)
+    start = NOW - timedelta(minutes=10)
+    for minute in range(10):
+        store.observe(
+            "cart", Sample(at=start + timedelta(minutes=minute), throughput=6.0, error_rate=0.0)
+        )
+    assert store.baseline("cart", "throughput", now=NOW) == 6.0
+    store.freeze(NOW)
+    # A 30-minute incident: without the freeze every sample would age out.
+    later = NOW + timedelta(minutes=30)
+    assert store.baseline("cart", "throughput", now=later) == 6.0
+    store.thaw(later)
+    assert not store.frozen
+    assert store.baseline("cart", "throughput", now=later) == 6.0

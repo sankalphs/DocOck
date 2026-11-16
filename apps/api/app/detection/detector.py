@@ -17,7 +17,7 @@ No LLM, no absolute latency threshold, no second incident for the same fault.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -43,6 +43,7 @@ from app.detection.thresholds import (
     severity_for_error,
     severity_for_latency,
     silence_breach,
+    slow_window_for,
     throughput_breach,
     throughput_threshold,
     window_seconds,
@@ -121,6 +122,9 @@ class DetectionReport:
     closed: str | None = None
     skipped: str | None = None
     persisted: int = 0
+    # Warm-up clears breach counters each cycle, so a warm report shows no
+    # breach even on a broken lab. The verifier must not read it as clean.
+    warm: bool = False
 
 
 class Detector:
@@ -147,6 +151,9 @@ class Detector:
         self._healthy_cycles = 0
         self._cycles = 0
         self._last_tick: datetime | None = None
+        # Slow-burn windows only cover time since the last incident closed.
+        self._slow_reset: datetime | None = None
+        self._open_last = False
         self.last_gap_reset: datetime | None = None
         self.last_report: DetectionReport | None = None
         self.last_error: str | None = None
@@ -212,6 +219,7 @@ class Detector:
         # detector needs a fresh consecutive run instead of opening an incident
         # on a spike that was already counted while the stack was still ramping.
         warm = self._cycles * self.rules.interval_s < settings.detector_warmup_s
+        report.warm = warm
         if warm:
             self._counters.clear()
 
@@ -219,6 +227,14 @@ class Detector:
         error_count = await self._instant("error_count")
         p95 = await self._instant("p95_latency")
         throughput = await self._instant("throughput")
+        elapsed = None if self._slow_reset is None else (now - self._slow_reset).total_seconds()
+        slow_window = slow_window_for(elapsed, self.rules)
+        slow_rate: dict[str, float] = {}
+        slow_count: dict[str, float] = {}
+        if slow_window is not None:
+            slow_rate = await self._instant("error_rate", window=slow_window)
+            slow_count = await self._instant("error_count", window=slow_window)
+        slow_rules = replace(self.rules, min_errors=self.rules.slow_min_errors)
         containers = {
             info.service: info
             for info in await self.docker.containers(include_stats=False)
@@ -236,21 +252,25 @@ class Detector:
             host = await host_cores()
         except Exception:  # Docker hiccup: limits are simply not compared
             host = 0
-        # While an incident is open for a service, that service's readings are
-        # symptoms of a known problem, not health. Feeding them back into its
-        # baseline is how a 15-minute p20 learned that a 3-minute 100 % error
-        # window was normal and stopped detecting the next fault.
+        # While an incident is open, readings are symptoms of a known problem,
+        # not health. Feeding them back into a baseline is how a 15-minute p20
+        # learned that a 3-minute 100 % error window was normal and stopped
+        # detecting the next fault. The blast radius is wider than the
+        # incident's trigger services: with Postgres and Valkey down, cart's
+        # traffic fell from 6 to 1.4 req/s, became its baseline, and the normal
+        # rate after the fix then read as a 2x surge that kept verification
+        # failing. So no service learns while an incident is active.
         window_s = window_seconds(self.rules.window)
-        suppressed: set[str] = set()
+        frozen = False
         try:
             async with SessionFactory() as session:
-                current = await self.incidents.latest_open(session)
-                if current is not None:
-                    suppressed = {
-                        str(item) for item in ((current.trigger or {}).get("services") or [])
-                    }
+                frozen = await self.incidents.latest_open(session) is not None
         except Exception:
-            suppressed = set()
+            frozen = False
+        if frozen:
+            self.store.freeze(now)
+        else:
+            self.store.thaw(now)
         for service in sorted(services):
             rate = error_rate.get(service)
             errors = error_count.get(service)
@@ -259,7 +279,14 @@ class Detector:
             baseline_error = self.store.baseline(service, "error_rate", now=now)
             baseline_latency = self.store.baseline(service, "p95_latency", now=now)
 
-            error_hit = error_breach(rate, baseline_error, errors, self.rules)
+            fast_hit = error_breach(rate, baseline_error, errors, self.rules)
+            slow_hit = not fast_hit and error_breach(
+                slow_rate.get(service), baseline_error, slow_count.get(service), slow_rules
+            )
+            error_hit = fast_hit or slow_hit
+            hit_rate, hit_errors = (
+                (slow_rate.get(service), slow_count.get(service)) if slow_hit else (rate, errors)
+            )
             latency_hit = latency_breach(latency, baseline_latency, self.rules)
             info = containers.get(service)
             container_hit = bool(
@@ -293,7 +320,7 @@ class Detector:
             # as a surge forever. No incident opens during warm-up anyway.
             traffic_hit = (throughput_hit or silent_hit) and not warm
             if (
-                service not in suppressed
+                not frozen
                 and plausible
                 and (
                     bootstrap
@@ -314,22 +341,23 @@ class Detector:
                 )
 
             count = self._count(service, "error_rate", error_hit, now)
-            if error_hit and count >= self.rules.consecutive and rate is not None:
+            if error_hit and count >= self.rules.consecutive and hit_rate is not None:
                 active.append(
                     Breach(
                         service=service,
                         signal="error_rate",
                         signature=f"error_rate:{service}",
-                        value=rate,
+                        value=hit_rate,
                         baseline=baseline_error,
                         threshold=error_threshold(baseline_error, self.rules),
                         first_seen=self._first_seen(service, "error_rate", now),
                         consecutive=count,
                         detail=(
-                            f"inbound error rate {rate:.1%} vs baseline "
-                            f"{(baseline_error or 0):.1%} ({errors or 0:.0f} errors)"
+                            f"inbound error rate {hit_rate:.1%} vs baseline "
+                            f"{(baseline_error or 0):.1%} ({hit_errors or 0:.0f} errors"
+                            + (f" over {slow_window}, slow burn)" if slow_hit else ")")
                         ),
-                        severity=severity_for_error(rate, baseline_error),
+                        severity=severity_for_error(hit_rate, baseline_error),
                         throughput=rps,
                     )
                 )
@@ -452,7 +480,11 @@ class Detector:
 
         async with SessionFactory() as session:
             open_incident = await self.incidents.latest_open(session)
-            if open_incident is not None and is_active(IncidentStatus(open_incident.status)):
+            has_open = open_incident is not None and is_active(IncidentStatus(open_incident.status))
+            if self._open_last and not has_open:
+                self._slow_reset = now
+            self._open_last = has_open
+            if open_incident is not None and has_open:
                 attached = await self._attach(session, open_incident, active)
                 report.attached = attached
                 if active:
@@ -652,8 +684,8 @@ class Detector:
             )
         return (bool(details), "; ".join(details))
 
-    async def _instant(self, metric: str) -> dict[str, float]:
-        result = await self.prometheus.metric(metric, window=self.rules.window)
+    async def _instant(self, metric: str, *, window: str | None = None) -> dict[str, float]:
+        result = await self.prometheus.metric(metric, window=window or self.rules.window)
         values: dict[str, float] = {}
         for series in result.series:
             service = series.labels.get("service_name")

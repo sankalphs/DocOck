@@ -2,6 +2,7 @@
 
 error_rate > max(0.02, 3 x baseline)
 errors     >= 2                    (one failed order is not an incident)
+slow burn  the same over 10 m with >= 3 errors (low-traffic services)
 p95        > max(2 x baseline, 500 ms)
 container  not running / paused / unhealthy
 three consecutive samples, then one incident per (service, signature)
@@ -29,6 +30,12 @@ class Thresholds:
     cooldown_s: int
     interval_s: int
     window: str
+    # Slow burn: a low-traffic service (payment sees ~3 calls a minute) failing
+    # 10-30 % never shows two errors in one 2-minute window three cycles in a
+    # row. The same rule over a longer window, with a higher error count,
+    # catches it without loosening the fast path.
+    slow_window: str = "10m"
+    slow_min_errors: float = 3.0
 
     @classmethod
     def from_settings(cls) -> Thresholds:
@@ -44,6 +51,8 @@ class Thresholds:
             cooldown_s=settings.detector_cooldown_s,
             interval_s=settings.detector_interval_s,
             window=settings.detector_window,
+            slow_window=settings.detector_slow_window,
+            slow_min_errors=float(settings.detector_slow_min_errors),
         )
 
 
@@ -146,6 +155,28 @@ def throughput_breach(value: float | None, baseline: float | None) -> bool:
 # reached zero in 3 h of scenarios. 60 per 2-minute window is ~0.5/s. A
 # partitioned low-traffic service is caught by the container rule instead.
 SILENT_MIN_EXPECTED = 60.0
+
+
+SLOW_WINDOWS = ("5m", "10m", "15m", "30m")
+
+
+def slow_window_for(elapsed_s: float | None, rules: Thresholds) -> str | None:
+    """The longest slow-burn window that fits since the last reset.
+
+    After an incident closes its errors are still inside a 10-minute window; a
+    slow-burn check over that window would re-detect a problem that is already
+    fixed. The window therefore only spans time since the last reset, and is
+    skipped while that is shorter than five minutes (the fast path covers it).
+    """
+    limit = window_seconds(rules.slow_window)
+    best: str | None = None
+    for window in SLOW_WINDOWS:
+        seconds = window_seconds(window)
+        if seconds > limit or seconds <= window_seconds(rules.window):
+            continue
+        if elapsed_s is None or seconds <= elapsed_s:
+            best = window
+    return best
 
 
 def window_seconds(window: str) -> int:

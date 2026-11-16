@@ -14,7 +14,7 @@ instead of a timer.
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
@@ -83,6 +83,35 @@ class BaselineStore:
         self.window_s = window_s or settings.detector_baseline_window_s
         self._samples: dict[str, deque[Sample]] = {}
         self._seed: dict[tuple[str, str], tuple[float, datetime]] = {}
+        # While an incident is active nothing is learned, and the baseline
+        # window must not keep sliding either: a 20-minute incident would age
+        # every healthy sample out. The clock stops at `freeze` and `thaw`
+        # shifts the samples forward by the frozen time.
+        self._frozen_at: datetime | None = None
+
+    @property
+    def frozen(self) -> bool:
+        return self._frozen_at is not None
+
+    def freeze(self, at: datetime) -> None:
+        if self._frozen_at is None:
+            self._frozen_at = at
+
+    def thaw(self, at: datetime) -> None:
+        if self._frozen_at is None:
+            return
+        delta = at - self._frozen_at
+        self._frozen_at = None
+        if delta <= timedelta(0):
+            return
+        for service, queue in self._samples.items():
+            self._samples[service] = deque(
+                (replace(sample, at=sample.at + delta) for sample in queue), maxlen=600
+            )
+        self._seed = {key: (value, seen + delta) for key, (value, seen) in self._seed.items()}
+
+    def _reference(self, now: datetime) -> datetime:
+        return min(now, self._frozen_at) if self._frozen_at is not None else now
 
     def observe(self, service: str, sample: Sample) -> None:
         queue = self._samples.setdefault(service, deque(maxlen=600))
@@ -109,7 +138,7 @@ class BaselineStore:
         self._seed[(service, metric)] = (value, at)
 
     def baseline(self, service: str, metric: str, *, now: datetime | None = None) -> float | None:
-        now = now or datetime.now(UTC)
+        now = self._reference(now or datetime.now(UTC))
         cutoff = now - timedelta(seconds=self.window_s)
         queue = self._samples.get(service)
         live: list[float] = []

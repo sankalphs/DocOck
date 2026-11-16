@@ -249,10 +249,14 @@ latency fault visible without firing on that noise.
 
 Samples taken while a service is breaching never feed its baseline, and a service
 with no baseline cannot alert (that is the warm-up, expressed as data
-availability rather than a timer). While an incident is open, the services named
-in it are excluded from baseline updates entirely: their readings are symptoms of
-a known problem, and feeding them back is how a 15-minute p20 once learned that a
-3-minute 100 % error window was normal. Persisted baselines are skipped for
+availability rather than a timer). While any incident is open, **no** service
+learns and the baseline clock is frozen (`BaselineStore.freeze`/`thaw` shift the
+samples forward by the frozen time, so a long incident cannot age the healthy
+samples out). Feeding symptoms back is how a 15-minute p20 once learned that a
+3-minute 100 % error window was normal, and the blast radius is wider than the
+incident's trigger services: with Postgres and Valkey down, cart's traffic fell
+from 6 to 1.4 req/s, became its baseline, and its normal rate after the fix then
+read as a 2x surge that kept verification failing. Persisted baselines are skipped for
 breaching services and rejected on load when implausible (`> 25 %` errors,
 `> 60 s` p95).
 
@@ -273,6 +277,7 @@ warm-up, as a restart would.
 | Signal | Rule |
 |---|---|
 | errors | `rate > max(2 %, 3 x baseline)` **and** `errors >= 2` — unless the rate is >= 50 %, where one failed request out of two is not noise |
+| slow burn | the same rule over a **10 m** window with `errors >= 3` (`DETECTOR_SLOW_WINDOW`, `DETECTOR_SLOW_MIN_ERRORS`). payment sees ~3 calls a minute, so a 10–30 % failure shows one error per 2 m window and never breaches three cycles running. The window only spans time since the last incident closed (none if under 5 m) so a fixed problem's errors cannot re-open it |
 | latency | `p95 > max(2 x baseline, 500 ms)`; for a baseline >= 100 ms an absolute `+1.5 s` is also required (checkout's healthy p95 is 0.4–15 s); needs **9** consecutive samples (`DETECTOR_LATENCY_BREACHES`, 90 s) because one slow PlaceOrder holds a low-traffic p95 up for the whole 2-minute window |
 | container | not running / paused / `unhealthy`; health alone needs **6** consecutive samples because the demo's probes flap, stopped/paused needs 3 |
 | resource | CPU or memory limit **below the limit observed at startup**; this is the only observable symptom of `cpu_pressure` on `ad`, which uses 1.3 % CPU even when capped at 0.25 cores |
@@ -610,6 +615,15 @@ incident.opened ─(AUTOPILOT_INVESTIGATE_DELAY_S)─► agent run
 - **Crash safety**: a sweep every `AUTOPILOT_SWEEP_INTERVAL_S` re-derives the
   next step from incident state (OPEN without a run, DIAGNOSED without an
   action, a failed action, a failed verification), so a restart mid-loop resumes.
+- **Several things broken at once**: the verifier hands over early when its own
+  target is fixed but `symptoms_clear` is held red by drift on another focus
+  service (`residual_drift`, 3 cycles), so the next rung starts in ~30 s instead
+  of after the 420 s window. A recovery that is clean on its last cycle gets a
+  short grace to finish its clean cycles, and with no rung left but no drift
+  either the autopilot re-verifies the last action once before escalating.
+- **API restarts**: detector reports carry `warm`; a resumed verification skips
+  warm-up cycles (whose breach list is empty by construction) and extends its
+  window by the same amount.
 - **State machine**: two retry edges, `REMEDIATING → AWAITING_APPROVAL` and
   `VERIFYING → AWAITING_APPROVAL`. With the autopilot off, failures escalate
   exactly as before.

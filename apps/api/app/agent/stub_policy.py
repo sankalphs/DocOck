@@ -328,6 +328,12 @@ def diagnose(
     runner_up = max(others) if others else 0.0
     margin = (top_score - runner_up) / top_score if top_score > 0 else 0.0
     confidence = round(min(0.95, 0.5 + 0.3 * max(0.0, margin) + (0.15 if direct else 0.0)), 2)
+    if drifted is not None and drifted.get("fix"):
+        # Drift is an observation, not an inference: the component's live state
+        # differs from its desired state and a known fix exists. A tie between
+        # suspects (a dependency with no spans and its caller) must not drop a
+        # directly observed cause below the gate.
+        confidence = max(confidence, 0.8)
 
     action = _action(root, fault_class, fault_targets | set(faults), direct=fault is not None)
     fix = (drifted or {}).get("fix") if fault is None else None

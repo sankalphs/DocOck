@@ -80,6 +80,7 @@ class Autopilot:
         self._queue: asyncio.Queue[Any] | None = None
         self.last_sweep: datetime | None = None
         self.decisions: list[dict[str, Any]] = []
+        self._rechecked: set[str] = set()
 
     @property
     def enabled(self) -> bool:
@@ -220,8 +221,15 @@ class Autopilot:
         if incident.status == IncidentStatus.REMEDIATING.value:
             return latest.status in (ActionStatus.FAILED.value, ActionStatus.ROLLED_BACK.value)
         if incident.status == IncidentStatus.VERIFYING.value:
+            from app.verification.verifier import verifier
+
+            if latest.id in verifier.running():  # a (re)check is still watching
+                return False
             verdict = await session.scalar(
-                select(Verification.verdict).where(Verification.action_row_id == latest.id)
+                select(Verification.verdict)
+                .where(Verification.action_row_id == latest.id)
+                .order_by(Verification.id.desc())
+                .limit(1)
             )
             return verdict is not None and verdict != "PASSED"
         return False
@@ -310,9 +318,9 @@ class Autopilot:
                 row.action_row_id: row.verdict
                 for row in (
                     await session.execute(
-                        select(Verification).where(
-                            Verification.action_row_id.in_([a.id for a in actions] or [0])
-                        )
+                        select(Verification)
+                        .where(Verification.action_row_id.in_([a.id for a in actions] or [0]))
+                        .order_by(Verification.id)
                     )
                 ).scalars()
             }
@@ -376,6 +384,8 @@ class Autopilot:
             drift=drift.summary(),
             attempts=attempts,
         )
+        if not ladder and await self._recheck(ref, status, actions, drift.items):
+            return
         if choice.index < 0 or not ladder:
             await self.escalate(
                 ref,
@@ -420,9 +430,39 @@ class Autopilot:
                 auto_approved=result.auto_approved,
             )
             return
+        if await self._recheck(ref, status, actions, drift.items):
+            return
         await self.escalate(
             ref, "every remediation candidate was refused by its preconditions", attempts, skipped
         )
+
+    async def _recheck(
+        self, ref: str, status: str, actions: list[Action], drift: list[Any]
+    ) -> bool:
+        """Watch once more instead of escalating a lab that looks repaired.
+
+        Nothing is left to try, but nothing is drifted either: the last fix
+        probably worked and the symptoms were still settling (pent-up traffic
+        after a dependency came back) when its window closed. Verify that last
+        action again, once per incident; a second failure escalates.
+        """
+        from app.verification.verifier import verifier
+
+        if ref in self._rechecked or status != IncidentStatus.VERIFYING.value:
+            return False
+        if any(getattr(item, "fix", None) is not None for item in drift):
+            return False
+        last = next((a for a in reversed(actions) if a.status == ActionStatus.EXECUTED.value), None)
+        if last is None:
+            return False
+        self._rechecked.add(ref)
+        verifier.launch(last.id)
+        self._decide(
+            ref,
+            "recheck",
+            f"no candidate left and no drift: re-verifying {last.action_id} on {last.target}",
+        )
+        return True
 
     async def escalate(
         self,

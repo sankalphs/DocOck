@@ -275,6 +275,12 @@ apps/api/.venv/bin/python scripts/autopilot-e2e.py fault:payment_failure manual:
   fault:cache_outage fault:oom_crash_loop@quote multi:fault:service_crash@shipping+manual:pause:ad
 ```
 
+Out-of-band breaks (no fault row, so only drift can explain them): `manual:stop|pause|kill:<c>`,
+`manual:disconnect:<c>` (leave the demo network), `manual:cpu:<c>=<cores>` (`docker update`),
+`manual:flag:<flag>=<variant>` (edit the flagd file). `multi:a+b+c` breaks several at once; the
+script follows every incident the break opens and passes only when all are resolved and no
+drift is left.
+
 ---
 
 ## Configuration

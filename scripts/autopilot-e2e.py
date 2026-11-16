@@ -12,6 +12,9 @@ drift left. Nobody approves anything.
 Scenario syntax:
     fault:<fault_id>[@<target>][=<variant or param>]   e.g. fault:service_crash@shipping
     manual:stop:<container> | manual:pause:<container> | manual:kill:<container>
+    manual:disconnect:<container>         detach it from the demo network
+    manual:cpu:<container>=<cores>        docker update --cpus behind DocOck's back
+    manual:flag:<flag>=<variant>          edit the flagd file directly (no fault row)
     multi:<scenario>+<scenario>                        several breaks at once
 
 Writes runtime/autopilot-e2e.json. Exit code 0 only when every scenario passes.
@@ -31,6 +34,8 @@ import httpx
 
 API = "http://127.0.0.1:8001/api"
 ROOT = Path(__file__).resolve().parents[1]
+NETWORK = "opentelemetry-demo"
+FLAG_FILE = ROOT / "runtime" / "flagd" / "demo.flagd.json"
 TERMINAL = {"RESOLVED", "ESCALATED"}
 
 
@@ -67,10 +72,21 @@ def break_lab(client: httpx.Client, spec: str) -> dict[str, Any]:
     kind, _, rest = spec.partition(":")
     if kind == "manual":
         verb, _, container = rest.partition(":")
+        container, _, value = container.partition("=")
+        if verb == "flag":
+            flags = json.loads(FLAG_FILE.read_text(encoding="utf-8"))
+            flag = flags["flags"][container]
+            if value not in (flag.get("variants") or {}):
+                raise RuntimeError(f"{container} has no variant {value!r}")
+            flag["defaultVariant"] = value
+            FLAG_FILE.write_text(json.dumps(flags, indent=2) + "\n", encoding="utf-8")
+            return {"manual": f"flagd file: {container} -> {value}"}
         command = {
             "stop": ["docker", "stop", container],
             "pause": ["docker", "pause", container],
             "kill": ["docker", "kill", "--signal", "KILL", container],
+            "disconnect": ["docker", "network", "disconnect", NETWORK, container],
+            "cpu": ["docker", "update", "--cpus", value or "0.05", container],
         }[verb]
         done = subprocess.run(command, capture_output=True, text=True, timeout=60)
         return {"manual": " ".join(command), "rc": done.returncode}
@@ -88,24 +104,53 @@ def break_lab(client: httpx.Client, spec: str) -> dict[str, Any]:
     return {"fault_row": data["fault"]["id"], "status": data["fault"]["status"]}
 
 
-def follow(client: httpx.Client, after_id: int, timeout_s: float) -> dict[str, Any]:
+def follow(
+    client: httpx.Client, after_id: int, timeout_s: float, settle_s: float = 120
+) -> dict[str, Any]:
+    """Watch every incident opened after `after_id` until the lab is quiet.
+
+    One break can open several incidents in turn (a second symptom surfaces
+    once the first is fixed), so the scenario ends only when every incident is
+    terminal, no drift is left and nothing new opened for `settle_s`.
+    """
     deadline = time.monotonic() + timeout_s
-    ref: str | None = None
-    last = ""
+    seen: dict[str, str] = {}
+    quiet_since: float | None = None
     while time.monotonic() < deadline:
-        _, data = api(client, "GET", "/incidents", params={"limit": 5})
+        _, data = api(client, "GET", "/incidents", params={"limit": 20})
         fresh = [item for item in (data or {}).get("items") or [] if item["id"] > after_id]
-        if fresh:
-            ref = fresh[-1]["public_id"]
+        for item in sorted(fresh, key=lambda row: row["id"]):
+            ref = item["public_id"]
+            if seen.get(ref) in TERMINAL:
+                continue
             _, detail = api(client, "GET", f"/incidents/{ref}")
             status = detail["status"]
-            if status != last:
+            if status != seen.get(ref):
                 print(f"   {time.strftime('%H:%M:%S')} {ref} {status}")
-                last = status
-            if status in TERMINAL:
-                return {"ref": ref, "status": status, "detail": detail}
+                seen[ref] = status
+        done = bool(seen) and all(status in TERMINAL for status in seen.values())
+        if done:
+            _, drift = api(client, "GET", "/remediation/drift")
+            if (drift or {}).get("items"):
+                quiet_since = None
+            else:
+                quiet_since = quiet_since or time.monotonic()
+                if time.monotonic() - quiet_since >= settle_s:
+                    break
+        else:
+            quiet_since = None
         time.sleep(5)
-    return {"ref": ref, "status": last or "NO_INCIDENT", "detail": None}
+    refs = list(seen)
+    statuses = list(seen.values())
+    if not refs:
+        overall = "NO_INCIDENT"
+    elif all(status == "RESOLVED" for status in statuses):
+        overall = "RESOLVED"
+    elif any(status not in TERMINAL for status in statuses):
+        overall = "TIMEOUT:" + ",".join(f"{r}={s}" for r, s in seen.items())
+    else:
+        overall = ",".join(f"{r}={s}" for r, s in seen.items())
+    return {"refs": refs, "status": overall, "incidents": seen}
 
 
 def summarize(client: httpx.Client, ref: str) -> list[dict[str, Any]]:
@@ -117,6 +162,7 @@ def summarize(client: httpx.Client, ref: str) -> list[dict[str, Any]]:
         auto = (action.get("args") or {}).get("autopilot") or {}
         out.append(
             {
+                "incident": ref,
                 "action": f"{action['action_id']} {action['target']}",
                 "status": action["status"],
                 "decided_by": item.get("decided_by"),
@@ -150,21 +196,24 @@ def main() -> int:
             outcome = follow(client, after, args.timeout)
             _, drift = api(client, "GET", "/remediation/drift")
             remaining = [f"{i['kind']}:{i['service']}" for i in (drift or {}).get("items") or []]
-            attempts = summarize(client, outcome["ref"]) if outcome["ref"] else []
+            attempts = [row for ref in outcome["refs"] for row in summarize(client, ref)]
             for attempt in attempts:
                 print(
-                    f"   - {attempt['action']:34} {attempt['status']:10} by={attempt['decided_by']}"
+                    f"   - {attempt['incident']} {attempt['action']:30} {attempt['status']:10}"
+                    f" by={attempt['decided_by']}"
                     f" planner={attempt['planner']} :: {attempt['rationale']}"
                 )
             passed = outcome["status"] == "RESOLVED" and not remaining
-            elapsed = round(time.monotonic() - started)
-            print(f"   => {'PASS' if passed else 'FAIL'} {outcome['status']} in {elapsed}s"
-                  + (f"; drift left: {remaining}" if remaining else ""))
+            elapsed = round(time.monotonic() - started - (120 if passed else 0))
+            print(
+                f"   => {'PASS' if passed else 'FAIL'} {outcome['status']} in {elapsed}s"
+                + (f"; drift left: {remaining}" if remaining else "")
+            )
             results.append(
                 {
                     "scenario": spec,
                     "passed": passed,
-                    "incident": outcome["ref"],
+                    "incidents": outcome["incidents"],
                     "status": outcome["status"],
                     "elapsed_s": elapsed,
                     "attempts": attempts,
