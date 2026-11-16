@@ -973,3 +973,43 @@ fixed, with a unit test where the logic allows one.
   vitest** + `next build`); `scripts\db-check.ps1` passes. The dashboard
   half ran on a working tree that also held separate, uncommitted dashboard
   work, which is not part of this commit.
+
+## Post-P16 audit: bug fixes and operator features
+
+Audit of the API and dashboard against a local Postgres 16 + pgvector with
+the API and a production dashboard build running; the Docker demo stack was
+not available, so telemetry-dependent paths were exercised only by tests.
+
+Bugs fixed (regression tests in `tests/test_bugfixes.py`):
+
+1. **Oversized ids crashed with 500.** `GET /api/incidents/99999999999999999999`
+   and `/api/approvals/<20 digits>` reached asyncpg and overflowed BIGINT.
+   Numeric path ids are now bounded (`app/api/params.py`, 422), and numeric
+   incident refs must be ASCII digits within BIGINT (`٤٢` passed `isdigit()`).
+2. **Live updates stopped after an API restart.** Event ids restart at 1 with
+   the process, but a reconnecting browser sends its old `Last-Event-ID`; the
+   stream skipped every new event until the counter caught up. An id ahead of
+   the bus now replays history.
+3. **A lost transition race returned 500.** `InvalidTransition` is now a 409
+   `invalid_transition` envelope.
+4. **Incident refs were case-sensitive.** `inc-00042` is now `INC-00042`
+   everywhere, including memory search.
+5. **`X-Request-ID` was echoed unbounded** into headers and every log line.
+   It is now restricted to `[A-Za-z0-9._:-]` and 64 chars.
+
+Features:
+
+- `POST /api/incidents/{ref}/notes` (any status), `incident.note` SSE, notes
+  in report timelines; note composer in the Incidents timeline.
+- `GET /api/incidents?q=` search and `GET /api/incidents/export.csv`
+  (formula-injection safe); search box and CSV button in the dashboard.
+- `/incidents?incident=INC-…` deep links (Agent page links back to them),
+  readable durations.
+- Pending-approval badge in the sidebar and opt-in desktop alerts, driven by
+  the pending count so SSE replay never re-announces old approvals.
+
+Gates: ruff + ruff format + mypy clean, **239 API tests** (11 live tests deselected without the stack), dashboard eslint,
+`tsc --noEmit`, **68 vitest** and `next build` pass. Live: the endpoints
+above were exercised with curl, and the screens with Playwright (search,
+deep link, note via Ctrl+Enter, sidebar badge, a stubbed desktop alert, no
+console errors, no horizontal overflow at 390 px).

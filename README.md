@@ -239,6 +239,15 @@ A complete walkthrough with timings and talking points is in
    a downloadable Markdown report.
 6. Finish with **Fault Lab → Reset all** and confirm no incident is open.
 
+Day-to-day helpers on the same screens:
+
+- **Incidents** has a search box (id, title, service, signature), a **CSV** export of
+  the current filter, and shareable links: `/incidents?incident=INC-00042`.
+- Add **notes** to any incident's timeline, open or closed. They appear in the report
+  timeline too (`POST /api/incidents/{ref}/notes`).
+- The sidebar shows how many approvals are waiting. On **Approvals**, turn on
+  **Desktop alerts** to get a browser notification when a new one arrives.
+
 Want the failure path? Use the wrong action (`restart_service` on `payment`) against a
 flag fault. Verification stays red and the incident escalates after the 420 s window.
 
