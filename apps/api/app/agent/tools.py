@@ -502,6 +502,38 @@ async def get_service_baseline(ctx: ToolContext, args: _ServiceArgs) -> ToolResu
     return ToolResult(output={"evidence_code": code, **data}, codes=[code])
 
 
+async def get_drift(ctx: ToolContext, _args: NoArgs) -> ToolResult:
+    """Live desired-state drift across the lab (app/remediation/drift.py).
+
+    This sees problems no fault row records: a container stopped by hand, a
+    dependency (Valkey, Postgres) that emits no spans, a flag flipped in the UI.
+    """
+    from app.remediation.drift import scanner
+
+    report = await scanner.scan()
+    data = {
+        "clean": report.clean,
+        "items": [
+            {
+                "kind": item.kind,
+                "service": item.service,
+                "component": item.component,
+                "detail": item.detail,
+                "observed": item.observed,
+                "desired": item.desired,
+                "fault_class": item.fault_class,
+                "explains": item.explains,
+                "fix": item.fix.model_dump() if item.fix else None,
+            }
+            for item in report.items[:15]
+        ],
+        "scanned": len(report.scanned),
+        "errors": report.errors[:3],
+    }
+    code = await _record(ctx, type_="drift", source="drift", service=None, data=data)
+    return ToolResult(output={"evidence_code": code, **data}, codes=[code])
+
+
 # --- registry ------------------------------------------------------------------------
 Handler = Callable[[ToolContext, Any], Awaitable[ToolResult]]
 
@@ -586,6 +618,14 @@ TOOLS: dict[str, ToolDef] = {
             "Injected faults/flags during the incident and those active now.",
             NoArgs,
             get_active_flags,
+        ),
+        ToolDef(
+            "get_drift",
+            "Every container, dependency, flag and load setting that differs from the lab's "
+            "desired state right now, with the catalog action that fixes each. Sees "
+            "problems no fault record explains (manual changes, dependencies without spans).",
+            NoArgs,
+            get_drift,
         ),
         ToolDef(
             "get_service_baseline",

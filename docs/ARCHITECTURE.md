@@ -8,6 +8,7 @@ Living document. Decisions live in [`ADR/`](ADR/); phase status and evidence in
 ```
 browser ──HTTP/SSE──► DocOck API ──► Prometheus / Jaeger / OpenSearch
    :3001                  :8001  ──► Docker CLI (read; writes from P6)
+                                     ├► autopilot: drives investigate → fix → verify
                                      └► Postgres 18 + pgvector :5433
 ```
 
@@ -538,6 +539,84 @@ pending approval is withdrawn in the same transaction. Every exit from
 planned preconditions and steps, dry-run, approve/reject with a note) and the
 decided history with snapshots, rollback and the audit trail. The page never
 receives a token.
+
+## Desired state, drift and the autopilot
+
+Reverting a recorded fault only fixes what DocOck injected. The pieces below make
+remediation independent of *how* the lab broke, and drive the whole loop
+without a human.
+
+### Desired state and drift (`app/remediation/drift.py`)
+
+| Source | What it says |
+|---|---|
+| Declared | Every allowlisted container (13 services + `valkey-cart`, `astronomy-db`) runs, unpaused, attached to the demo network; every flag sits on its upstream seed value (targeted flags: their match branch); locust runs its configured users. |
+| Recorded | An open fault's pre-image (limits, aliases, variant) is the exact "before". |
+| Learned | Limits and aliases seen on healthy containers, persisted to `runtime/desired-state.json`. Limits are a *high-water mark* (raising a limit is never a fault) and nothing is learned for a target with an open fault; until a target's limits are learned they are not compared. |
+
+The scanner (`GET /api/remediation/drift`, agent tool `get_drift`) reports one
+item per difference: `container_stopped|crashed|restarting|paused|unhealthy`,
+`network_detached`, `cpu_limited`, `memory_limited`, `flag_on`, `load_changed`,
+`container_missing`. Each item names the catalog action that fixes it and the
+services whose symptoms it explains (a dependency explains its caller:
+`valkey-cart → cart`, `astronomy-db → product-catalog`). An OOM crash loop is
+reported as `memory_limited` (fix) plus `container_restarting` (no fix of its
+own: a restart under the same limit would loop again).
+
+### Generic remediation (`app/remediation/reconcile.py`)
+
+The executor first reverts every matched recorded fault through the fault
+controller (pre-image, read-back, fault audit). It then re-scans and fixes the
+drift that is left *within the action's scope*:
+
+| Action | Fixes |
+|---|---|
+| `restart_service` | stopped/crashed/restarting/paused/unhealthy container |
+| `restore_network` | detached container (reconnect with its learned aliases) |
+| `remove_resource_limit` | CPU/memory below desired (restart if it was crash-looping) |
+| `clear_feature_flag` | the target's flags back to their seed value |
+| `stop_load_generator` | locust users back to desired, flood flag off |
+| `reset_fault`, `reconcile_service` | everything on the target |
+| `reconcile_all` (risk `high`) | everything in the lab — the last rung |
+
+Preconditions accept a recorded fault *or* drift (`problem_present`), and the
+verifier adds `desired_state`: no drift left in the action's scope.
+
+### Autopilot (`app/autopilot/`)
+
+```
+incident.opened ─(AUTOPILOT_INVESTIGATE_DELAY_S)─► agent run
+  ─► DIAGNOSED (or gate miss / LLM failure: DIAGNOSED with autopilot_fallback)
+  ─► ladder.build ─► planner.choose ─► approvals.plan(autopilot=…)
+  ─► auto-approve if risk <= AUTOPILOT_MAX_RISK ─► executor ─► verifier
+        PASSED  → RESOLVED + report
+        FAILED  → VERIFYING/REMEDIATING → AWAITING_APPROVAL (next rung)
+        ladder empty or AUTOPILOT_MAX_ATTEMPTS reached → ESCALATED + report
+```
+
+- **Ladder** (`ladder.py`, pure): gated diagnosis recommendation → drift that
+  explains the incident's services → recorded faults on them → below-gate
+  recommendation → any other drift / fault → restart the root cause →
+  `reconcile_all`. Attempted (action, target) pairs are never retried.
+- **Planner** (`planner.py`): with a real provider the LLM sees diagnosis,
+  drift, attempt history and the numbered ladder and answers
+  `{"choice": i, "rationale": "…"}`. Anything outside the list, malformed, or a
+  provider error falls back to rung 0 with a deterministic rationale. The stub
+  always uses the deterministic order. The choice, rationale and planner are
+  stored on the action (`args.autopilot`) and shown on `/approvals`.
+- **No model?** If the LLM is unconfigured or the daily budget is spent, the
+  incident goes `OPEN → INVESTIGATING → DIAGNOSED` on deterministic evidence and
+  the ladder still runs.
+- **Crash safety**: a sweep every `AUTOPILOT_SWEEP_INTERVAL_S` re-derives the
+  next step from incident state (OPEN without a run, DIAGNOSED without an
+  action, a failed action, a failed verification), so a restart mid-loop resumes.
+- **State machine**: two retry edges, `REMEDIATING → AWAITING_APPROVAL` and
+  `VERIFYING → AWAITING_APPROVAL`. With the autopilot off, failures escalate
+  exactly as before.
+
+What stays deterministic: detection, evidence, the ladder, every precondition
+and safety check, the token, execution, verification. What the LLM adds: the
+diagnosis and the choice/explanation of the next fix.
 
 ## Verification and reports (P15)
 

@@ -675,6 +675,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/autopilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Autopilot policy, loop state and recent decisions */
+        get: operations["autopilot_status_api_autopilot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/autopilot/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run one autopilot sweep now */
+        post: operations["autopilot_sweep_api_autopilot_sweep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/remediation/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live drift from the desired state (containers, dependencies, flags, load) */
+        get: operations["drift_api_remediation_drift_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/remediation/desired": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The desired state the drift scanner compares against */
+        get: operations["desired_api_remediation_desired_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/remediation/desired/learn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fold the current healthy state into the desired state, then scan */
+        post: operations["learn_api_remediation_desired_learn_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/memory/status": {
         parameters: {
             query?: never;
@@ -1328,6 +1413,48 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** DesiredContainer */
+        DesiredContainer: {
+            /** Service */
+            service: string;
+            /** Network */
+            network?: string | null;
+            /** Aliases */
+            aliases?: string[];
+            /** Cpu Limit Cores */
+            cpu_limit_cores?: number | null;
+            /** Memory Limit Mb */
+            memory_limit_mb?: number | null;
+            /** Memory Swap Mb */
+            memory_swap_mb?: number | null;
+            /**
+             * Limits Learned
+             * @default false
+             */
+            limits_learned: boolean;
+            /** Learned At */
+            learned_at?: string | null;
+        };
+        /** DesiredState */
+        DesiredState: {
+            /**
+             * Version
+             * @default 1
+             */
+            version: number;
+            /** Containers */
+            containers?: {
+                [key: string]: components["schemas"]["DesiredContainer"];
+            };
+            /** Flags */
+            flags?: {
+                [key: string]: string;
+            };
+            /** Load Users */
+            load_users?: number | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** DetectionRunView */
         DetectionRunView: {
             /**
@@ -1426,6 +1553,60 @@ export interface components {
             max: number | null;
             /** Mean */
             mean: number | null;
+        };
+        /** DriftFix */
+        DriftFix: {
+            /** Action Id */
+            action_id: string;
+            /** Target */
+            target: string;
+        };
+        /** DriftItem */
+        DriftItem: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "container_missing" | "container_stopped" | "container_crashed" | "container_restarting" | "container_paused" | "container_unhealthy" | "network_detached" | "cpu_limited" | "memory_limited" | "flag_on" | "load_changed";
+            /** Service */
+            service: string;
+            /** Component */
+            component: string;
+            /** Observed */
+            observed?: unknown;
+            /** Desired */
+            desired?: unknown;
+            /** Detail */
+            detail: string;
+            fix?: components["schemas"]["DriftFix"] | null;
+            /**
+             * Fault Class
+             * @default unknown
+             */
+            fault_class: string;
+            /**
+             * Priority
+             * @default 9
+             */
+            priority: number;
+            /** Explains */
+            explains?: string[];
+        };
+        /** DriftReport */
+        DriftReport: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Items */
+            items?: components["schemas"]["DriftItem"][];
+            /** Scanned */
+            scanned?: string[];
+            /** Errors */
+            errors?: string[];
+            /** Desired Updated At */
+            desired_updated_at?: string | null;
         };
         /** DryRunResult */
         DryRunResult: {
@@ -1583,6 +1764,11 @@ export interface components {
              * @default true
              */
             reversible: boolean;
+            /**
+             * Cold Apply
+             * @default false
+             */
+            cold_apply: boolean;
             /**
              * Notes
              * @default
@@ -1960,7 +2146,7 @@ export interface components {
          * Mechanism
          * @enum {string}
          */
-        Mechanism: "flagd" | "container_stop" | "container_pause" | "network_partition" | "resource_limit" | "load_spike";
+        Mechanism: "flagd" | "container_stop" | "container_pause" | "network_partition" | "resource_limit" | "load_spike" | "container_kill";
         /** MemoryHit */
         MemoryHit: {
             /** Memory Id */
@@ -2290,6 +2476,10 @@ export interface components {
             rollback?: {
                 [key: string]: unknown;
             };
+            /** Drift */
+            drift?: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * PlanRequest
@@ -2626,7 +2816,7 @@ export interface components {
              * Probe
              * @enum {string}
              */
-            probe: "error_rate" | "p95_latency" | "throughput" | "container_memory" | "container_running" | "container_paused" | "container_health" | "network_attached" | "cpu_limit" | "memory_limit" | "load_users";
+            probe: "error_rate" | "p95_latency" | "throughput" | "container_memory" | "container_running" | "container_paused" | "container_health" | "network_attached" | "cpu_limit" | "memory_limit" | "load_users" | "container_exited" | "restart_count";
             /** Service */
             service: string;
             /**
@@ -4106,6 +4296,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    autopilot_status_api_autopilot_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    autopilot_sweep_api_autopilot_sweep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    drift_api_remediation_drift_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriftReport"];
+                };
+            };
+        };
+    };
+    desired_api_remediation_desired_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesiredState"];
+                };
+            };
+        };
+    };
+    learn_api_remediation_desired_learn_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriftReport"];
                 };
             };
         };

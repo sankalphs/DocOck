@@ -11,11 +11,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Literal
 
-from app.faults.catalog import INFRA_TARGETS, LOAD_TARGETS
+from app.faults.catalog import LOAD_TARGETS, SERVICE_TARGETS
 
-Risk = Literal["none", "low", "medium"]
+Risk = Literal["none", "low", "medium", "high"]
 Approval = Literal["auto", "required", "none"]
-TargetKind = Literal["fault", "flag", "service", "load", "incident"]
+TargetKind = Literal["fault", "flag", "service", "load", "lab", "incident"]
+RISK_ORDER: dict[str, int] = {"none": 0, "low": 1, "medium": 2, "high": 3}
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +34,9 @@ class ActionSpec:
     # the pre-action state would re-create the fault, so it is never done.
     rollback: str = "none"
     rollback_note: str = "restoring the pre-action state would re-inject the fault"
+    # Fixes drift (app/remediation/reconcile.py) as well as recorded faults, so
+    # it works on problems DocOck did not inject.
+    generic: bool = True
 
 
 ACTIONS: dict[str, ActionSpec] = {
@@ -63,7 +67,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "required",
             "Restart the target container.",
             "container healthy, error rate < max(2%, 1.5x baseline) for 90 s",
-            reverts=("container_stop", "container_pause"),
+            reverts=("container_stop", "container_kill", "container_pause"),
             rollback="ensure_running",
             rollback_note="start the container again if it was running before and is not now",
         ),
@@ -95,6 +99,28 @@ ACTIONS: dict[str, ActionSpec] = {
             reverts=("load_spike", "fault:traffic_flood"),
         ),
         ActionSpec(
+            "reconcile_service",
+            "service",
+            "medium",
+            "required",
+            "Restore every drifted property of the target (running, network, limits, "
+            "its flags) to the desired state.",
+            "no drift left on the target, detector breaches clear",
+            reverts=("*",),
+            rollback="ensure_running",
+            rollback_note="start the container again if it was running before and is not now",
+        ),
+        ActionSpec(
+            "reconcile_all",
+            "lab",
+            "high",
+            "required",
+            "Restore every drifted container, flag and the load generator in the lab to the "
+            "desired state. Last resort when the root cause is unclear.",
+            "no drift anywhere in the lab, detector breaches clear",
+            reverts=("*",),
+        ),
+        ActionSpec(
             "escalate_human",
             "incident",
             "none",
@@ -102,6 +128,7 @@ ACTIONS: dict[str, ActionSpec] = {
             "Hand the incident to a human; terminates the loop.",
             "none",
             rollback_note="nothing executes",
+            generic=False,
         ),
     )
 }
@@ -117,9 +144,9 @@ def target_allowed(
 ) -> str | None:
     """None when allowed, otherwise the reason it is not.
 
-    `fault_targets` / `flag_targets` are the services with a fault (any
-    mechanism / flagd) overlapping the incident: resetting a fault that does not
-    exist is not a remediation.
+    `fault_targets` / `flag_targets` are the services with something to reset:
+    an open recorded fault (any mechanism / flagd) *or* drift of that kind
+    (app/remediation/drift.py). Resetting nothing is not a remediation.
     """
     spec = ACTIONS.get(action_id)
     if spec is None:
@@ -130,8 +157,10 @@ def target_allowed(
         )
     if spec.target_kind == "flag" and target not in set(flag_targets):
         return f"{action_id} needs a service with a flag fault in this incident; got {target!r}"
-    if spec.target_kind == "service" and target not in INFRA_TARGETS:
+    if spec.target_kind == "service" and target not in SERVICE_TARGETS:
         return f"{action_id} only targets allowlisted services; {target!r} is not one"
+    if spec.target_kind == "lab" and target not in ("lab", "incident"):
+        return f"{action_id} targets the whole lab ('lab'); got {target!r}"
     if spec.target_kind == "load" and target not in LOAD_TARGETS:
         return f"{action_id} only targets {', '.join(LOAD_TARGETS)}; got {target!r}"
     if (
@@ -148,4 +177,8 @@ def reverts_fault(spec: ActionSpec, *, fault_type: str, mechanism: str) -> bool:
     return "*" in spec.reverts or mechanism in spec.reverts or f"fault:{fault_type}" in spec.reverts
 
 
-__all__ = ["ACTIONS", "ActionSpec", "reverts_fault", "target_allowed"]
+def risk_at_most(risk: str, ceiling: str) -> bool:
+    return RISK_ORDER.get(risk, 99) <= RISK_ORDER.get(ceiling, 0)
+
+
+__all__ = ["ACTIONS", "RISK_ORDER", "ActionSpec", "reverts_fault", "risk_at_most", "target_allowed"]

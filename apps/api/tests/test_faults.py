@@ -73,12 +73,12 @@ class FakeOFREP:
 
 def test_catalog_has_every_v1_fault() -> None:
     ids = set(DEFINITIONS)
-    assert len(ids) == 19
+    assert len(ids) == 25
     assert {"payment_failure", "traffic_flood", "network_partition", "load_spike"} <= ids
     application = [d for d in DEFINITIONS.values() if d.category == FaultCategory.APPLICATION]
     infrastructure = [d for d in DEFINITIONS.values() if d.category == FaultCategory.INFRASTRUCTURE]
-    assert len(application) == 13
-    assert len(infrastructure) == 6
+    assert len(application) == 14
+    assert len(infrastructure) == 11
 
 
 def test_catalog_uses_the_declared_flag_variants() -> None:

@@ -167,7 +167,13 @@ def score_suspects(
         fault.target
         for fault in faults
         if fault.mechanism
-        in ("container_stop", "container_pause", "network_partition", "resource_limit")
+        in (
+            "container_stop",
+            "container_kill",
+            "container_pause",
+            "network_partition",
+            "resource_limit",
+        )
         and fault.status in ("PROPAGATING", "ACTIVE", "REVERTING")
     }
 

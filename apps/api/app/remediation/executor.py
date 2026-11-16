@@ -37,6 +37,7 @@ from app.logging import get_logger
 from app.remediation import tokens
 from app.remediation.audit import ActionAuditEntry, ActionAuditLog
 from app.remediation.planner import evaluate, snapshot, spec_for
+from app.remediation.reconcile import reconciler
 from app.remediation.schemas import ActionStatus, ApprovalStatus
 from app.telemetry.docker import run_docker
 
@@ -45,6 +46,9 @@ log = get_logger(__name__)
 # P15 hooks the verifier in here: called with the action row id once the
 # incident is VERIFYING.
 ExecutedHook = Callable[[int], Awaitable[None]]
+# The autopilot: called with the incident ref after a failed attempt that it
+# takes over (the incident stays REMEDIATING until it proposes the next rung).
+FailedHook = Callable[[str], Awaitable[None]]
 
 
 class TokenRejected(ApiError):
@@ -56,6 +60,7 @@ class Executor:
     def __init__(self, audit: ActionAuditLog | None = None) -> None:
         self.audit = audit or ActionAuditLog()
         self.on_executed: ExecutedHook | None = None
+        self.on_failed: FailedHook | None = None
         self._tasks: dict[int, asyncio.Task[None]] = {}
 
     # --- task management ----------------------------------------------------
@@ -140,7 +145,20 @@ class Executor:
                 action.status = ActionStatus.FAILED.value
                 action.error = "precondition failed at execution: " + "; ".join(failed)
                 action.finished_at = now
-                if incident.status == IncidentStatus.REMEDIATING:
+                deferred = self.on_failed is not None
+                if deferred and incident.status == IncidentStatus.REMEDIATING:
+                    await incident_service.append_event(
+                        session,
+                        incident,
+                        "action_failed",
+                        {
+                            "action_row_id": action.id,
+                            "action_id": action.action_id,
+                            "reason": action.error,
+                            "next": "autopilot",
+                        },
+                    )
+                elif incident.status == IncidentStatus.REMEDIATING:
                     await incident_service.transition(
                         session,
                         incident,
@@ -163,6 +181,8 @@ class Executor:
                         "error": action.error,
                     },
                 )
+                if deferred and self.on_failed is not None:
+                    await self.on_failed(incident.public_id)
                 return
             action.status = ActionStatus.EXECUTING.value
             action.started_at = now
@@ -219,7 +239,7 @@ class Executor:
         controller = get_controller()
         result: dict[str, Any] = {"steps": []}
         if action_id == "restart_service":
-            container = await resolve_target(target)
+            container = await resolve_target(target, require_network=False)
             if container.state != "running":
                 verb = "start"
             elif container.paused:
@@ -247,12 +267,26 @@ class Executor:
             )
             if view.status.value not in ("REVERTED", "EXPIRED"):
                 raise ApiError(502, "revert_incomplete", f"fault #{view.id} is {view.status}")
+        # Whatever is still out of its desired state was not injected by the
+        # lab (or was changed again since): reconcile it within the action's
+        # scope. This is what makes an action work on problems with no fault row.
+        if spec_for(action_id).generic:
+            fixed = await reconciler.apply(action_id, target)
+            result["steps"].extend(fixed)
+            cleared = [step["flag"] for step in fixed if step.get("flag")]
+            if cleared:
+                result["flags_cleared"] = cleared
         if action_id == "clear_feature_flag":
             shot = await snapshot(target, faults)
             result["flags"] = shot.get("flags") or {}
+            variants = await asyncio.to_thread(get_controller().mechanisms.flagd.current_variants)
+            for flag in result.get("flags_cleared", []):
+                result["flags"][flag] = variants.get(flag)
             stuck = {flag: value for flag, value in result["flags"].items() if value != "off"}
             if stuck:
                 raise ApiError(502, "flag_not_off", f"flag(s) did not read back off: {stuck}")
+        if not result["steps"] and action_id != "restart_service":
+            raise ApiError(409, "nothing_to_fix", f"{action_id} found nothing to fix on {target}")
         return result
 
     async def rollback(
@@ -270,8 +304,11 @@ class Executor:
             outcome["detail"] = f"not performed: {spec.rollback_note}"
             return outcome
         before = pre.get("container") or {}
+        if target in ("lab", "incident"):
+            outcome["detail"] = "not needed: the action has no single container"
+            return outcome
         try:
-            container = await resolve_target(target)
+            container = await resolve_target(target, require_network=False)
         except ApiError as exc:
             outcome["detail"] = f"not performed: {exc.message}"
             return outcome
@@ -323,7 +360,22 @@ class Executor:
                 )
                 target_status = IncidentStatus.ESCALATED
             moved = False
-            if incident.status == IncidentStatus.REMEDIATING:
+            deferred = error is not None and self.on_failed is not None
+            if deferred and incident.status == IncidentStatus.REMEDIATING:
+                await incident_service.append_event(
+                    session,
+                    incident,
+                    "action_failed",
+                    {
+                        "action_row_id": action.id,
+                        "action_id": action.action_id,
+                        "target": action.target,
+                        "action_status": action.status,
+                        "reason": error,
+                        "next": "autopilot",
+                    },
+                )
+            elif incident.status == IncidentStatus.REMEDIATING:
                 await incident_service.transition(
                     session,
                     incident,
@@ -371,6 +423,8 @@ class Executor:
         log.info("remediation_finished", action_row=action_row_id, status=status, error=error)
         if error is None and moved and self.on_executed is not None:
             await self.on_executed(action_row_id)
+        if deferred and self.on_failed is not None:
+            await self.on_failed(incident_ref)
 
     # --- audit --------------------------------------------------------------
     async def _audit(

@@ -342,7 +342,7 @@ characters.
 `Retry-After`. Set `RATE_LIMIT_ENABLED=false` in `.env` and restart the API to
 turn them off. A restart also clears the counters. The live check scripts
 (`scripts\_http.py`) wait for `Retry-After` and send the request again, so
-`verify-faults.py` still passes with the limits on (it injects 19 faults, more
+`verify-faults.py` still passes with the limits on (it injects 25 faults, more
 than the 10 per minute that `fault_inject` allows).
 
 `docs/DEMO.md` is a 15–20 minute walkthrough of the whole loop for an audience.

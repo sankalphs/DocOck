@@ -64,8 +64,23 @@ TRANSITIONS: dict[IncidentStatus, frozenset[IncidentStatus]] = {
             IncidentStatus.ESCALATED,
         }
     ),
-    IncidentStatus.REMEDIATING: frozenset({IncidentStatus.VERIFYING, IncidentStatus.ESCALATED}),
-    IncidentStatus.VERIFYING: frozenset({IncidentStatus.RESOLVED, IncidentStatus.ESCALATED}),
+    # REMEDIATING/VERIFYING -> AWAITING_APPROVAL is the autopilot's retry edge:
+    # the action failed (or did not verify) and the next rung of the ladder is
+    # proposed. A human-driven incident escalates instead.
+    IncidentStatus.REMEDIATING: frozenset(
+        {
+            IncidentStatus.VERIFYING,
+            IncidentStatus.AWAITING_APPROVAL,
+            IncidentStatus.ESCALATED,
+        }
+    ),
+    IncidentStatus.VERIFYING: frozenset(
+        {
+            IncidentStatus.RESOLVED,
+            IncidentStatus.AWAITING_APPROVAL,
+            IncidentStatus.ESCALATED,
+        }
+    ),
     IncidentStatus.REJECTED: frozenset({IncidentStatus.ESCALATED}),
     IncidentStatus.RESOLVED: frozenset(),
     IncidentStatus.ESCALATED: frozenset(),

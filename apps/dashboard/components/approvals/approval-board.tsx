@@ -26,6 +26,7 @@ import {
   type DryRunResult,
   type PlanCheck,
 } from "@/lib/api/approvals";
+import { autopilotOf } from "@/lib/api/autopilot";
 import { formatClock } from "@/lib/format";
 import { usePolling } from "@/lib/hooks/use-polling";
 
@@ -141,6 +142,7 @@ function ApprovalCard({
   const diagnosis = diagnosisOf(action);
   const codes = citedCodes(action);
   const check = plannedCheck(action);
+  const pilot = autopilotOf(action.args);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -173,8 +175,13 @@ function ApprovalCard({
         <code className="font-mono">{action.target}</code>
         <Badge variant={riskVariant(action.risk)}>risk {action.risk ?? "—"}</Badge>
         <Badge variant="outline">approval {action.approval_mode ?? "—"}</Badge>
-        {(action.args as Record<string, unknown>)["override"] ? (
+        {(action.args as Record<string, unknown>)["override"] && !pilot ? (
           <Badge variant="warning">operator override</Badge>
+        ) : null}
+        {pilot ? (
+          <Badge variant="secondary">
+            autopilot attempt {pilot.attempt} · {pilot.planner}
+          </Badge>
         ) : null}
         <Badge variant={approvalVariant(approval.status)}>{approval.status}</Badge>
         <Badge variant={actionVariant(action.status)}>action {action.status}</Badge>
@@ -200,6 +207,14 @@ function ApprovalCard({
       <p className="mt-2 text-muted-foreground">
         {action.description} Verification: {action.verification}.
       </p>
+      {pilot ? (
+        <p className="mt-1">
+          Why ({pilot.source}): {pilot.rationale}
+          {pilot.planner_error ? (
+            <span className="text-muted-foreground"> (LLM fallback: {pilot.planner_error})</span>
+          ) : null}
+        </p>
+      ) : null}
       {diagnosis.root_cause ? (
         <p className="mt-1">
           Diagnosis: <strong>{diagnosis.root_cause}</strong> · {diagnosis.fault_class} ·

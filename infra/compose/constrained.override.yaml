@@ -1,0 +1,70 @@
+# Optional layer for small or locked-down Docker hosts (16 GB RAM laptops,
+# CI runners, cloud sandboxes, rootless Docker, WSL without IPv6):
+#
+#   ./run.sh --constrained        # or DOCOCK_CONSTRAINED=1 ./run.sh
+#
+# It is applied after lab.override.yaml and changes nothing DocOck measures.
+#
+#   opensearch      upstream asks for an unlimited memlock ulimit and
+#                   bootstrap.memory_lock=true. Unprivileged runtimes refuse
+#                   that ("error setting rlimit type 8"). Heap stays bounded by
+#                   the 1 GB container limit, so locking buys nothing here.
+#   image-provider  both nginx images also listen on [::]; a host without IPv6
+#   telemetry-docs  fails with "Address family not supported by protocol".
+#   flagd-ui        its command runs `ulimit -n 65536`, which fails where the
+#                   hard nofile limit is lower (use the host's hard limit), and
+#                   it binds the IPv6 any-address; bind 0.0.0.0 instead.
+#   grafana        not used by DocOck (it reads Prometheus/Jaeger/OpenSearch
+#                   directly), but frontend-proxy depends on it. Upstream
+#                   downloads a plugin from grafana.com at every start, which
+#                   fails behind a TLS-intercepting proxy; skip it and cap the
+#                   container lower.
+
+services:
+  opensearch:
+    environment: !override
+      - cluster.name=demo-cluster
+      - node.name=demo-node
+      - bootstrap.memory_lock=false
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms384m -Xmx384m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - _JAVA_OPTIONS
+    ulimits: !reset {}
+
+  image-provider:
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        envsubst '$$OTEL_COLLECTOR_HOST $$IMAGE_PROVIDER_PORT $$OTEL_COLLECTOR_PORT_GRPC $$OTEL_SERVICE_NAME'
+        < /nginx.conf.template | sed '/listen *\[::\]/d' > /etc/nginx/nginx.conf
+        && exec nginx -g 'daemon off;'
+
+  telemetry-docs:
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        envsubst '$$OTEL_COLLECTOR_HOST $$OTEL_COLLECTOR_PORT_GRPC $$OTEL_SERVICE_NAME $$TELEMETRY_DOCS_PORT'
+        < /nginx.conf.template | sed '/listen *\[::\]/d' > /etc/nginx/nginx.conf
+        && exec nginx -g 'daemon off;'
+
+  flagd-ui:
+    command:
+      - sh
+      - -c
+      - >-
+        sed -i 's/ip: {0, 0, 0, 0, 0, 0, 0, 0}/ip: {0, 0, 0, 0}/' /app/releases/*/runtime.exs
+        && ulimit -n $$(ulimit -Hn)
+        && exec /app/bin/server
+
+  grafana:
+    environment: !override
+      - "GF_INSTALL_PLUGINS="
+      - "GF_PLUGINS_PREINSTALL_DISABLED=true"
+    deploy:
+      resources:
+        limits:
+          memory: 256M

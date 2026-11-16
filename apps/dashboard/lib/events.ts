@@ -38,6 +38,7 @@ export const EVENT_TYPES = [
   "verification.progress",
   "verification.completed",
   "report.generated",
+  "autopilot.decision",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

@@ -164,7 +164,7 @@ async def test_reset_without_an_open_fault_fails_its_preconditions(
     check = await _evaluate("reset_fault", "payment")
     assert not check.ok
     failed = {item.name for item in check.preconditions if not item.ok}
-    assert failed == {"catalog_target", "fault_present"}
+    assert failed == {"catalog_target", "problem_present"}
 
 
 async def test_reset_with_an_open_fault_plans_a_controller_revert(

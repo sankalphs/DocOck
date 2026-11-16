@@ -51,6 +51,8 @@ class PlanCheck(BaseModel):
     faults: list[dict[str, Any]] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
     rollback: dict[str, Any] = Field(default_factory=dict)
+    # Drift items (app/remediation/drift.py) this action would fix.
+    drift: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ActionView(BaseModel):

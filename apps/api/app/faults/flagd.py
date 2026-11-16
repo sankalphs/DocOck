@@ -78,14 +78,22 @@ class FlagdWriter:
 
     def current_variants(self) -> dict[str, str]:
         data = self._read()
-        return {
-            key: str(flag.get("defaultVariant") or "off")
-            for key, flag in (data.get("flags") or {}).items()
-        }
+        return {key: effective_variant(flag) for key, flag in (data.get("flags") or {}).items()}
 
-    async def evaluate(self, key: str) -> dict[str, Any]:
+    def contexts(self) -> dict[str, dict[str, Any]]:
+        """flag -> the OFREP evaluation context that reaches its targeted branch."""
+        data = self._read()
+        out: dict[str, dict[str, Any]] = {}
+        for key, flag in (data.get("flags") or {}).items():
+            rule = targeted_rule(flag)
+            if rule is not None:
+                out[key] = {rule[0]: rule[1]}
+        return out
+
+    async def evaluate(self, key: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        body: dict[str, Any] = {"context": context} if context else {}
         try:
-            payload = await self._http.post_json(f"/ofrep/v1/evaluate/flags/{key}", json={})
+            payload = await self._http.post_json(f"/ofrep/v1/evaluate/flags/{key}", json=body)
         except Exception as exc:
             raise FlagdWriteError(f"OFREP evaluation failed for {key}: {exc}") from exc
         return dict(payload)
@@ -93,9 +101,13 @@ class FlagdWriter:
     async def wait_for(self, key: str, variant: str, *, timeout_s: float = 15.0) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_s
         last: dict[str, Any] = {}
+        try:
+            context = (await asyncio.to_thread(self.contexts)).get(key)
+        except (FlagdWriteError, OSError, ValueError):
+            context = None
         while time.monotonic() < deadline:
             try:
-                last = await self.evaluate(key)
+                last = await self.evaluate(key, context)
             except FlagdWriteError as exc:
                 last = {"error": str(exc)}
             if last.get("variant") == variant:
@@ -144,7 +156,8 @@ class FlagdWriter:
                 {"allowed": sorted(declared)},
             )
 
-        before = str(flag.get("defaultVariant") or "off")
+        before = effective_variant(flag)
+        rule = targeted_rule(flag)
         if before == variant:
             return FlagState(
                 key=key,
@@ -155,6 +168,10 @@ class FlagdWriter:
             )
 
         flag["defaultVariant"] = variant
+        if rule is not None:
+            # A targeted flag (`if var == value then A else B`) ignores its
+            # defaultVariant for matching contexts; the fault lives in branch A.
+            flag["targeting"]["if"][1] = variant
         self._atomic_write(data)
         return FlagState(
             key=key,
@@ -199,6 +216,33 @@ class FlagdWriter:
             log.error("flagd_restart_failed", error=str(exc))
 
 
+def targeted_rule(flag: dict[str, Any]) -> tuple[str, Any] | None:
+    """(context var, value) for the upstream `{"if": [{"==": [{"var": X}, V]}, A, B]}` shape."""
+    rule = (flag.get("targeting") or {}).get("if")
+    if not isinstance(rule, list) or len(rule) != 3:
+        return None
+    condition, match, _other = rule
+    if not isinstance(match, str) or not isinstance(condition, dict):
+        return None
+    operands = condition.get("==")
+    if (
+        not isinstance(operands, list)
+        or len(operands) != 2
+        or not isinstance(operands[0], dict)
+        or "var" not in operands[0]
+    ):
+        return None
+    return str(operands[0]["var"]), operands[1]
+
+
+def effective_variant(flag: dict[str, Any]) -> str:
+    """What a flag serves where it matters: the targeted branch, else the default."""
+    rule = targeted_rule(flag)
+    if rule is not None:
+        return str(flag["targeting"]["if"][1])
+    return str(flag.get("defaultVariant") or "off")
+
+
 async def reset_drift(writer: FlagdWriter, *, target_variant: str = "off") -> list[dict[str, Any]]:
     """Put every catalog flag back to `off` (panic-button drift sweep)."""
     from app.faults.catalog import DEFINITIONS
@@ -219,4 +263,11 @@ async def reset_drift(writer: FlagdWriter, *, target_variant: str = "off") -> li
     return changed
 
 
-__all__ = ["FlagState", "FlagdWriteError", "FlagdWriter", "reset_drift"]
+__all__ = [
+    "FlagState",
+    "FlagdWriteError",
+    "FlagdWriter",
+    "effective_variant",
+    "reset_drift",
+    "targeted_rule",
+]

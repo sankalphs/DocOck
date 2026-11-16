@@ -33,6 +33,8 @@ from app.faults.controller import get_controller
 from app.faults.mechanisms import _state as container_state
 from app.faults.safety import resolve_target
 from app.remediation.catalog import ACTIONS, ActionSpec, reverts_fault, target_allowed
+from app.remediation.drift import DriftReport, scanner
+from app.remediation.reconcile import relevant
 from app.remediation.schemas import PlanCheck, PreconditionView
 from app.telemetry.docker import DockerError, docker_inspect
 
@@ -69,6 +71,8 @@ async def open_faults(session: AsyncSession) -> list[Fault]:
 
 
 def matching_faults(spec: ActionSpec, target: str, faults: list[Fault]) -> list[Fault]:
+    if spec.action_id == "reconcile_all":
+        return list(faults)
     return [
         fault
         for fault in faults
@@ -98,8 +102,11 @@ async def evaluate(
             "escalate_human hands the incident to a human; there is nothing to approve",
         )
     faults = await open_faults(session)
-    fault_targets = {fault.target for fault in faults}
-    flag_targets = {fault.target for fault in faults if _mechanism(fault) == Mechanism.FLAGD}
+    drift: DriftReport = await scanner.scan()
+    fault_targets = {fault.target for fault in faults} | {item.service for item in drift.items}
+    flag_targets = {fault.target for fault in faults if _mechanism(fault) == Mechanism.FLAGD} | {
+        item.service for item in drift.items if item.kind == "flag_on"
+    }
     reason = target_allowed(
         action_id,
         target,
@@ -107,13 +114,19 @@ async def evaluate(
         flag_targets=flag_targets,
         known_services=ALLOWED_TARGETS,
     )
-    if reason is not None and spec.target_kind in ("service", "load"):
+    if reason is not None and spec.target_kind in ("service", "load", "lab"):
         raise ApiError(422, "target_not_allowed", reason, {"action_id": action_id})
+    detached = any(
+        item.kind == "network_detached" and item.service == target for item in drift.items
+    )
     if reason is None and spec.target_kind == "service":
         # The fault controller's boundary: allowlist, compose labels, network.
-        await resolve_target(target, require_network=action_id != "restore_network")
+        await resolve_target(
+            target, require_network=action_id != "restore_network" and not detached
+        )
 
     matched = matching_faults(spec, target, faults)
+    fixes = relevant(action_id, target, drift)
     checks = [
         PreconditionView(
             name="incident_state",
@@ -127,14 +140,16 @@ async def evaluate(
         ),
     ]
     if spec.reverts and spec.action_id != "restart_service":
+        found: list[str] = [f"open fault #{f.id} {f.type}" for f in matched]
+        found += [item.detail for item in fixes]
         checks.append(
             PreconditionView(
-                name="fault_present",
-                ok=bool(matched),
+                name="problem_present",
+                ok=bool(found),
                 detail=(
-                    f"open fault(s) {', '.join(f'#{f.id} {f.type}' for f in matched)} on {target}"
-                    if matched
-                    else f"no open fault on {target} that {action_id} reverts"
+                    "; ".join(found[:6])
+                    if found
+                    else f"no open fault or drift on {target} that {action_id} fixes"
                 ),
             )
         )
@@ -170,6 +185,11 @@ async def evaluate(
         f"revert fault #{fault.id} {fault.type} on {fault.target} with its recorded pre-image"
         for fault in matched
     ]
+    steps += [
+        f"fix drift: {item.detail} (desired {item.desired})"
+        for item in fixes
+        if not any(fault.target == item.service for fault in matched)
+    ]
     if action_id == "restart_service":
         verb = "restart"
         if container is not None and not container["running"]:
@@ -199,6 +219,7 @@ async def evaluate(
         ],
         steps=steps,
         rollback={"policy": spec.rollback, "note": spec.rollback_note},
+        drift=[item.model_dump(mode="json") for item in fixes],
     )
 
 

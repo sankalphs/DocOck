@@ -21,9 +21,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.validator import canonical
 from app.analysis.suspects import NOT_SUSPECTS
 from app.db.models import Evidence, Fault, Incident, Suspect
-from app.faults.catalog import ALLOWED_TARGETS, DEFINITIONS, INFRA_TARGETS, Mechanism
+from app.faults.catalog import (
+    ALLOWED_TARGETS,
+    DEFINITIONS,
+    LOAD_TARGETS,
+    SERVICE_TARGETS,
+    Mechanism,
+)
 from app.remediation.catalog import ACTIONS
 
+LOAD_SERVICES = frozenset(LOAD_TARGETS)
 MAX_INDEX_ROWS = 140
 CODES_PER_SUSPECT = 8
 _TYPE_PRIORITY = {
@@ -163,6 +170,25 @@ async def build_context(
         if definition is not None and definition.mechanism == Mechanism.FLAGD:
             flag_targets.add(fault.target)
 
+    # Live desired-state drift: problems with or without a fault record. It is
+    # not evidence until the agent calls get_drift (which returns a code).
+    drift_summary: list[dict[str, Any]] = []
+    try:
+        from app.remediation.drift import scanner
+
+        drift = await scanner.scan()
+        drift_summary = drift.summary()
+        for item in drift.items:
+            fault_targets.add(item.service)
+            if item.service not in LOAD_SERVICES:
+                # Observed directly by Docker/flagd: part of this incident's
+                # world even when it emits no spans (valkey-cart, astronomy-db).
+                topology_services.add(item.service)
+            if item.kind == "flag_on":
+                flag_targets.add(item.service)
+    except Exception:  # Docker down: the agent still has telemetry
+        drift_summary = []
+
     ordered = sorted(
         evidence,
         key=lambda row: (
@@ -234,6 +260,14 @@ async def build_context(
         "evidence_index": index,
         "services": sorted(topology_services - NOT_SUSPECTS),
         "fault_targets": sorted(fault_targets),
+        "drift": {
+            "note": (
+                "Live differences from the lab's desired state. Call get_drift for a citable "
+                "evidence code. A drifted dependency (e.g. valkey-cart, astronomy-db) is the "
+                "root cause of its callers' symptoms."
+            ),
+            "items": drift_summary,
+        },
         "action_catalog": [
             {
                 "action_id": spec.action_id,
@@ -267,8 +301,9 @@ def _target_hint(kind: str) -> str:
     return {
         "fault": "a service listed in fault_targets",
         "flag": "a service in fault_targets whose fault is a flag",
-        "service": "one of: " + ", ".join(INFRA_TARGETS),
+        "service": "one of: " + ", ".join(SERVICE_TARGETS),
         "load": "load-generator",
+        "lab": "lab",
         "incident": "incident",
     }[kind]
 

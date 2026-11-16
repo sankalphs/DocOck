@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -33,7 +34,7 @@ from app.incidents.service import service as incident_service
 from app.logging import get_logger
 from app.remediation import tokens
 from app.remediation.audit import ActionAuditEntry, ActionAuditLog
-from app.remediation.catalog import ACTIONS
+from app.remediation.catalog import ACTIONS, risk_at_most
 from app.remediation.executor import Executor
 from app.remediation.executor import executor as default_executor
 from app.remediation.planner import evaluate
@@ -49,6 +50,34 @@ from app.remediation.schemas import (
 )
 
 log = get_logger(__name__)
+
+
+@dataclass(slots=True)
+class AutopilotPlan:
+    """How the autopilot chose an action; stored on the action row."""
+
+    source: str
+    rationale: str
+    planner: str
+    attempt: int
+    candidates: list[dict[str, Any]] = field(default_factory=list)
+    planner_error: str | None = None
+    planner_cost_usd: float = 0.0
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "source": self.source,
+            "rationale": self.rationale,
+            "planner": self.planner,
+            "attempt": self.attempt,
+            "candidates": self.candidates,
+            "planner_error": self.planner_error,
+            "planner_cost_usd": self.planner_cost_usd,
+        }
+
+
+# Where the autopilot may propose from (besides DIAGNOSED): a failed attempt.
+RETRY_FROM = frozenset({IncidentStatus.REMEDIATING.value, IncidentStatus.VERIFYING.value})
 
 
 def _utc(value: datetime) -> datetime:
@@ -163,7 +192,9 @@ class ApprovalService:
         return ApprovalList(items=items, total=len(items), pending=pending, generated_at=now)
 
     # --- plan ---------------------------------------------------------------
-    async def plan(self, ref: str, request: PlanRequest) -> PlanResult:
+    async def plan(
+        self, ref: str, request: PlanRequest, *, autopilot: AutopilotPlan | None = None
+    ) -> PlanResult:
         async with SessionFactory() as session:
             incident = await incident_service.get(session, ref)
             await session.refresh(incident, with_for_update=True)
@@ -173,11 +204,13 @@ class ApprovalService:
                 .where(AgentRun.incident_id == incident.id, Diagnosis.valid.is_(True))
                 .order_by(Diagnosis.id.desc())
             )
-            if diagnosis is None:
+            if diagnosis is None and autopilot is None:
                 raise ApiError(
                     409, "no_valid_diagnosis", f"{incident.public_id} has no valid diagnosis"
                 )
-            recommended = dict(diagnosis.recommended_action or {})
+            # The autopilot may act on deterministic evidence (drift, recorded
+            # faults) when the agent produced no valid diagnosis.
+            recommended = dict(diagnosis.recommended_action or {}) if diagnosis else {}
             if request.action_id is not None and request.target is None:
                 raise ApiError(422, "target_required", "an explicit action needs a target")
             action_id = request.action_id or str(recommended.get("action_id") or "")
@@ -187,6 +220,7 @@ class ApprovalService:
                 recommended.get("target"),
             )
             replacing = request.replace and incident.status == IncidentStatus.AWAITING_APPROVAL
+            retrying = autopilot is not None and incident.status in RETRY_FROM
             # Hard refusals (catalog, target rule, safety boundary) come first,
             # whatever state the incident is in.
             check = (
@@ -200,6 +234,8 @@ class ApprovalService:
                     expected_status=(
                         IncidentStatus.AWAITING_APPROVAL.value
                         if replacing
+                        else incident.status
+                        if retrying
                         else IncidentStatus.DIAGNOSED.value
                     ),
                 )
@@ -211,7 +247,7 @@ class ApprovalService:
                     f"{incident.public_id} already awaits a decision; send replace=true "
                     "to supersede the pending proposal",
                 )
-            if incident.status != IncidentStatus.DIAGNOSED and not replacing:
+            if incident.status != IncidentStatus.DIAGNOSED and not replacing and not retrying:
                 raise ApiError(
                     409,
                     "incident_not_diagnosed",
@@ -227,7 +263,7 @@ class ApprovalService:
                     payload={
                         "action_id": "escalate_human",
                         "reason": "the diagnosis hands the incident to a human",
-                        "diagnosis_id": diagnosis.id,
+                        "diagnosis_id": diagnosis.id if diagnosis else None,
                     },
                     actor=request.actor,
                 )
@@ -261,20 +297,25 @@ class ApprovalService:
                 risk=check.risk,
                 approval_mode=check.approval_mode,
                 requested_by=request.actor,
-                diagnosis_id=diagnosis.id,
+                diagnosis_id=diagnosis.id if diagnosis else None,
                 args={
                     "recommended": recommended,
                     "override": override,
                     "note": request.note,
-                    "diagnosis": {
-                        "id": diagnosis.id,
-                        "root_cause": diagnosis.root_cause_service,
-                        "fault_class": diagnosis.fault_class,
-                        "confidence": diagnosis.confidence,
-                        "summary": diagnosis.summary,
-                    },
-                    "evidence_codes": list(diagnosis.evidence_codes or []),
+                    "diagnosis": (
+                        {
+                            "id": diagnosis.id,
+                            "root_cause": diagnosis.root_cause_service,
+                            "fault_class": diagnosis.fault_class,
+                            "confidence": diagnosis.confidence,
+                            "summary": diagnosis.summary,
+                        }
+                        if diagnosis
+                        else None
+                    ),
+                    "evidence_codes": list(diagnosis.evidence_codes or []) if diagnosis else [],
                     "planned_check": check.model_dump(mode="json"),
+                    **({"autopilot": autopilot.as_dict()} if autopilot else {}),
                 },
             )
             session.add(action)
@@ -294,6 +335,18 @@ class ApprovalService:
                 "target": target,
                 "risk": check.risk,
                 "override": override,
+                **(
+                    {
+                        "autopilot": {
+                            "attempt": autopilot.attempt,
+                            "source": autopilot.source,
+                            "planner": autopilot.planner,
+                            "rationale": autopilot.rationale[:300],
+                        }
+                    }
+                    if autopilot
+                    else {}
+                ),
             }
             if replacing:
                 await incident_service.withdraw_pending(
@@ -339,6 +392,14 @@ class ApprovalService:
             },
         )
         log.info("approval_requested", approval=view.id, action=action_id, target=target)
+        if autopilot is not None and risk_at_most(check.risk, settings.autopilot_max_risk):
+            approved = await self.approve(
+                view.id,
+                actor="autopilot",
+                note=f"AUTOPILOT (risk {check.risk} <= {settings.autopilot_max_risk}): "
+                + autopilot.rationale[:300],
+            )
+            return PlanResult(approval=approved, auto_approved=True, detail="auto-approved")
         if settings.agent_auto_remediate and check.approval_mode == "auto":
             approved = await self.approve(
                 view.id, actor="auto-policy", note="AGENT_AUTO_REMEDIATE: low-risk action"
@@ -650,4 +711,4 @@ class ApprovalService:
 
 approvals = ApprovalService()
 
-__all__ = ["ApprovalService", "action_view", "approval_view", "approvals"]
+__all__ = ["ApprovalService", "AutopilotPlan", "action_view", "approval_view", "approvals"]

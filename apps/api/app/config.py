@@ -115,6 +115,23 @@ class Settings(BaseSettings):
     approval_token_ttl_s: int = 60
     remediation_sweep_interval_s: float = 5.0
     remediation_audit_file: Path = ROOT_DIR / "runtime" / "audit" / "actions.jsonl"
+    # Learned desired state the drift scanner compares the lab against.
+    desired_state_file: Path = ROOT_DIR / "runtime" / "desired-state.json"
+
+    # --- Autopilot -----------------------------------------------------------
+    # Drive the whole loop without a human: investigate every new incident,
+    # choose a fix from the deterministic ladder (the LLM picks and explains
+    # when a real provider is configured), auto-approve it when its risk is at
+    # most AUTOPILOT_MAX_RISK, verify, and try the next rung when verification
+    # fails. Set AUTOPILOT_ENABLED=false for the human-approval workflow.
+    autopilot_enabled: bool = True
+    autopilot_investigate_delay_s: int = 20
+    autopilot_max_attempts: int = 4
+    # none | low | medium | high. An action above it waits for a human.
+    autopilot_max_risk: str = "high"
+    autopilot_llm_planner: bool = True
+    autopilot_sweep_interval_s: float = 15.0
+    autopilot_learn_interval_s: float = 30.0
 
     # --- Verification (P15) -------------------------------------------------
     # An executed action passes when every criterion holds on this many

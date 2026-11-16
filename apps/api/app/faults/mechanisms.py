@@ -77,6 +77,10 @@ def _state(item: dict[str, Any]) -> dict[str, Any]:
         "memory_limit_mb": (
             round(int((item.get("HostConfig") or {}).get("Memory") or 0) / 1024 / 1024) or None
         ),
+        "exit_code": int(state.get("ExitCode") or 0),
+        "oom_killed": bool(state.get("OOMKilled")),
+        "restarting": bool(state.get("Restarting")),
+        "restart_count": int(item.get("RestartCount") or 0),
     }
 
 
@@ -177,6 +181,21 @@ class FaultProbe:
             return ProbeReading(
                 value=1.0 if state["running"] else 0.0, detail=f"{name} state={state['status']}"
             )
+        if spec.probe == "container_exited":
+            crashed = not state["running"] and state["exit_code"] != 0
+            return ProbeReading(
+                value=1.0 if crashed else 0.0,
+                detail=f"{name} state={state['status']} exit={state['exit_code']}",
+            )
+        if spec.probe == "restart_count":
+            return ProbeReading(
+                value=float(state["restart_count"]),
+                detail=(
+                    f"{name} restarts={state['restart_count']} oom_killed={state['oom_killed']} "
+                    f"state={state['status']}"
+                ),
+                meta={"oom_killed": state["oom_killed"]},
+            )
         if spec.probe == "container_paused":
             return ProbeReading(
                 value=1.0 if state["paused"] else 0.0, detail=f"{name} paused={state['paused']}"
@@ -217,6 +236,10 @@ def symptom_satisfied(spec: SymptomSpec, reading: ProbeReading, baseline: float 
     value = reading.value
     if value is None:
         return False
+
+    if spec.probe == "restart_count":
+        # Any restart after injection (or an OOM kill seen right away).
+        return value > (baseline or 0.0) or bool(reading.meta.get("oom_killed"))
 
     if spec.probe in ("cpu_limit", "memory_limit"):
         # The limit changing *below* its pre-image is the signal. A container
@@ -313,6 +336,23 @@ class Mechanisms:
             detail=f"{target.container} started ({after['status']})",
         )
 
+    async def inject_kill(self, target: ContainerTarget) -> MechanismOutcome:
+        before = _state(await _inspect(target.container))
+        await run_docker("kill", "--signal", "KILL", target.container, timeout_s=20.0)
+        after = await wait_for_container(target.container, lambda s: not s["running"])
+        return MechanismOutcome(
+            ref={"mechanism": Mechanism.CONTAINER_KILL.value, "before": before, "after": after},
+            detail=f"{target.container} killed (exit {after['exit_code']})",
+        )
+
+    async def revert_kill(self, target: ContainerTarget, ref: dict[str, Any]) -> MechanismOutcome:
+        await run_docker("start", target.container, timeout_s=60.0)
+        after = await wait_for_container(target.container, lambda s: s["running"], timeout_s=60.0)
+        return MechanismOutcome(
+            ref={"mechanism": Mechanism.CONTAINER_KILL.value, "restored": after},
+            detail=f"{target.container} started ({after['status']})",
+        )
+
     async def inject_pause(self, target: ContainerTarget) -> MechanismOutcome:
         before = _state(await _inspect(target.container))
         await run_docker("pause", target.container, timeout_s=20.0)
@@ -370,9 +410,17 @@ class Mechanisms:
 
     # --- limits ------------------------------------------------------------
     async def inject_limits(
-        self, target: ContainerTarget, params: dict[str, Any]
+        self, target: ContainerTarget, params: dict[str, Any], *, cold: bool = False
     ) -> MechanismOutcome:
+        """`docker update` the limits. `cold` stops the container first.
+
+        Lowering a memory limit below the working set fails on cgroup v1
+        (EBUSY), so a limit meant to OOM-kill the service is applied to the
+        stopped container, which then starts under it.
+        """
         before = _state(await _inspect(target.container))
+        if cold:
+            await run_docker("stop", target.container, timeout_s=35.0)
         args = ["update"]
         applied: dict[str, Any] = {}
         if "cpus" in params:
@@ -387,6 +435,11 @@ class Mechanisms:
             raise ApiError(422, "invalid_param", "cpu_pressure/memory_pressure need a limit")
         args.append(target.container)
         await run_docker(*args, timeout_s=25.0)
+        if cold:
+            try:
+                await run_docker("start", target.container, timeout_s=60.0)
+            except Exception as exc:  # an immediate OOM can fail the start itself
+                log.info("cold_limit_start_failed", container=target.container, error=str(exc))
 
         def limited(state: dict[str, Any]) -> bool:
             if "cpus" in applied:
@@ -404,6 +457,7 @@ class Mechanisms:
             ref={
                 "mechanism": Mechanism.RESOURCE_LIMIT.value,
                 "applied": applied,
+                "cold": cold,
                 "before": before,
                 "after": after,
             },
@@ -453,6 +507,15 @@ class Mechanisms:
             return True
 
         after = await wait_for_container(target.container, restored)
+        if not after["running"] or after["restarting"]:
+            # A crash-looping or stopped container picks the new limit up only
+            # on its next start; do not wait for the restart backoff.
+            await run_docker("restart", target.container, timeout_s=60.0)
+            after = await wait_for_container(
+                target.container,
+                lambda s: s["running"] and not s["restarting"],
+                timeout_s=60.0,
+            )
         detail = f"{target.container} limits restored"
         if cpu_reset:
             detail += f"; CPU limit reset via {cpu_reset} (Docker cannot clear it)"

@@ -13,6 +13,7 @@ export type FaultCategory = "application" | "infrastructure";
 export type FaultMechanism =
   | "flagd"
   | "container_stop"
+  | "container_kill"
   | "container_pause"
   | "network_partition"
   | "resource_limit"

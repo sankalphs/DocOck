@@ -21,6 +21,7 @@ describe("EVENT_TYPES", () => {
         "action",
         "verification",
         "report",
+        "autopilot",
       ]),
     );
   });

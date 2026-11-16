@@ -46,6 +46,7 @@ def test_breach_on_a_focus_service_fails_noise_elsewhere_does_not() -> None:
     assert ids(evaluate("reset_fault", obs, ["payment"])) == {
         "symptoms_clear": True,
         "faults_reverted": True,
+        "desired_state": True,
     }
     assert not all_ok(evaluate("reset_fault", obs, ["payment", "checkout"]))
 

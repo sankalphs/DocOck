@@ -28,8 +28,12 @@ Rules:
   cite them; there is no field for them.
 - Every number in the summary must appear in an evidence row you cite. If unsure,
   leave the number out. No markdown tables.
-- A stopped, paused or network-detached container observed by Docker is a direct
-  cause. Errors in callers of a failing service are consequences.
+- A stopped, crashed, paused, restarting or network-detached container observed by
+  Docker is a direct cause. Errors in callers of a failing service are consequences.
+- "drift" lists everything that differs from the lab's desired state right now,
+  whether or not a fault was recorded. Call get_drift to cite it. A drifted
+  dependency (valkey-cart for cart, astronomy-db for product-catalog) is the root
+  cause of its caller's symptoms; each drift item names the action that fixes it.
 - fault_class is one of: {", ".join(FAULT_CLASSES)}.
 - recommended_action comes from the action_catalog and must allow its target.
   Use escalate_human with target "incident" when no action fits.

@@ -131,6 +131,8 @@ class AgentOrchestrator:
         self.hypotheses: HypothesisProvider | None = None
         # P14: called with the incident ref after a run left it DIAGNOSED.
         self.on_diagnosed: Callable[[str], Awaitable[None]] | None = None
+        # Autopilot: whether a gate miss / failed run continues as DIAGNOSED.
+        self.gate_fallback: Callable[[], bool] = lambda: False
         self._tasks: dict[int, asyncio.Task[None]] = {}
         self.gateway.set_stub_policy(investigator_policy)
 
@@ -299,7 +301,7 @@ class AgentOrchestrator:
             outcome = {"status": RunStatus.FAILED, "error": f"{type(exc).__name__}: {exc}"}
             await recorder.add("error", output={"error": outcome["error"]})
         finally:
-            incident_ref = await self._finish(
+            incident_ref, diagnosed = await self._finish(
                 run_id, incident_id, budget, outcome, owns_incident=owns_incident
             )
         bus.publish(
@@ -315,7 +317,7 @@ class AgentOrchestrator:
                 "elapsed_s": round(budget.elapsed_s, 1),
             },
         )
-        if outcome["status"] == RunStatus.DIAGNOSED and self.on_diagnosed is not None:
+        if diagnosed and self.on_diagnosed is not None:
             await self.on_diagnosed(incident_ref)
 
     async def _investigate(
@@ -636,8 +638,10 @@ class AgentOrchestrator:
         outcome: dict[str, Any],
         *,
         owns_incident: bool,
-    ) -> str:
+    ) -> tuple[str, bool]:
+        """Persist the run; returns (incident ref, incident is now DIAGNOSED)."""
         status: RunStatus = outcome["status"]
+        diagnosed = status == RunStatus.DIAGNOSED
         async with SessionFactory() as session:
             run = await session.get(AgentRun, run_id)
             incident = await session.get(Incident, incident_id)
@@ -658,6 +662,17 @@ class AgentOrchestrator:
                     else IncidentStatus.ESCALATED
                 )
                 payload: dict[str, Any] = {"run_id": run_id, "run_status": status.value}
+                # Autopilot: a gate miss or an LLM failure is not the end of the
+                # loop. The incident continues on deterministic evidence (drift,
+                # recorded faults); the autopilot escalates if nothing is left.
+                if (
+                    target == IncidentStatus.ESCALATED
+                    and status in (RunStatus.ESCALATED, RunStatus.FAILED)
+                    and self.gate_fallback()
+                ):
+                    target = IncidentStatus.DIAGNOSED
+                    payload["autopilot_fallback"] = True
+                    diagnosed = True
                 if report is not None and report.diagnosis is not None:
                     payload.update(
                         {
@@ -683,7 +698,7 @@ class AgentOrchestrator:
                 cost=round(budget.cost_usd, 6),
                 elapsed_s=round(budget.elapsed_s, 1),
             )
-            return incident.public_id
+            return incident.public_id, diagnosed and incident.status == IncidentStatus.DIAGNOSED
 
     # --- reads --------------------------------------------------------------------
     async def _summary(

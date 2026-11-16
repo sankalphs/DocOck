@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 from app.api import (
     agent,
     approvals,
+    autopilot,
     detection,
     events,
     faults,
@@ -35,6 +36,7 @@ api_router.include_router(detection.router)
 api_router.include_router(settings.router)
 api_router.include_router(agent.router)
 api_router.include_router(approvals.router)
+api_router.include_router(autopilot.router)
 api_router.include_router(memory.router)
 api_router.include_router(reports.router)
 api_router.include_router(stats.router)

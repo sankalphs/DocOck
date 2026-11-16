@@ -215,7 +215,7 @@ class FaultController:
                     f"{flag} is already at '{wanted}'; revert it before injecting again",
                 )
             pre.update({"flag": flag, "before": current, "after": wanted})
-        elif mechanism == Mechanism.CONTAINER_STOP:
+        elif mechanism in (Mechanism.CONTAINER_STOP, Mechanism.CONTAINER_KILL):
             if target.state != "running":
                 raise ApiError(
                     409,
@@ -386,12 +386,16 @@ class FaultController:
             )
         if mechanism == Mechanism.CONTAINER_STOP:
             return await self.mechanisms.inject_stop(target)
+        if mechanism == Mechanism.CONTAINER_KILL:
+            return await self.mechanisms.inject_kill(target)
         if mechanism == Mechanism.CONTAINER_PAUSE:
             return await self.mechanisms.inject_pause(target)
         if mechanism == Mechanism.NETWORK_PARTITION:
             return await self.mechanisms.inject_partition(target)
         if mechanism == Mechanism.RESOURCE_LIMIT:
-            return await self.mechanisms.inject_limits(target, normalized.params)
+            return await self.mechanisms.inject_limits(
+                target, normalized.params, cold=definition.cold_apply
+            )
         if mechanism == Mechanism.LOAD_SPIKE:
             return await self.mechanisms.inject_load(target, normalized.params)
         raise ApiError(422, "unsupported_mechanism", str(mechanism))  # pragma: no cover
@@ -675,6 +679,8 @@ class FaultController:
             )
         if mechanism == Mechanism.CONTAINER_STOP:
             return await self.mechanisms.revert_stop(target, pre_image)
+        if mechanism == Mechanism.CONTAINER_KILL:
+            return await self.mechanisms.revert_kill(target, pre_image)
         if mechanism == Mechanism.CONTAINER_PAUSE:
             return await self.mechanisms.revert_pause(target, pre_image)
         if mechanism == Mechanism.NETWORK_PARTITION:
@@ -716,7 +722,7 @@ class FaultController:
             }
         except DockerError:
             raise
-        if mechanism == Mechanism.CONTAINER_STOP:
+        if mechanism in (Mechanism.CONTAINER_STOP, Mechanism.CONTAINER_KILL):
             return bool(state["running"])
         if mechanism == Mechanism.CONTAINER_PAUSE:
             return not bool(state["paused"])

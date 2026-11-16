@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.agent.orchestrator import orchestrator as agent_orchestrator
 from app.api import api_router
+from app.autopilot.service import autopilot
 from app.config import settings
 from app.db.session import SessionFactory, dispose_engine
 from app.detection.runtime import runtime as detection_runtime
@@ -44,6 +45,7 @@ TAGS = [
     {"name": "detection", "description": "Deterministic detector status and cycles."},
     {"name": "agent", "description": "Investigation runs and diagnoses."},
     {"name": "approvals", "description": "Human approval of remediation actions."},
+    {"name": "autopilot", "description": "Autonomous remediation loop and desired-state drift."},
     {"name": "reports", "description": "Verification verdicts and incident reports."},
     {"name": "stats", "description": "Cost, latency, outcome and rate-limit statistics."},
     {"name": "memory", "description": "Resolved-incident retrieval."},
@@ -86,6 +88,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # closes the incident and stores its report.
     executor.on_executed = verifier.hook
     verifier.on_verified = reports.generate
+    # Autopilot: every incident runs investigate -> fix -> verify -> retry
+    # without a human; failures hand back to it instead of escalating.
+    if autopilot.enabled:
+        agent_orchestrator.on_diagnosed = autopilot.on_diagnosed
+        agent_orchestrator.gate_fallback = lambda: autopilot.enabled
+        executor.on_failed = autopilot.on_failed
+        verifier.on_failed = autopilot.on_failed
     runtime = FaultRuntime()
     await runtime.start()
     await detection_runtime.start()
@@ -93,9 +102,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await verifier.start()
     except Exception as exc:
         log.warning("verification_resume_failed", error=str(exc))
+    await autopilot.start()
     try:
         yield
     finally:
+        await autopilot.stop()
         await agent_orchestrator.shutdown()
         await verifier.shutdown()
         await approvals.stop()

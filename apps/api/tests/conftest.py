@@ -45,3 +45,34 @@ def fixture_transport() -> FixtureFactory:
         return FixtureTransport(routes)
 
     return _build
+
+
+@pytest.fixture(autouse=True)
+def _isolated_drift(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Any:
+    """Tests never read the live lab through the drift scanner.
+
+    By default the lab has no drift; a test sets `drift.items` to simulate some.
+    The desired-state file lives in the test's tmp dir.
+    """
+    from datetime import UTC, datetime
+
+    from app.remediation import drift as drift_module
+
+    state: dict[str, Any] = {"items": []}
+    store = drift_module.DesiredStateStore(tmp_path / "desired-state.json")
+    monkeypatch.setattr(drift_module.scanner, "store", store)
+
+    async def fake_scan(
+        *, services: list[str] | None = None, learn: bool = False
+    ) -> drift_module.DriftReport:
+        items = [
+            item
+            for item in state["items"]
+            if services is None
+            or item.service in services
+            or (item.fix is not None and item.fix.target in services)
+        ]
+        return drift_module.DriftReport(at=datetime.now(UTC), items=list(items))
+
+    monkeypatch.setattr(drift_module.scanner, "scan", fake_scan)
+    return state

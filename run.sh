@@ -44,6 +44,7 @@ NO_API=0
 NO_DASHBOARD=0
 FRESH=0
 RESEED_FLAGS=0
+CONSTRAINED="${DOCOCK_CONSTRAINED:-0}"
 STOP=0
 STOP_VOLUMES=0
 PURGE=0
@@ -65,6 +66,9 @@ Setup and run
   --no-dashboard    Do not start the Next.js dashboard.
   --fresh           Delete and re-clone the pinned OpenTelemetry demo checkout.
   --reseed-flags    Copy the upstream flagd seed over runtime/flagd again.
+  --constrained     Small/locked-down host (16 GB RAM, no IPv6, no memlock,
+                    TLS proxy): layer infra/compose/constrained.override.yaml.
+                    Same as DOCOCK_CONSTRAINED=1.
   --wait SECONDS    Health-check timeout (default 300, or $DOCOCK_WAIT_SECONDS).
 
 Operate
@@ -97,6 +101,7 @@ while [[ $# -gt 0 ]]; do
     --no-dashboard) NO_DASHBOARD=1 ;;
     --fresh) FRESH=1 ;;
     --reseed-flags) RESEED_FLAGS=1 ;;
+    --constrained) CONSTRAINED=1 ;;
     --stop) STOP=1 ;;
     --volumes) STOP_VOLUMES=1 ;;
     --purge) PURGE=1; STOP=1 ;;
@@ -124,6 +129,14 @@ host_path() {
     cygpath -m "$1"
   else
     printf '%s\n' "$1"
+  fi
+}
+
+# Compose files layered on top of the upstream demo, in order.
+demo_overrides() {
+  printf '%s\n' -f "$(host_path "$ROOT/infra/compose/lab.override.yaml")"
+  if [[ "$CONSTRAINED" == "1" ]]; then
+    printf '%s\n' -f "$(host_path "$ROOT/infra/compose/constrained.override.yaml")"
   fi
 }
 
@@ -280,8 +293,9 @@ stop_stack() {
       -p docock-demo
       -f "$(host_path "$DEMO/compose.yaml")"
       -f "$(host_path "$DEMO/compose.observability.yaml")"
-      -f "$(host_path "$ROOT/infra/compose/lab.override.yaml")"
     )
+    local override
+    while IFS= read -r override; do demo_args+=("$override"); done < <(demo_overrides)
     DOCOCK_ROOT="$(host_path "$ROOT")" docker compose "${demo_args[@]}" down "${down_flags[@]}" \
       || warn "could not stop docock-demo (is Docker running?)"
   fi
@@ -398,8 +412,9 @@ if [[ "$SKIP_STACK" -eq 0 ]]; then
     -p docock-demo
     -f "$(host_path "$DEMO/compose.yaml")"
     -f "$(host_path "$DEMO/compose.observability.yaml")"
-    -f "$(host_path "$ROOT/infra/compose/lab.override.yaml")"
   )
+  while IFS= read -r override; do demo_compose+=("$override"); done < <(demo_overrides)
+  [[ "$CONSTRAINED" == "1" ]] && dim "constrained host profile: infra/compose/constrained.override.yaml"
   lab_compose=(
     --project-directory "$(host_path "$ROOT")"
     -p docock-lab

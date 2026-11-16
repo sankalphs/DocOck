@@ -96,6 +96,12 @@ def plan_for(definition: dict[str, Any]) -> dict[str, Any]:
         return {"params": {"variant": definition["params"][0]["default"]}}
     if definition["id"] in ("service_down", "service_freeze", "network_partition"):
         return {"target": "quote"}
+    if definition["id"] in ("cache_outage", "database_outage", "database_freeze"):
+        return {"target": definition["targets"][0]}
+    if definition["id"] == "service_crash":
+        return {"target": "quote"}
+    if definition["id"] == "oom_crash_loop":
+        return {"target": "quote", "params": {"memory_mb": 12}}
     if definition["id"] == "cpu_pressure":
         return {"target": "ad", "params": {"cpus": 0.5}}
     if definition["id"] == "memory_pressure":
@@ -118,7 +124,7 @@ def verify_reverted(client: httpx.Client, fault: dict[str, Any]) -> None:
             revert.get("restored") == "off",
             str(revert.get("restored")),
         )
-    elif mechanism == "container_stop":
+    elif mechanism in ("container_stop", "container_kill"):
         expect(f"{definition}: {target} is running", container_state(target)["running"])
     elif mechanism == "container_pause":
         expect(f"{definition}: {target} is not paused", not container_state(target)["paused"])

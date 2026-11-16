@@ -35,6 +35,8 @@ class Mechanism(StrEnum):
     NETWORK_PARTITION = "network_partition"
     RESOURCE_LIMIT = "resource_limit"
     LOAD_SPIKE = "load_spike"
+    # SIGKILL: an abrupt crash (exit 137) rather than a graceful stop.
+    CONTAINER_KILL = "container_kill"
 
 
 class FaultStatus(StrEnum):
@@ -92,6 +94,8 @@ class SymptomSpec(BaseModel):
         "cpu_limit",
         "memory_limit",
         "load_users",
+        "container_exited",
+        "restart_count",
     ]
     service: str
     comparator: Literal[">", ">=", "<", "<="] = ">"
@@ -116,6 +120,9 @@ class FaultDefinition(BaseModel):
     risk: Literal["low", "medium"] = "low"
     symptom: SymptomSpec
     reversible: bool = True
+    # Apply the mechanism to a stopped container, then start it (see
+    # Mechanisms.inject_limits).
+    cold_apply: bool = False
     notes: str = ""
 
     @property
@@ -191,7 +198,19 @@ INFRA_TARGETS: tuple[str, ...] = (
     "shipping",
 )
 LOAD_TARGETS: tuple[str, ...] = ("load-generator",)
-ALLOWED_TARGETS: frozenset[str] = frozenset((*INFRA_TARGETS, *LOAD_TARGETS))
+# Stateful dependencies of demo services. They emit no spans of their own, so a
+# fault here is only visible as symptoms in their callers plus Docker state —
+# exactly the case a span-only investigator misses.
+DEPENDENCY_TARGETS: tuple[str, ...] = ("astronomy-db", "valkey-cart")
+# Every container a remediation may touch (restart, reconnect, limits).
+SERVICE_TARGETS: tuple[str, ...] = (*INFRA_TARGETS, *DEPENDENCY_TARGETS)
+ALLOWED_TARGETS: frozenset[str] = frozenset((*SERVICE_TARGETS, *LOAD_TARGETS))
+# Which dependency each service calls: a broken dependency is the root cause of
+# its caller's symptoms.
+DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "cart": ("valkey-cart",),
+    "product-catalog": ("astronomy-db",),
+}
 
 _PAYMENT_VARIANTS = ["10%", "25%", "50%", "75%", "90%", "100%"]
 _CART_VARIANTS = ["10%", "25%", "50%", "75%", "90%", "100%"]
@@ -201,7 +220,7 @@ _DELAY_VARIANTS = ["5sec", "10sec"]
 
 
 def _definitions() -> list[FaultDefinition]:
-    """The v1 catalog (PLAN §8).
+    """The catalog: 14 flagd application faults and 11 infrastructure faults.
 
     Deviations from PLAN §8, both verified in the demo source:
     - `image_slow_load` targets **frontend**: the flag is evaluated in
@@ -251,9 +270,11 @@ def _definitions() -> list[FaultDefinition]:
         params: list[ParamSpec] | None = None,
         default_ttl_s: int = 900,
         risk: Literal["low", "medium"] = "medium",
+        cold_apply: bool = False,
         notes: str = "",
     ) -> FaultDefinition:
         return FaultDefinition(
+            cold_apply=cold_apply,
             id=fault_id,
             label=label,
             description=description,
@@ -596,6 +617,106 @@ def _definitions() -> list[FaultDefinition]:
             default_ttl_s=180,
             risk="low",
         ),
+        flag(
+            "product_catalog_failure",
+            "Product catalog failure",
+            "GetProduct fails for the flagged product; browsing and checkout of it error.",
+            "productCatalogFailure",
+            "product-catalog",
+            _SWITCH,
+            SymptomSpec(
+                probe="error_rate",
+                service="product-catalog",
+                threshold=0.01,
+                detail="product-catalog inbound error rate above 1%",
+            ),
+            notes="Upstream fails one product id (OLJCESPC7Z), which the load generator browses.",
+        ),
+        infra(
+            "cache_outage",
+            "Cart cache outage",
+            "Stop the cart's Valkey cache; cart calls fail until it is started again.",
+            Mechanism.CONTAINER_STOP,
+            SymptomSpec(
+                probe="container_running",
+                service="valkey-cart",
+                comparator="<=",
+                threshold=0,
+                detail="valkey-cart is not running",
+            ),
+            targets=("valkey-cart",),
+            notes="Root cause is a dependency with no spans; symptoms appear at cart.",
+        ),
+        infra(
+            "database_outage",
+            "Catalog database outage",
+            "Stop the product catalog's Postgres; catalog queries fail.",
+            Mechanism.CONTAINER_STOP,
+            SymptomSpec(
+                probe="container_running",
+                service="astronomy-db",
+                comparator="<=",
+                threshold=0,
+                detail="astronomy-db is not running",
+            ),
+            targets=("astronomy-db",),
+            notes="Root cause is a dependency with no spans; symptoms appear at product-catalog.",
+        ),
+        infra(
+            "database_freeze",
+            "Catalog database frozen",
+            "Pause the product catalog's Postgres; queries hang until it is unpaused.",
+            Mechanism.CONTAINER_PAUSE,
+            SymptomSpec(
+                probe="container_paused",
+                service="astronomy-db",
+                comparator=">=",
+                threshold=1,
+                detail="astronomy-db is paused",
+            ),
+            targets=("astronomy-db",),
+        ),
+        infra(
+            "service_crash",
+            "Service crash",
+            "SIGKILL one container (exit 137, no graceful shutdown); start it on revert.",
+            Mechanism.CONTAINER_KILL,
+            SymptomSpec(
+                probe="container_exited",
+                service="ad",
+                comparator=">=",
+                threshold=1,
+                detail="container exited after SIGKILL",
+            ),
+            notes="A manual kill is not restarted by the unless-stopped policy.",
+        ),
+        infra(
+            "oom_crash_loop",
+            "OOM crash loop",
+            "Cap a container far below its working set; the kernel OOM-kills it and "
+            "the restart policy loops.",
+            Mechanism.RESOURCE_LIMIT,
+            SymptomSpec(
+                probe="restart_count",
+                service="ad",
+                comparator=">=",
+                threshold=1,
+                detail="container restarted after an OOM kill",
+            ),
+            params=[
+                _number_param(
+                    "memory_mb",
+                    "Memory limit",
+                    minimum=8,
+                    maximum=48,
+                    default=12,
+                    unit="MB",
+                    description="Small enough to OOM-kill the service on start.",
+                )
+            ],
+            default_ttl_s=600,
+            cold_apply=True,
+        ),
     ]
 
 
@@ -746,7 +867,7 @@ def catalog() -> FaultCatalog:
         limits={
             "cpus_min": 0.05,
             "cpus_max": 2.0,
-            "memory_mb_min": 64,
+            "memory_mb_min": 8,
             "memory_mb_max": 2048,
             "users_min": 6,
             "users_max": 200,
@@ -761,9 +882,12 @@ __all__ = [
     "ALLOWED_TARGETS",
     "CLOSED_STATUSES",
     "DEFINITIONS",
+    "DEPENDENCIES",
+    "DEPENDENCY_TARGETS",
     "INFRA_TARGETS",
     "LOAD_TARGETS",
     "OPEN_STATUSES",
+    "SERVICE_TARGETS",
     "FaultCatalog",
     "FaultCategory",
     "FaultDefinition",

@@ -35,8 +35,10 @@ from app.faults.controller import get_controller
 from app.incidents.service import service as incident_service
 from app.logging import get_logger
 from app.remediation.audit import ActionAuditEntry, ActionAuditLog
+from app.remediation.drift import scanner
 from app.remediation.executor import executor
 from app.remediation.planner import snapshot
+from app.remediation.reconcile import relevant
 from app.remediation.schemas import ActionStatus
 from app.telemetry.docker import DockerError, docker_inspect
 from app.telemetry.prometheus import PrometheusAdapter
@@ -45,6 +47,8 @@ from app.verification.criteria import Observation, all_ok, evaluate, focus_servi
 log = get_logger(__name__)
 
 VerifiedHook = Callable[[str], Awaitable[None]]
+# The autopilot takes over a failed verification (next rung of the ladder).
+RetryHook = Callable[[str], Awaitable[None]]
 
 
 class Verdict:
@@ -66,6 +70,7 @@ class Verifier:
         self.prometheus = prometheus or PrometheusAdapter(ttl_s=0)
         self.audit = audit or ActionAuditLog(settings.remediation_audit_file)
         self.on_verified: VerifiedHook | None = None
+        self.on_failed: RetryHook | None = None
         self._tasks: dict[int, asyncio.Task[None]] = {}
 
     # --- lifecycle ------------------------------------------------------------
@@ -158,6 +163,7 @@ class Verifier:
             action_id, target = action.action_id, action.target
             started_at = action.started_at or action.created_at
             pre = dict(action.pre_snapshot or {})
+            action_result = dict(action.result or {})
             fault_ids = [
                 int(step["fault_row_id"])
                 for step in (action.result or {}).get("steps", [])
@@ -194,6 +200,9 @@ class Verifier:
             "breaches": self._breaches(),
         }
         flags = self._flags_for(await self._fault_types(fault_ids))
+        for flag in (action_result or {}).get("flags_cleared", []):
+            if flag not in flags:
+                flags.append(str(flag))
         initial_start = await self._started(target)
 
         required = settings.verification_clean_cycles
@@ -214,6 +223,7 @@ class Verifier:
             last_seen = report.at
             reports += 1
             obs = await self._observe(report, target, fault_ids, flags, initial_start)
+            obs.drift = await self._drift(action_id, target)
             criteria = evaluate(action_id, obs, focus)
             clean = clean + 1 if all_ok(criteria) else 0
             failing = [c.id for c in criteria if not c.ok]
@@ -301,7 +311,24 @@ class Verifier:
                     action.status = ActionStatus.ROLLED_BACK.value
             await session.flush()
             moved_to: str | None = None
-            if incident.status == IncidentStatus.VERIFYING:
+            retry = verdict != Verdict.PASSED and self.on_failed is not None
+            if retry and incident.status == IncidentStatus.VERIFYING:
+                await incident_service.append_event(
+                    session,
+                    incident,
+                    "verification_failed",
+                    {
+                        "verification_id": row.id,
+                        "action_row_id": action_row_id,
+                        "action_id": action_id,
+                        "target": target,
+                        "verdict": verdict,
+                        "observed_for_s": observed_for_s,
+                        "failing": [c["id"] for c in failing],
+                        "next": "autopilot",
+                    },
+                )
+            elif incident.status == IncidentStatus.VERIFYING:
                 target_status = (
                     IncidentStatus.RESOLVED
                     if verdict == Verdict.PASSED
@@ -366,6 +393,9 @@ class Verifier:
             verdict=verdict,
             observed_s=observed_for_s,
         )
+        if retry and self.on_failed is not None:
+            await self.on_failed(ref)
+            return
         if self.on_verified is not None:
             with contextlib.suppress(Exception):
                 await self.on_verified(ref)
@@ -427,6 +457,15 @@ class Verifier:
             error_rate=error_rate,
             baseline_error=(report.baselines.get(target) or {}).get("error_rate"),
         )
+
+    async def _drift(self, action_id: str, target: str) -> list[str] | None:
+        try:
+            services = None if action_id in ("reconcile_all", "stop_load_generator") else [target]
+            report = await scanner.scan(services=services)
+        except Exception as exc:
+            log.warning("verification_drift_failed", error=str(exc))
+            return None
+        return [item.detail for item in relevant(action_id, target, report)]
 
     async def _metrics(
         self, focus: list[str], *, at: datetime | None

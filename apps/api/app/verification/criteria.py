@@ -48,6 +48,9 @@ class Observation:
     # Target inbound error rate and its detector baseline.
     error_rate: float | None = None
     baseline_error: float | None = None
+    # Drift the action is responsible for that is still present (details), or
+    # None when the scanner could not read the lab this cycle.
+    drift: list[str] | None = field(default_factory=list)
 
 
 def focus_services(
@@ -159,6 +162,15 @@ def _network(obs: Observation) -> Criterion:
     return Criterion("network_attached", label, False, "no network attached")
 
 
+def _desired(obs: Observation) -> Criterion:
+    label = "Desired state restored"
+    if obs.drift is None:
+        return Criterion("desired_state", label, False, "drift scan unavailable this cycle")
+    if obs.drift:
+        return Criterion("desired_state", label, False, "; ".join(obs.drift[:4]))
+    return Criterion("desired_state", label, True, "no drift in the action's scope")
+
+
 def _signal_clear(obs: Observation, signal: str, label: str, crit: str) -> Criterion:
     hits = [b for b in obs.breaches if b.get("signal") == signal]
     if hits:
@@ -177,8 +189,12 @@ def evaluate(action_id: str, obs: Observation, focus: list[str]) -> list[Criteri
         "restore_network",
         "remove_resource_limit",
         "stop_load_generator",
+        "reconcile_service",
+        "reconcile_all",
     ):
         criteria.append(_faults(obs))
+    if action_id != "escalate_human":
+        criteria.append(_desired(obs))
     if action_id == "clear_feature_flag":
         criteria.append(_flags(obs))
     if action_id == "restart_service":
@@ -190,6 +206,8 @@ def evaluate(action_id: str, obs: Observation, focus: list[str]) -> list[Criteri
             _stable(obs),
             _signal_clear(obs, "container_resource", "Resource limit restored", "limits_restored"),
         ]
+    elif action_id == "reconcile_service":
+        criteria += [_healthy(obs), _network(obs)]
     elif action_id == "stop_load_generator":
         criteria.append(
             _signal_clear(obs, "throughput", "Request rate back to normal", "request_rate_normal")

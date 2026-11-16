@@ -30,18 +30,29 @@ bounded fix, and verify recovery — all on your own machine.
 Most "AI on-call" demos stop at a chat reply. DocOck runs the whole loop against a live
 25-container microservice stack and proves the result:
 
-- **Real faults, real symptoms.** 19 reversible faults — 13 flagd application faults and
-  6 infrastructure faults — with a TTL and a watchdog that reverts them even if nothing
-  else is alive.
-- **Deterministic where it matters.** Python owns detection, evidence, ranking, approval
-  tokens, execution and verification. The LLM only gets read-only tools and a fixed action
-  catalog; it never gets Docker or shell access.
-- **Nothing runs without a human.** A diagnosis becomes a pending approval. Approving it
-  issues a single-use, short-lived token bound to that exact action; replayed tokens are
-  refused.
+- **Real faults, real symptoms.** 25 reversible faults — 14 flagd application faults and
+  11 infrastructure faults (stop, SIGKILL crash, pause, network partition, CPU/memory
+  limits, OOM crash loop, load spike, and outages of the Valkey cache and catalog
+  Postgres) — with a TTL and a watchdog that reverts them even if nothing else is alive.
+- **Fixes problems it did not cause.** A drift scanner compares the live lab with a
+  learned *desired state* (containers running and attached, limits, network aliases,
+  flags, load). Remediation reconciles that drift, so a container stopped by hand, a
+  flag flipped in flagd-ui or a `docker update` from a shell is fixed the same way as an
+  injected fault — no fault record needed.
+- **Fully autonomous, mostly deterministic.** The autopilot drives every incident:
+  investigate → choose a fix → auto-approve within a risk policy → execute → verify →
+  try the next candidate if verification fails → escalate only when the ladder is
+  exhausted. Python builds the candidate ladder, checks preconditions, mints the
+  single-use token, executes and verifies; the LLM diagnoses (read-only tools), picks the
+  next rung from the ladder and explains why. It never gets Docker or shell access and
+  cannot invent an action.
+- **Human approval is one switch away.** `AUTOPILOT_ENABLED=false` (or a lower
+  `AUTOPILOT_MAX_RISK`) puts every action back behind a pending approval with a
+  single-use, short-lived token; replayed tokens are refused.
 - **Proof, not vibes.** Recovery is verified against the same signals that detected the
-  incident, and every incident closes with a JSON + Markdown report containing the
-  timeline, citations, before/after metrics and audit trail.
+  incident plus "desired state restored", and every incident closes with a JSON +
+  Markdown report containing the timeline, citations, before/after metrics and audit
+  trail.
 
 It runs offline by default with a deterministic `stub` model. A real provider is one
 environment variable away.
@@ -52,15 +63,18 @@ environment variable away.
 
 | Stage | What happens | Decided by |
 |---|---|---|
-| **Break** | Pick a fault in the Fault Lab, dry-run it, inject it with a TTL. | You |
+| **Break** | Inject a fault from the Fault Lab, or break the lab any other way (`docker stop`, flagd-ui, `docker update`). | You |
 | **Detect** | Baselines learn normal traffic per service; sustained breaches open one incident. | Python |
-| **Investigate** | Read-only tools pull metrics, traces, logs and container state; suspects are ranked with evidence codes (`E0001`…). | Python + LLM |
-| **Approve** | The recommended action waits for a human. Dry-run, approve or reject with a note. | You |
-| **Verify** | The verifier checks symptoms, the fault row, the flag and container health over 4 clean cycles. | Python |
-| **Report** | Self-contained JSON/Markdown report with timeline, cited evidence and before → after metrics. | Python |
+| **Investigate** | Read-only tools pull metrics, traces, logs, container state and drift; suspects are ranked with evidence codes (`E0001`…). | Python + LLM |
+| **Choose** | A deterministic ladder lists every fix worth trying (diagnosis, related drift, recorded faults, restart, reconcile-all); the LLM picks one and explains it. | Python + LLM |
+| **Approve** | Autopilot approves actions up to `AUTOPILOT_MAX_RISK`; anything above waits for a human. | Policy / you |
+| **Execute** | The executor consumes the single-use token, reverts recorded faults with their pre-image, then reconciles remaining drift in the action's scope. | Python |
+| **Verify** | Symptoms clear, desired state restored, fault/flag/container checks over 4 clean cycles. | Python |
+| **Retry** | A failed verification proposes the next rung (up to `AUTOPILOT_MAX_ATTEMPTS`) instead of giving up. | Python + LLM |
+| **Report** | Self-contained JSON/Markdown report with timeline, cited evidence, every attempt and before → after metrics. | Python |
 
-If verification fails, the incident is escalated and the report shows exactly which
-criteria failed. That unhappy path is a first-class scenario (`W1`), not an edge case.
+When the ladder is exhausted the incident is escalated and the report shows each attempt
+and exactly which criteria failed.
 
 ---
 
@@ -78,7 +92,15 @@ criteria failed. That unhappy path is a first-class scenario (`W1`), not an edge
 | Free disk | ~12 GB for images + models | `docker system df` |
 
 Give Docker Desktop at least 4 GB of memory (8 GB is comfortable). The demo alone runs
-about 20 containers plus OpenSearch.
+about 20 containers plus OpenSearch; measured on a 16 GB / 4-core host the whole stack
+uses about 3.7 GB of RAM and ~13 GB of images.
+
+**Small or locked-down host?** (16 GB laptop, CI runner, cloud sandbox, rootless Docker,
+WSL without IPv6, a TLS-intercepting proxy) add `--constrained`. It layers
+[`infra/compose/constrained.override.yaml`](infra/compose/constrained.override.yaml):
+no memlock ulimit for OpenSearch, IPv4-only listeners for the nginx images and flagd-ui,
+a nofile limit the host allows, and no Grafana plugin download. Nothing DocOck measures
+changes. To save another ~600 MB of disk, set `EMBEDDING_PROVIDER=stub` in `.env`.
 
 ### One command
 
@@ -139,6 +161,7 @@ stack back to the same state, and reuses existing images and data.
 | `./run.sh --no-api` | Start the dashboard only |
 | `./run.sh --fresh` | Delete and re-clone the pinned demo checkout |
 | `./run.sh --reseed-flags` | Restore `runtime/flagd/demo.flagd.json` from upstream |
+| `./run.sh --constrained` | Small/locked-down host profile (also `DOCOCK_CONSTRAINED=1`) |
 | `./run.sh --wait 600` | Give the first Docker start more time |
 | `./run.sh --stop` | Stop apps and both Compose projects, keep data |
 | `./run.sh --stop --volumes` | Also delete the Postgres volume |
@@ -228,19 +251,29 @@ before you inject anything.
 A complete walkthrough with timings and talking points is in
 [`docs/DEMO.md`](docs/DEMO.md). The short version:
 
-1. Open **Fault Lab** → **Payment failure** → **100%** → **Dry run**, then **Inject**.
+1. Open **Fault Lab** → **Payment failure** → **100%** → **Inject** — or break something
+   behind DocOck's back, e.g. `docker stop email`.
 2. Within about 30–120 s the **Incidents** page opens one incident with the breached
    signals.
-3. Press **Analyze** for deterministic suspects, then **Agent → Investigate** for a cited
-   diagnosis. Click any citation to open its evidence.
-4. Go to **Approvals** → **Dry-run** → **Approve**. The executor issues and consumes a
-   single-use token.
-5. Watch **Reports**: `REMEDIATING → VERIFYING → RESOLVED`, with before/after metrics and
-   a downloadable Markdown report.
-6. Finish with **Fault Lab → Reset all** and confirm no incident is open.
+3. Do nothing. After `AUTOPILOT_INVESTIGATE_DELAY_S` the agent investigates; the
+   **Approvals** page shows the autopilot panel (live drift + decisions) and each attempt
+   with its rationale, auto-approved within policy.
+4. Watch **Reports**: `REMEDIATING → VERIFYING → RESOLVED`, with before/after metrics and
+   a downloadable Markdown report. If the first fix does not verify, the next candidate
+   runs automatically.
+5. Finish with **Fault Lab → Reset all** and confirm no incident is open.
 
-Want the failure path? Use the wrong action (`restart_service` on `payment`) against a
-flag fault. Verification stays red and the incident escalates after the 420 s window.
+Prefer to decide yourself? Set `AUTOPILOT_ENABLED=false`, restart the API, and use
+**Agent → Investigate** and **Approvals → Dry-run → Approve** by hand. The wrong action
+(`restart_service` on `payment` for a flag fault) then fails verification and escalates
+after the 420 s window.
+
+Check the loop end to end without touching anything:
+
+```bash
+apps/api/.venv/bin/python scripts/autopilot-e2e.py fault:payment_failure manual:stop:email \
+  fault:cache_outage fault:oom_crash_loop@quote multi:fault:service_crash@shipping+manual:pause:ad
+```
 
 ---
 
@@ -260,7 +293,11 @@ All settings live in [`.env.example`](.env.example); the important ones:
 | `DETECTOR_BASELINE_WINDOW_S` | `900` | How much normal traffic the baseline learns |
 | `FAULT_DEFAULT_TTL_S` | `900` | Default auto-revert timer |
 | `FAULT_WATCHDOG_ENABLED` | `true` | Reverts expired faults even across an API restart |
-| `AGENT_AUTO_REMEDIATE` | `false` | Keep `false` for human approval on every action |
+| `AUTOPILOT_ENABLED` | `true` | Run investigate → fix → verify → retry with no human |
+| `AUTOPILOT_MAX_RISK` | `high` | Highest action risk the autopilot approves (`none`/`low`/`medium`/`high`); above it waits for a human |
+| `AUTOPILOT_MAX_ATTEMPTS` | `4` | Remediation attempts per incident before escalating |
+| `AUTOPILOT_LLM_PLANNER` | `true` | Let a real model pick and explain the next fix (the stub always uses the deterministic order) |
+| `AGENT_AUTO_REMEDIATE` | `false` | Legacy: with the autopilot off, auto-approve only `auto` (low-risk) actions |
 | `RATE_LIMIT_ENABLED` | `true` | Per-client write limits; reads are never limited |
 
 To use a real model, set `LLM_PROVIDER`, `LLM_MODEL` and `LLM_API_KEY` in `.env`, restart
