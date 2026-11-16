@@ -47,6 +47,7 @@ from app.db.session import SessionFactory
 from app.domain.state import IncidentStatus
 from app.errors import ApiError
 from app.events.bus import BusEvent, bus
+from app.incidents.service import normalize_ref
 from app.logging import get_logger
 from app.memory.summarizer import build_facts, query_text
 from app.models.gateway import ModelGateway
@@ -199,7 +200,9 @@ class MemoryService:
         """Summarize and embed one RESOLVED incident. Idempotent."""
         self._require_ready()
         async with SessionFactory() as session:
-            incident = await session.scalar(select(Incident).where(Incident.public_id == ref))
+            incident = await session.scalar(
+                select(Incident).where(Incident.public_id == normalize_ref(ref))
+            )
             if incident is None or incident.status != IncidentStatus.RESOLVED:
                 return None
             existing = await session.scalar(select(Memory).where(Memory.incident_id == incident.id))
@@ -446,7 +449,9 @@ class MemoryService:
         self, ref: str, *, top_k: int | None = None, lead: str | None = None
     ) -> MemorySearchResult:
         async with SessionFactory() as session:
-            incident = await session.scalar(select(Incident).where(Incident.public_id == ref))
+            incident = await session.scalar(
+                select(Incident).where(Incident.public_id == normalize_ref(ref))
+            )
             if incident is None:
                 raise ApiError(404, "incident_not_found", f"incident {ref} not found")
             query, suspects, fault_class = await self.incident_query(session, incident, lead=lead)

@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Query
 
+from app.api.params import DbId
 from app.remediation.approval import approvals
 from app.remediation.audit import ActionAuditEntry
 from app.remediation.schemas import (
@@ -46,7 +47,7 @@ async def approval_audit(
 
 
 @router.get("/approvals/{approval_id}", response_model=ApprovalView, summary="One approval")
-async def get_approval(approval_id: int) -> ApprovalView:
+async def get_approval(approval_id: DbId) -> ApprovalView:
     return await approvals.get(approval_id)
 
 
@@ -83,7 +84,7 @@ async def plan_remediation(
     description="`wait=true` returns after the execution finished (at most `timeout_s`).",
 )
 async def approve(
-    approval_id: int,
+    approval_id: DbId,
     request: Annotated[DecisionRequest | None, Body()] = None,
     wait: bool = False,
     timeout_s: Annotated[float, Query(ge=1, le=300)] = 120,
@@ -102,7 +103,7 @@ async def approve(
     summary="Reject: nothing executes and the incident escalates",
 )
 async def reject(
-    approval_id: int, request: Annotated[DecisionRequest | None, Body()] = None
+    approval_id: DbId, request: Annotated[DecisionRequest | None, Body()] = None
 ) -> ApprovalView:
     decision = request or DecisionRequest()
     return await approvals.reject(approval_id, actor=decision.actor, note=decision.note)
@@ -114,7 +115,7 @@ async def reject(
     summary="What approving would do now (read-only)",
 )
 async def dry_run(
-    approval_id: int, actor: Annotated[str, Query(max_length=64)] = "operator"
+    approval_id: DbId, actor: Annotated[str, Query(max_length=64)] = "operator"
 ) -> DryRunResult:
     return await approvals.dry_run(approval_id, actor=actor)
 

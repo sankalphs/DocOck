@@ -14,6 +14,7 @@ from app.agent.schemas import (
     AgentRunSummary,
     ValidationReport,
 )
+from app.api.params import DbId
 from app.errors import ApiError
 
 router = APIRouter(tags=["agent"])
@@ -75,14 +76,14 @@ async def runs(limit: Annotated[int, Query(ge=1, le=100)] = 20) -> AgentRunList:
 
 
 @router.get("/agent/runs/{run_id}", response_model=AgentRunDetail, summary="One run with steps")
-async def run_detail(run_id: int) -> AgentRunDetail:
+async def run_detail(run_id: DbId) -> AgentRunDetail:
     return await orchestrator.get_run(run_id)
 
 
 @router.post(
     "/agent/runs/{run_id}/cancel", response_model=AgentRunSummary, summary="Cancel a running run"
 )
-async def cancel(run_id: int) -> AgentRunSummary:
+async def cancel(run_id: DbId) -> AgentRunSummary:
     detail = await orchestrator.get_run(run_id)
     if detail.status in TERMINAL_RUN_STATUSES:
         raise ApiError(409, "run_finished", f"run {run_id} already finished as {detail.status}")

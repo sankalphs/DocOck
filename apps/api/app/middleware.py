@@ -6,6 +6,7 @@ delayed by an extra task group.
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 
@@ -16,6 +17,18 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 log = structlog.get_logger(__name__)
 
 REQUEST_ID_HEADER = "X-Request-ID"
+MAX_REQUEST_ID = 64
+_REQUEST_ID_OK = re.compile(r"[^A-Za-z0-9._:\-]")
+
+
+def sanitize_request_id(value: str) -> str:
+    """A caller-supplied id, kept only if it is short and boring.
+
+    It is echoed in a response header and written to every log line of the
+    request, so anything outside `[A-Za-z0-9._:-]` is dropped and the result is
+    capped; an empty result means "mint a fresh one".
+    """
+    return _REQUEST_ID_OK.sub("", value.strip())[:MAX_REQUEST_ID]
 
 
 class RequestContextMiddleware:
@@ -28,8 +41,8 @@ class RequestContextMiddleware:
             return
 
         headers = dict(scope.get("headers") or [])
-        incoming = headers.get(REQUEST_ID_HEADER.lower().encode(), b"").decode("latin-1").strip()
-        request_id = incoming or uuid.uuid4().hex[:12]
+        incoming = headers.get(REQUEST_ID_HEADER.lower().encode(), b"").decode("latin-1")
+        request_id = sanitize_request_id(incoming) or uuid.uuid4().hex[:12]
 
         state = scope.setdefault("state", {})
         state["request_id"] = request_id

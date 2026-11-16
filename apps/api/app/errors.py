@@ -18,6 +18,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.domain.state import InvalidTransition
+
 log = structlog.get_logger(__name__)
 
 _STATUS_CODES = {
@@ -155,6 +157,22 @@ def register_error_handlers(app: FastAPI) -> None:
                 "Request validation failed",
                 _request_id(request),
                 _jsonable_details(exc.errors()),
+            ),
+        )
+
+    @app.exception_handler(InvalidTransition)
+    async def handle_invalid_transition(request: Request, exc: InvalidTransition) -> JSONResponse:
+        # Two writers raced (e.g. a manual close while the verifier resolved the
+        # incident). The state machine refused the loser; that is a conflict,
+        # not a server fault.
+        log.info("invalid_transition", current=exc.current, target=exc.target)
+        return JSONResponse(
+            status_code=409,
+            content=error_payload(
+                "invalid_transition",
+                f"incident is {exc.current.value}; it cannot move to {exc.target.value}",
+                _request_id(request),
+                {"current": exc.current.value, "target": exc.target.value},
             ),
         )
 

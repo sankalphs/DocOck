@@ -21,15 +21,28 @@ HEARTBEAT_S = 15.0
 MAX_REPLAY = 500
 
 
-def _resume_point(last_event_id: str | None, query_id: int | None) -> int | None:
-    if query_id is not None:
-        return query_id
-    if last_event_id:
+def _resume_point(
+    last_event_id: str | None, query_id: int | None, *, last_id: int | None = None
+) -> int | None:
+    """Where to resume, or None to replay the whole history.
+
+    Event ids restart at 1 with the process. A browser that reconnects after an
+    API restart still sends the id it saw from the old process; taken at face
+    value, every new event would be skipped until the counter caught up. An id
+    ahead of the bus therefore means "another epoch": replay everything.
+    """
+    resume: int | None = query_id
+    if resume is None and last_event_id:
         try:
-            return int(last_event_id)
+            resume = int(last_event_id.strip())
         except ValueError:
             return None
-    return None
+    if resume is None or resume < 0:
+        return None
+    current = bus.last_id if last_id is None else last_id
+    if resume > current:
+        return None
+    return resume
 
 
 async def _stream(

@@ -11,6 +11,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
 
+from app.api.params import DbId
 from app.faults.audit import AuditEntry
 from app.faults.catalog import FaultCatalog, FaultRequest
 from app.faults.controller import (
@@ -87,7 +88,7 @@ async def inject_fault(request: FaultRequest) -> InjectionResult:
 
 
 @router.get("/{fault_id}", response_model=FaultView, summary="One fault")
-async def get_fault(fault_id: int) -> FaultView:
+async def get_fault(fault_id: DbId) -> FaultView:
     return await get_controller().get(fault_id)
 
 
@@ -97,7 +98,7 @@ async def get_fault(fault_id: int) -> FaultView:
     summary="Revert a fault (idempotent, verified by read-back)",
 )
 async def revert_fault(
-    fault_id: int,
+    fault_id: DbId,
     actor: Annotated[str, Query(max_length=64)] = "operator",
 ) -> FaultView:
     return await get_controller().revert(fault_id, actor=actor)

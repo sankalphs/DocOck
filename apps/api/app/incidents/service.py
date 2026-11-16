@@ -104,6 +104,24 @@ def _utc(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
+# Primary keys are BIGINT; anything larger cannot exist and must not reach asyncpg.
+_MAX_ID = 2**63 - 1
+
+
+def normalize_ref(ref: str) -> str:
+    """`inc-00042` and ` INC-00042 ` both mean INC-00042."""
+    ref = ref.strip()
+    return ref.upper() if ref[:4].lower() == "inc-" else ref
+
+
+def parse_numeric_ref(ref: str) -> int | None:
+    """The row id when `ref` is a plain ASCII number that fits a BIGINT."""
+    if not (ref.isascii() and ref.isdigit()):
+        return None
+    value = int(ref)
+    return value if 0 < value <= _MAX_ID else None
+
+
 def _summary(incident: Incident, *, now: datetime | None = None) -> IncidentSummary:
     now = now or datetime.now(UTC)
     opened = _utc(incident.opened_at)
@@ -461,8 +479,10 @@ class IncidentService:
 
     async def get(self, session: AsyncSession, ref: str) -> Incident:
         incident: Incident | None = None
-        if ref.isdigit():
-            incident = await session.get(Incident, int(ref))
+        ref = normalize_ref(ref)
+        numeric = parse_numeric_ref(ref)
+        if numeric is not None:
+            incident = await session.get(Incident, numeric)
         if incident is None:
             incident = await session.scalar(select(Incident).where(Incident.public_id == ref))
         if incident is None:
