@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 
 import { Mascot, moodFor } from "@/components/brand/mascot";
 import { useLive } from "@/components/live-provider";
+import { navBadge } from "@/lib/api/attention";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ type SidebarProps = {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { health } = useLive();
+  const { health, attention } = useLive();
   const mood = moodFor(health.data?.status ?? (health.error ? "down" : null));
 
   return (
@@ -70,6 +71,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             {NAV_ITEMS.map((item) => {
               const active = isNavItemActive(item, pathname);
               const Icon = item.icon;
+              const badge = navBadge(item.href, attention);
               return (
                 <li key={item.href}>
                   <Link
@@ -91,6 +93,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       aria-hidden
                     />
                     <span className="truncate">{item.label}</span>
+                    {badge ? (
+                      <span
+                        aria-label={`${badge.count} need attention`}
+                        className={cn(
+                          "tabular ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] font-semibold leading-5",
+                          badge.tone === "destructive" && "bg-destructive text-white",
+                          badge.tone === "warning" && "bg-warning/20 text-warning",
+                          badge.tone === "secondary" && "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {badge.count > 99 ? "99+" : badge.count}
+                      </span>
+                    ) : null}
                     {!item.ready ? (
                       <span
                         title={`Available in phase ${item.phase}`}

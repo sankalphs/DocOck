@@ -973,3 +973,49 @@ fixed, with a unit test where the logic allows one.
   vitest** + `next build`); `scripts\db-check.ps1` passes. The dashboard
   half ran on a working tree that also held separate, uncommitted dashboard
   work, which is not part of this commit.
+
+## Post-P16 maintenance: console fixes and operator features
+
+Bugs fixed:
+
+1. **Close could hit the wrong incident.** After clicking another incident in
+   the list, the detail panel kept rendering the previous incident (the poll
+   lags one request) while Close/Analyze already targeted the new selection.
+   The "Confirm close" state also survived the switch because the panel was
+   not keyed. The panel now renders only the incident it was fetched for, is
+   keyed by id, and its buttons pass that id explicitly.
+2. **Polls could land out of order.** `usePolling` started a new request every
+   tick even while one was in flight, so a slow upstream could overwrite a
+   newer answer with an older one. One request per key now; a tab that
+   becomes visible refreshes at once instead of waiting a full interval.
+3. **`actions.jsonl` had three writers with three locks.** Approvals, the
+   executor and the verifier each own an `ActionAuditLog` with its own
+   `asyncio.Lock`. Writes are now serialised by one thread lock per file (same
+   for the fault audit). Not reproducible on Linux, where a large append is a
+   single atomic `write()`; it guards Windows hosts.
+4. **`GET /api/approvals` `total`** was the page length; it is now the
+   filtered count.
+5. Incident header buttons overflowed a 390 px phone by 2 px; they wrap now.
+
+Features:
+
+- `GET /api/attention`: open incidents, decidable pending approvals (expired
+  but not yet swept ones excluded), active faults, worst open severity. The
+  sidebar shows count badges for Incidents / Approvals / Fault Lab, and the
+  browser-tab title is prefixed with `(N) approvals pending` or `(N) open
+  incidents`. Refreshed on incident/approval/fault SSE events, 15 s otherwise.
+- `POST /api/incidents/{ref}/notes`: operator notes on the timeline (any
+  status, including closed; never changes status), published as
+  `incident.note` and rendered in reports as `actor: text`.
+- `GET /api/incidents?q=`: literal substring search over id, title, primary
+  service and signature (`%`/`_` are text). Search box on the Incidents page.
+- Durations read `3m 05s` / `2h 14m`, and timestamps from another day show
+  their date.
+- A test now fails if the API publishes an SSE event type the dashboard does
+  not subscribe to (EventSource has no wildcard).
+
+Verified: ruff, ruff format, mypy, **232 API tests**, dashboard eslint,
+tsc, **67 vitest**, `next build`. The new SQL ran against Postgres 16 +
+pgvector with the Alembic migrations, and the UI flow (badges, title, note,
+search, selection) ran in Chromium against that API. Live (`-m live`) tests
+were not run: no Docker stack in this environment.

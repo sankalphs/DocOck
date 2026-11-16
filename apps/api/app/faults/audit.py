@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,20 @@ from app.config import settings
 from app.logging import get_logger
 
 log = get_logger(__name__)
+
+
+# Several services keep their own log object on the same file (approvals, the
+# executor and the verifier all write actions.jsonl). An asyncio.Lock per object
+# would not serialise them, and a line larger than the write buffer can then
+# interleave with another. One thread lock per resolved path does.
+_FILE_LOCKS: dict[Path, threading.Lock] = {}
+_FILE_LOCKS_GUARD = threading.Lock()
+
+
+def _file_lock(path: Path) -> threading.Lock:
+    key = path.resolve()
+    with _FILE_LOCKS_GUARD:
+        return _FILE_LOCKS.setdefault(key, threading.Lock())
 
 
 class AuditEntry(BaseModel):
@@ -46,7 +61,7 @@ class AuditLog:
     def _append_sync(self, entry: AuditEntry) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         line = json.dumps(entry.model_dump(mode="json"), separators=(",", ":"), ensure_ascii=False)
-        with self.path.open("a", encoding="utf-8", newline="\n") as handle:
+        with _file_lock(self.path), self.path.open("a", encoding="utf-8", newline="\n") as handle:
             handle.write(line + "\n")
 
     async def tail(self, limit: int = 100) -> list[AuditEntry]:

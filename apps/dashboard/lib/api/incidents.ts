@@ -172,13 +172,15 @@ function mapSummary(raw: components["schemas"]["IncidentSummary"]): IncidentSumm
 }
 
 export async function fetchIncidents(
-  options: { status?: string; limit?: number } = {},
+  options: { status?: string; limit?: number; q?: string } = {},
   signal?: AbortSignal,
 ): Promise<IncidentList> {
   const params = new URLSearchParams({
     status: options.status ?? "all",
     limit: String(options.limit ?? 50),
   });
+  const query = options.q?.trim();
+  if (query) params.set("q", query.slice(0, 120));
   const raw = await request<components["schemas"]["IncidentList"]>(
     `/api/incidents?${params}`,
     { signal },
@@ -290,4 +292,21 @@ export async function closeIncident(
     suspects: [],
     faults: [],
   };
+}
+
+/** Append an operator note to the incident timeline. Never changes its status. */
+export async function addIncidentNote(
+  ref: string,
+  text: string,
+  actor = "dashboard",
+): Promise<IncidentEvent> {
+  const raw = await request<components["schemas"]["IncidentEventView"]>(
+    `/api/incidents/${encodeURIComponent(ref)}/notes`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, actor }),
+    },
+  );
+  return { seq: raw.seq, kind: raw.kind, payload: raw.payload ?? {}, at: raw.at };
 }

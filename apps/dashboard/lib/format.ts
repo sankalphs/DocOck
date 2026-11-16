@@ -24,6 +24,36 @@ export function formatClock(iso: string | null | undefined): string {
   return date.toLocaleTimeString([], { hour12: false });
 }
 
+/** Seconds as "45s", "3m 05s", "2h 14m" or "3d 4h"; the two largest units. */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return "—";
+  const total = Math.max(0, Math.floor(seconds));
+  if (total < 60) return `${total}s`;
+  const minutes = Math.floor(total / 60);
+  if (minutes < 60) return `${minutes}m ${String(total % 60).padStart(2, "0")}s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
+/**
+ * Time of day for today, date and time otherwise: an incident list that
+ * spans midnight must not show yesterday's 23:50 as if it were tonight.
+ */
+export function formatWhen(iso: string | null | undefined, now = new Date()): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  const time = date.toLocaleTimeString([], { hour12: false });
+  if (sameDay) return time;
+  const day = date.toLocaleDateString([], { month: "short", day: "numeric" });
+  return `${day} ${time}`;
+}
+
 export function formatNumber(value: number | null | undefined, digits = 0): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;

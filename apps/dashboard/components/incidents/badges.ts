@@ -1,6 +1,6 @@
 import type { IncidentStatus } from "@/lib/api/incidents";
 
-export type BadgeVariant = "success" | "warning" | "destructive" | "secondary";
+export type BadgeVariant = "success" | "warning" | "destructive" | "secondary" | "outline";
 
 export function statusBadge(status: IncidentStatus): BadgeVariant {
   switch (status) {
@@ -38,6 +38,8 @@ export function eventBadge(kind: string): BadgeVariant {
       return "warning";
     case "recovered":
       return "success";
+    case "note":
+      return "outline";
     case "closed":
     case "status":
       return "secondary";

@@ -149,6 +149,9 @@ class ApprovalService:
                 query = query.where(Approval.status == ApprovalStatus.PENDING.value)
             elif status == "decided":
                 query = query.where(Approval.status != ApprovalStatus.PENDING.value)
+            total = int(
+                await session.scalar(select(func.count()).select_from(query.subquery())) or 0
+            )
             rows = (await session.execute(query.order_by(Approval.id.desc()).limit(limit))).all()
             pending = int(
                 await session.scalar(
@@ -160,7 +163,7 @@ class ApprovalService:
             )
             now = datetime.now(UTC)
             items = [approval_view(a, b, c, now=now) for a, b, c in rows]
-        return ApprovalList(items=items, total=len(items), pending=pending, generated_at=now)
+        return ApprovalList(items=items, total=total, pending=pending, generated_at=now)
 
     # --- plan ---------------------------------------------------------------
     async def plan(self, ref: str, request: PlanRequest) -> PlanResult:

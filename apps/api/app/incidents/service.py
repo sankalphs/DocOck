@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Action, Approval, Evidence, Fault, Incident, IncidentEvent, Suspect
@@ -178,13 +178,14 @@ class IncidentService:
         payload: dict[str, Any],
         *,
         publish: bool = True,
+        event_type: str | None = None,
     ) -> IncidentEvent:
         await self._lock(session, incident)
         event = await self._append(session, incident, kind, payload)
         await session.refresh(incident)
         if publish:
             bus.publish(
-                "incident.signal" if kind == "signal" else "incident.transition",
+                event_type or ("incident.signal" if kind == "signal" else "incident.transition"),
                 {
                     "incident_id": incident.public_id,
                     "id": incident.id,
@@ -340,6 +341,26 @@ class IncidentService:
             actor=actor,
         )
 
+    async def add_note(
+        self, session: AsyncSession, incident: Incident, *, actor: str, text: str
+    ) -> IncidentEventView:
+        """An operator's free-text note on the timeline.
+
+        Allowed in every status, including closed ones: a post-incident note is
+        as useful as one written mid-incident. It never changes the status.
+        """
+        body = text.strip()
+        if not body:
+            raise ApiError(422, "note_empty", "a note needs some text")
+        event = await self.append_event(
+            session,
+            incident,
+            "note",
+            {"actor": actor, "text": body},
+            event_type="incident.note",
+        )
+        return _event_view(event)
+
     async def withdraw_pending(
         self, session: AsyncSession, incident: Incident, *, reason: str, keep: int | None = None
     ) -> None:
@@ -406,10 +427,24 @@ class IncidentService:
         *,
         status: str = "all",
         service: str | None = None,
+        search: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> IncidentList:
         query = select(Incident).order_by(Incident.id.desc())
+        term = (search or "").strip()
+        if term:
+            # A literal substring match: % and _ typed by the operator are text.
+            escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
+            query = query.where(
+                or_(
+                    Incident.public_id.ilike(pattern, escape="\\"),
+                    Incident.title.ilike(pattern, escape="\\"),
+                    Incident.primary_service.ilike(pattern, escape="\\"),
+                    Incident.signature.ilike(pattern, escape="\\"),
+                )
+            )
         if status == "open":
             query = query.where(Incident.status.in_([item.value for item in ACTIVE_STATUSES]))
         elif status == "closed":

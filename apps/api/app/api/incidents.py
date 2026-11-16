@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.engine import AnalysisReport, analyzer
@@ -30,13 +31,17 @@ StatusFilter = Literal["all", "open", "closed"]
 @router.get("", response_model=IncidentList, summary="List incidents, newest first")
 async def list_incidents(
     status: StatusFilter = "all",
-    service_name: Annotated[str | None, Query(alias="service")] = None,
+    service_name: Annotated[str | None, Query(alias="service", max_length=64)] = None,
+    q: Annotated[
+        str | None,
+        Query(max_length=120, description="Substring of the id, title, service or signature"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     session: AsyncSession = Depends(get_session),
 ) -> IncidentList:
     return await service.list_incidents(
-        session, status=status, service=service_name, limit=limit, offset=offset
+        session, status=status, service=service_name, search=q, limit=limit, offset=offset
     )
 
 
@@ -80,6 +85,25 @@ async def incident_evidence(
     incident = await service.get(session, ref)
     detail = await service.detail(session, incident)
     return detail.evidence
+
+
+class NoteRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    actor: str = Field(default="operator", min_length=1, max_length=64)
+
+
+@router.post(
+    "/{ref}/notes",
+    response_model=IncidentEventView,
+    status_code=201,
+    summary="Add an operator note to the timeline",
+    description="Notes never change the incident's status and are allowed after it closed.",
+)
+async def add_note(
+    ref: str, request: NoteRequest, session: AsyncSession = Depends(get_session)
+) -> IncidentEventView:
+    incident = await service.get(session, ref)
+    return await service.add_note(session, incident, actor=request.actor, text=request.text)
 
 
 @router.post("/{ref}/close", response_model=IncidentDetail, summary="Manually close")

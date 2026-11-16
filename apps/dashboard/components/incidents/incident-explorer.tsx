@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, RefreshCw, Siren } from "lucide-react";
 
@@ -18,12 +18,21 @@ import {
   type IncidentSummary,
 } from "@/lib/api/incidents";
 import { usePolling } from "@/lib/hooks/use-polling";
-import { formatClock } from "@/lib/format";
+import { formatClock, formatDuration, formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { IncidentDetailPanel } from "@/components/incidents/incident-detail";
 import { severityBadge, statusBadge } from "@/components/incidents/badges";
 
 type Filter = "all" | "open" | "closed";
+
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return settled;
+}
 
 function IncidentRow({
   incident,
@@ -59,7 +68,7 @@ function IncidentRow({
         <span className="font-mono">{incident.primary_service ?? "—"}</span>
         <span>·</span>
         <span>
-          {formatClock(incident.opened_at)} · {incident.duration_s ?? 0}s
+          {formatWhen(incident.opened_at)} · {formatDuration(incident.duration_s)}
         </span>
         {incident.evidence_count > 0 ? (
           <span className="ml-auto">{incident.evidence_count} evidence</span>
@@ -73,16 +82,22 @@ export function IncidentExplorer() {
   const { stream } = useLive();
   const lastEvent = stream.events.find((event) => event.type.startsWith("incident."));
   const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const query = useDebounced(search.trim(), 300);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const listFetcher = useCallback(
-    (signal: AbortSignal) => fetchIncidents({ status: filter, limit: 50 }, signal),
-    [filter],
+    (signal: AbortSignal) => fetchIncidents({ status: filter, limit: 50, q: query }, signal),
+    [filter, query],
   );
-  const list = usePolling(`incidents:${filter}:${lastEvent?.id ?? 0}`, listFetcher, 5000);
+  const list = usePolling(
+    `incidents:${filter}:${query}:${lastEvent?.id ?? 0}`,
+    listFetcher,
+    5000,
+  );
   const items = list.data?.items ?? [];
   const selected = selectedId ?? items[0]?.public_id ?? null;
 
@@ -97,12 +112,17 @@ export function IncidentExplorer() {
     5000,
   );
 
-  const handleClose = async () => {
-    if (!selected) return;
+  // The polled detail lags a selection change by one request; showing it would
+  // label incident B's buttons with incident A's data.
+  const shown = detail.data && detail.data.public_id === selected ? detail.data : null;
+
+  // Act on the incident the panel shows, never on `selected`: right after a click
+  // in the list the panel can still hold the previous incident's data.
+  const handleClose = async (ref: string) => {
     setClosing(true);
     setActionError(null);
     try {
-      await closeIncident(selected, "dashboard", "closed from the Incidents screen");
+      await closeIncident(ref, "dashboard", "closed from the Incidents screen");
       list.refresh();
       detail.refresh();
     } catch (exc) {
@@ -112,12 +132,11 @@ export function IncidentExplorer() {
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!selected) return;
+  const handleAnalyze = async (ref: string) => {
     setAnalyzing(true);
     setActionError(null);
     try {
-      await analyzeIncident(selected);
+      await analyzeIncident(ref);
       list.refresh();
       detail.refresh();
     } catch (exc) {
@@ -141,7 +160,7 @@ export function IncidentExplorer() {
             </CardTitle>
             <CardDescription>
               {list.data
-                ? `${list.data.total} total · detector every 10 s · updated ${
+                ? `${list.data.total} ${query ? "matching" : "total"} · detector every 10 s · updated ${
                     list.updatedAt
                       ? formatClock(new Date(list.updatedAt).toISOString())
                       : "—"
@@ -173,6 +192,16 @@ export function IncidentExplorer() {
             ))}
           </div>
 
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search id, title, service, signature"
+            maxLength={120}
+            aria-label="Search incidents"
+            className="mb-3 h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+          />
+
           {list.error ? (
             <p className="mb-2 text-[11px] text-destructive">{list.error}</p>
           ) : null}
@@ -193,6 +222,10 @@ export function IncidentExplorer() {
               {Array.from({ length: 4 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 rounded-lg" />
               ))}
+            </div>
+          ) : query ? (
+            <div className="rounded-lg border border-dashed border-border/70 px-3 py-6 text-center text-xs text-muted-foreground">
+              No incidents match “{query}”.
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border/70 px-3 py-6 text-center text-xs text-muted-foreground">
@@ -220,20 +253,26 @@ export function IncidentExplorer() {
             {actionError}
           </p>
         ) : null}
-        {detail.data ? (
+        {shown ? (
           <IncidentDetailPanel
-            incident={detail.data}
+            key={shown.public_id}
+            incident={shown}
             busy={closing}
             analyzing={analyzing}
             onClose={handleClose}
             onAnalyze={handleAnalyze}
             onRefresh={detail.refresh}
           />
+        ) : selected && !detail.error ? (
+          <div className="space-y-4" aria-busy="true" aria-label={`Loading ${selected}`}>
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-64 rounded-xl" />
+          </div>
         ) : (
           <Card>
             <CardHeader>
               <div>
-                <CardTitle>Select an incident</CardTitle>
+                <CardTitle>{detail.error ? "Could not load the incident" : "Select an incident"}</CardTitle>
                 <CardDescription>
                   The aggregate includes the trigger, the timeline, related faults, and (from P9)
                   evidence and suspects.

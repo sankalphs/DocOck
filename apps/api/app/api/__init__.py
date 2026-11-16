@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 from app.api import (
     agent,
     approvals,
+    attention,
     detection,
     events,
     faults,
@@ -27,6 +28,7 @@ from app.ratelimit import rate_limit
 # Every route passes the rate limiter; it counts writes only (app/ratelimit.py).
 api_router = APIRouter(prefix="/api", dependencies=[Depends(rate_limit)])
 api_router.include_router(health.router)
+api_router.include_router(attention.router)
 api_router.include_router(events.router)
 api_router.include_router(telemetry.router)
 api_router.include_router(faults.router)

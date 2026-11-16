@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PollState<T> = {
   data: T | null;
@@ -13,6 +13,12 @@ export type PollState<T> = {
  * Poll a fetcher on an interval and expose the last good value plus the last
  * error. Keeps showing stale data while a refresh fails — an operator console
  * that blanks out on one dropped poll is useless.
+ *
+ * - At most one request is in flight per key: a slow upstream (Jaeger under a
+ *   latency fault) must not stack requests whose answers land out of order and
+ *   overwrite a newer value with an older one.
+ * - Hidden tabs skip their ticks, and the moment the tab is visible again it
+ *   refreshes instead of showing data up to one interval old.
  */
 export function usePolling<T>(
   key: string,
@@ -20,7 +26,9 @@ export function usePolling<T>(
   intervalMs = 5000,
 ): PollState<T> & { refresh: () => void } {
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
   const [state, setState] = useState<PollState<T>>({
     data: null,
@@ -32,10 +40,13 @@ export function usePolling<T>(
 
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
     const controller = new AbortController();
 
     const run = async () => {
       if (typeof document !== "undefined" && document.hidden) return;
+      if (inFlight) return;
+      inFlight = true;
       try {
         const data = await fetcherRef.current(controller.signal);
         if (cancelled) return;
@@ -48,18 +59,31 @@ export function usePolling<T>(
           error: error instanceof Error ? error.message : "Request failed",
           loading: false,
         }));
+      } finally {
+        inFlight = false;
       }
+    };
+
+    const onVisible = () => {
+      if (!document.hidden) void run();
     };
 
     void run();
     const timer = setInterval(run, intervalMs);
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisible);
+    }
 
     return () => {
       cancelled = true;
       controller.abort();
       clearInterval(timer);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisible);
+      }
     };
   }, [key, intervalMs, nonce]);
 
-  return { ...state, refresh: () => setNonce((value) => value + 1) };
+  const refresh = useCallback(() => setNonce((value) => value + 1), []);
+  return { ...state, refresh };
 }

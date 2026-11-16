@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open incidents, pending approvals and active faults (counts) */
+        get: operations["attention_api_attention_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events": {
         parameters: {
             query?: never;
@@ -349,6 +366,26 @@ export interface paths {
         get: operations["incident_evidence_api_incidents__ref__evidence_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/incidents/{ref}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an operator note to the timeline
+         * @description Notes never change the incident's status and are allowed after it closed.
+         */
+        post: operations["add_note_api_incidents__ref__notes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1188,6 +1225,23 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** Attention */
+        Attention: {
+            /** Open Incidents */
+            open_incidents: number;
+            /** Pending Approvals */
+            pending_approvals: number;
+            /** Active Faults */
+            active_faults: number;
+            /** Worst Severity */
+            worst_severity: string | null;
+            latest_incident: components["schemas"]["OpenIncidentRef"] | null;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** AuditEntry */
         AuditEntry: {
@@ -2226,6 +2280,32 @@ export interface components {
             cost_usd: number;
             latency_ms: components["schemas"]["Distribution"];
         };
+        /** NoteRequest */
+        NoteRequest: {
+            /** Text */
+            text: string;
+            /**
+             * Actor
+             * @default operator
+             */
+            actor: string;
+        };
+        /** OpenIncidentRef */
+        OpenIncidentRef: {
+            /** Public Id */
+            public_id: string;
+            /** Status */
+            status: string;
+            /** Severity */
+            severity: string;
+            /** Title */
+            title: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+        };
         /**
          * ParamKind
          * @enum {string}
@@ -2850,6 +2930,26 @@ export interface operations {
             };
         };
     };
+    attention_api_attention_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attention"];
+                };
+            };
+        };
+    };
     events_api_events_get: {
         parameters: {
             query?: {
@@ -3326,6 +3426,8 @@ export interface operations {
             query?: {
                 status?: "all" | "open" | "closed";
                 service?: string | null;
+                /** @description Substring of the id, title, service or signature */
+                q?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -3468,6 +3570,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_note_api_incidents__ref__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentEventView"];
                 };
             };
             /** @description Validation Error */

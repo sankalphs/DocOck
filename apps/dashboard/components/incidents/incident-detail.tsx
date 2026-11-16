@@ -1,15 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Activity, ArrowRight, Bot, Check, Clock, RefreshCw, X } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  Bot,
+  Check,
+  Clock,
+  MessageSquarePlus,
+  RefreshCw,
+  X,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { suspectSignals, type IncidentDetail } from "@/lib/api/incidents";
+import { addIncidentNote, suspectSignals, type IncidentDetail } from "@/lib/api/incidents";
 import { eventBadge, severityBadge, statusBadge } from "@/components/incidents/badges";
-import { formatClock } from "@/lib/format";
+import { formatClock, formatDuration, formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 function metric(value: number | null, signal: string): string {
@@ -17,6 +26,48 @@ function metric(value: number | null, signal: string): string {
   if (signal === "error_rate") return `${(value * 100).toFixed(1)}%`;
   if (signal === "p95_latency") return `${value.toFixed(0)} ms`;
   return value.toFixed(2);
+}
+
+function NoteForm({ incidentRef, onAdded }: { incidentRef: string; onAdded: () => void }) {
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!text.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await addIncidentNote(incidentRef, text.trim());
+      setText("");
+      onAdded();
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "Could not save the note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="mb-3 space-y-1.5">
+      <div className="flex gap-2">
+        <input
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="Add a note to the timeline"
+          maxLength={2000}
+          aria-label={`Note for ${incidentRef}`}
+          className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs"
+        />
+        <Button type="submit" size="sm" variant="outline" disabled={!text.trim() || saving}>
+          <MessageSquarePlus className="size-3.5" aria-hidden />
+          {saving ? "Saving…" : "Note"}
+        </Button>
+      </div>
+      {error ? <p className="text-[11px] text-destructive">{error}</p> : null}
+    </form>
+  );
 }
 
 function payloadSummary(payload: Record<string, unknown>): string {
@@ -38,8 +89,8 @@ export function IncidentDetailPanel({
   incident: IncidentDetail;
   busy: boolean;
   analyzing: boolean;
-  onClose: () => void;
-  onAnalyze: () => void;
+  onClose: (ref: string) => void;
+  onAnalyze: (ref: string) => void;
   onRefresh: () => void;
 }) {
   const [confirmClose, setConfirmClose] = useState(false);
@@ -75,9 +126,9 @@ export function IncidentDetailPanel({
                   · signature <code className="font-mono text-[10px]">{incident.signature}</code>
                 </>
               ) : null}{" "}
-              · opened {formatClock(incident.opened_at)}
-              {incident.closed_at ? ` · closed ${formatClock(incident.closed_at)}` : ""} · duration{" "}
-              {incident.duration_s ?? 0}s
+              · opened {formatWhen(incident.opened_at)}
+              {incident.closed_at ? ` · closed ${formatWhen(incident.closed_at)}` : ""} · duration{" "}
+              {formatDuration(incident.duration_s)}
             </CardDescription>
             {incident.services.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1">
@@ -89,11 +140,16 @@ export function IncidentDetailPanel({
               </div>
             ) : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onRefresh} title="Refresh">
               <RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
             </Button>
-            <Button variant="default" size="sm" onClick={onAnalyze} disabled={analyzing}>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onAnalyze(incident.public_id)}
+              disabled={analyzing}
+            >
               <Activity className={cn("size-3.5", analyzing && "animate-pulse")} />
               {analyzing ? "Analyzing…" : "Analyze"}
             </Button>
@@ -107,7 +163,12 @@ export function IncidentDetailPanel({
             {!terminal ? (
               confirmClose ? (
                 <>
-                  <Button variant="destructive" size="sm" onClick={onClose} disabled={busy}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => onClose(incident.public_id)}
+                    disabled={busy}
+                  >
                     <Check className="size-3.5" />
                     Confirm close
                   </Button>
@@ -194,6 +255,7 @@ export function IncidentDetailPanel({
             </div>
           </CardHeader>
           <CardContent>
+            <NoteForm incidentRef={incident.public_id} onAdded={onRefresh} />
             <ol className="space-y-2">
               {incident.events.map((event) => (
                 <li key={event.seq} className="flex gap-2">
@@ -218,9 +280,18 @@ export function IncidentDetailPanel({
                         {String(event.payload.to)}
                       </p>
                     ) : null}
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                      {payloadSummary(event.payload)}
-                    </p>
+                    {event.kind === "note" ? (
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[11px]">
+                        <span className="font-medium">
+                          {String(event.payload.actor ?? "operator")}:
+                        </span>{" "}
+                        {String(event.payload.text ?? "")}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                        {payloadSummary(event.payload)}
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}
