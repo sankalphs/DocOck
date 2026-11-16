@@ -3,7 +3,7 @@ import { request } from "./client";
 export type AutopilotDecision = {
   at: string;
   incident: string;
-  kind: "investigate" | "remediate" | "escalate" | string;
+  kind: "investigate" | "remediate" | "observe" | "recheck" | "escalate" | string;
   detail: string;
   auto_approved?: boolean;
 };
