@@ -628,6 +628,11 @@ incident.opened ─(AUTOPILOT_INVESTIGATE_DELAY_S)─► agent run
   that hung during the partition opened a second incident, whose fallback
   restart then caused a third (recommendation errors while product-catalog
   restarted).
+- **Aftershocks**: an incident with no drift whose only rungs are fallback
+  restarts, opened within `DETECTOR_COOLDOWN_S` of a resolved incident on the
+  same services, is observed instead of restarted; the detector closes it when
+  the tail clears. Slow-burn is off while an incident is open and restarts its
+  window the cycle an incident closes.
 - **API restarts**: detector reports carry `warm`; a resumed verification skips
   warm-up cycles (whose breach list is empty by construction) and extends its
   window by the same amount.

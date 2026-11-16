@@ -227,14 +227,6 @@ class Detector:
         error_count = await self._instant("error_count")
         p95 = await self._instant("p95_latency")
         throughput = await self._instant("throughput")
-        elapsed = None if self._slow_reset is None else (now - self._slow_reset).total_seconds()
-        slow_window = slow_window_for(elapsed, self.rules)
-        slow_rate: dict[str, float] = {}
-        slow_count: dict[str, float] = {}
-        if slow_window is not None:
-            slow_rate = await self._instant("error_rate", window=slow_window)
-            slow_count = await self._instant("error_count", window=slow_window)
-        slow_rules = replace(self.rules, min_errors=self.rules.slow_min_errors)
         containers = {
             info.service: info
             for info in await self.docker.containers(include_stats=False)
@@ -271,6 +263,24 @@ class Detector:
             self.store.freeze(now)
         else:
             self.store.thaw(now)
+        # An incident just closed: restart the slow-burn window *before* this
+        # cycle queries it. Its 10 minutes still hold the fixed problem's
+        # errors, and the streak it built while the incident was open would
+        # otherwise open a second incident the moment the first one closes.
+        if self._open_last and not frozen:
+            self._slow_reset = now
+        self._open_last = frozen
+        elapsed = None if self._slow_reset is None else (now - self._slow_reset).total_seconds()
+        # Slow burn only opens incidents. While one is open its 10-minute window
+        # still holds the errors of the problem being fixed and would hold a
+        # low-traffic service in breach through its whole verification.
+        slow_window = None if frozen else slow_window_for(elapsed, self.rules)
+        slow_rate: dict[str, float] = {}
+        slow_count: dict[str, float] = {}
+        if slow_window is not None:
+            slow_rate = await self._instant("error_rate", window=slow_window)
+            slow_count = await self._instant("error_count", window=slow_window)
+        slow_rules = replace(self.rules, min_errors=self.rules.slow_min_errors)
         for service in sorted(services):
             rate = error_rate.get(service)
             errors = error_count.get(service)
@@ -481,9 +491,6 @@ class Detector:
         async with SessionFactory() as session:
             open_incident = await self.incidents.latest_open(session)
             has_open = open_incident is not None and is_active(IncidentStatus(open_incident.status))
-            if self._open_last and not has_open:
-                self._slow_reset = now
-            self._open_last = has_open
             if open_incident is not None and has_open:
                 attached = await self._attach(session, open_incident, active)
                 report.attached = attached

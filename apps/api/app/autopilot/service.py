@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -81,6 +81,7 @@ class Autopilot:
         self.last_sweep: datetime | None = None
         self.decisions: list[dict[str, Any]] = []
         self._rechecked: set[str] = set()
+        self._observing: set[str] = set()
 
     @property
     def enabled(self) -> bool:
@@ -367,6 +368,19 @@ class Autopilot:
             )
         )
         ladder = [c for c in ladder if risk_at_most(c.risk, settings.autopilot_max_risk)]
+        if ladder and not attempts and all(c.source == "fallback" for c in ladder):
+            after = await self._aftershock_of(ref, trigger)
+            if after is not None:
+                if ref not in self._observing:
+                    self._observing.add(ref)
+                    self._decide(
+                        ref,
+                        "observe",
+                        f"no drift and opened right after {after} was fixed on the same "
+                        "services: waiting for the tail of that problem to clear instead of "
+                        "a blind restart (the detector closes it if it does)",
+                    )
+                return
         choice = await self.planner.choose(
             ladder,
             incident={"id": ref, "status": status, "primary": primary, "trigger": trigger},
@@ -435,6 +449,33 @@ class Autopilot:
         await self.escalate(
             ref, "every remediation candidate was refused by its preconditions", attempts, skipped
         )
+
+    async def _aftershock_of(self, ref: str, services: list[str]) -> str | None:
+        """A resolved incident on the same services within the alert cooldown.
+
+        Its symptoms (hung calls finishing, a 2-minute rate window draining)
+        can outlive its verification. Restarting a healthy service on that
+        evidence is what turned one fixed CPU cap into two more incidents.
+        """
+        cutoff = datetime.now(UTC) - timedelta(seconds=settings.detector_cooldown_s)
+        async with SessionFactory() as session:
+            rows = (
+                await session.execute(
+                    select(Incident).where(
+                        Incident.status == IncidentStatus.RESOLVED.value,
+                        Incident.closed_at >= cutoff,
+                        Incident.public_id != ref,
+                    )
+                )
+            ).scalars()
+            mine = set(services)
+            for row in rows:
+                theirs = {str(s) for s in ((row.trigger or {}).get("services") or [])}
+                if row.primary_service:
+                    theirs.add(row.primary_service)
+                if mine & theirs:
+                    return row.public_id
+        return None
 
     async def _recheck(
         self, ref: str, status: str, actions: list[Action], drift: list[Any]
